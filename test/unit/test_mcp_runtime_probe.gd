@@ -4,13 +4,18 @@ var _probe: Node = null
 
 func before_each():
 	_probe = load("res://addons/godot_mcp/runtime/mcp_runtime_probe.gd").new()
-	add_child(_probe)
+	add_child_autofree(_probe)
 
 func after_each():
-	if _probe and _probe.get_parent():
-		remove_child(_probe)
-		_probe.queue_free()
 	_probe = null
+
+func test_runtime_node_protection_accepts_active_probe():
+	assert_true(_probe._is_protected_runtime_node(_probe), "The active runtime probe must be protected")
+
+func test_runtime_node_protection_rejects_regular_node():
+	var regular_node: Node = Node.new()
+	add_child_autofree(regular_node)
+	assert_false(_probe._is_protected_runtime_node(regular_node), "An ordinary runtime node must remain deletable")
 
 func test_serialize_animation_tree_state_basic():
 	var anim_tree := AnimationTree.new()

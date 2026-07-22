@@ -8,6 +8,17 @@ func before_each():
 func after_each():
 	_plugin_script = null
 
+func _get_function_source(function_name: String) -> String:
+	var source_code: String = _plugin_script.source_code
+	var start_marker: String = "func " + function_name + "("
+	var start_index: int = source_code.find(start_marker)
+	if start_index < 0:
+		return ""
+	var next_function_index: int = source_code.find("\nfunc ", start_index + start_marker.length())
+	if next_function_index < 0:
+		return source_code.substr(start_index)
+	return source_code.substr(start_index, next_function_index - start_index)
+
 func test_plugin_script_loads():
 	assert_ne(_plugin_script, null, "Plugin script should load successfully")
 
@@ -132,6 +143,30 @@ func test_autoload_registered_in_enter_tree():
 	assert_true(register_pos < autoload_pos, "_ensure_runtime_probe_autoload should be called AFTER _register_all_tools")
 	assert_true(autoload_pos < panel_pos, "_ensure_runtime_probe_autoload should be called BEFORE _create_main_screen_panel")
 
-func test_autoload_removed_in_exit_tree():
-	var source_code: String = _plugin_script.source_code
-	assert_true(source_code.contains("_remove_runtime_probe_autoload"), "_exit_tree should call _remove_runtime_probe_autoload")
+func test_autoload_removed_only_when_plugin_is_disabled():
+	var method_names: Array = _plugin_script.get_script_method_list().map(func(method): return method["name"])
+	assert_true(method_names.has("_disable_plugin"), "Plugin should define _disable_plugin")
+	var disable_source: String = _get_function_source("_disable_plugin")
+	var exit_source: String = _get_function_source("_exit_tree")
+	assert_true(disable_source.contains("_remove_runtime_probe_autoload"), "Disabling the plugin should remove its runtime probe Autoload")
+	assert_false(exit_source.contains("_remove_runtime_probe_autoload"), "Editor shutdown should not remove the runtime probe Autoload")
+
+func test_runtime_probe_autoload_value_accepts_expected_path():
+	assert_true(
+		_plugin_script._is_runtime_probe_autoload_value("*res://addons/godot_mcp/runtime/mcp_runtime_probe.gd"),
+		"Expected singleton Autoload path should match"
+	)
+	assert_true(
+		_plugin_script._is_runtime_probe_autoload_value("res://addons/godot_mcp/runtime/mcp_runtime_probe.gd"),
+		"Expected non-prefixed Autoload path should match"
+	)
+	assert_true(
+		_plugin_script._is_runtime_probe_autoload_value("*uid://bsg12huaf1u5i"),
+		"Godot-normalized UID Autoload path should match"
+	)
+
+func test_runtime_probe_autoload_value_rejects_foreign_path():
+	assert_false(
+		_plugin_script._is_runtime_probe_autoload_value("*res://autoload/user_runtime_probe.gd"),
+		"A foreign Autoload with the same name must not be treated as plugin-owned"
+	)
