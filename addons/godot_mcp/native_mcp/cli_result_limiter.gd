@@ -2,6 +2,7 @@ class_name CliResultLimiter
 extends RefCounted
 
 const DEFAULT_MAX_BYTES: int = 65536
+const DEFAULT_LIST_LIMIT: int = 50
 const MAX_MAX_BYTES: int = 4 * 1024 * 1024
 const COLLECTION_KEYS: PackedStringArray = [
 	"resources", "scripts", "scenes", "logs", "nodes", "tools",
@@ -10,7 +11,11 @@ const COLLECTION_KEYS: PackedStringArray = [
 
 func apply(value: Variant, options: Dictionary = {}) -> Dictionary:
 	var fields: PackedStringArray = _parse_fields(options.get("fields", PackedStringArray()))
-	var limit: int = maxi(int(options.get("limit", 0)), 0)
+	var limit: int = DEFAULT_LIST_LIMIT
+	if options.has("limit"):
+		limit = int(options["limit"])
+		if limit <= 0:
+			return {"error": {"code": "INVALID_ARGUMENT", "message": "limit must be greater than zero"}}
 	var cursor: int = maxi(int(str(options.get("cursor", "0"))), 0)
 	var depth: int = int(options.get("depth", -1))
 	var max_bytes: int = clampi(int(options.get("max_bytes", DEFAULT_MAX_BYTES)), 1024, MAX_MAX_BYTES)
@@ -49,12 +54,20 @@ func _paginate(value: Variant, limit: int, cursor: int) -> Dictionary:
 		var source: Dictionary = value
 		for key in COLLECTION_KEYS:
 			if source.get(key) is Array:
-				var sliced: Dictionary = _slice_array(source[key], limit, cursor)
+				var source_array: Array = source[key]
+				var backend_paged: bool = source.has("total_available") and int(source["total_available"]) > source_array.size()
+				var slice_cursor: int = 0 if backend_paged else cursor
+				var sliced: Dictionary = _slice_array(source_array, limit, slice_cursor)
 				var result: Dictionary = source.duplicate(true)
 				result[key] = sliced["data"]
 				if result.has("count"):
 					result["count"] = (sliced["data"] as Array).size()
-				return {"data": result, "next_cursor": sliced["next_cursor"]}
+				var next_cursor: String = str(sliced["next_cursor"])
+				if source.has("total_available"):
+					var next_offset: int = cursor + (sliced["data"] as Array).size()
+					if int(source["total_available"]) > next_offset:
+						next_cursor = str(next_offset)
+				return {"data": result, "next_cursor": next_cursor}
 	return {"data": value, "next_cursor": ""}
 
 func _slice_array(value: Array, limit: int, cursor: int) -> Dictionary:
