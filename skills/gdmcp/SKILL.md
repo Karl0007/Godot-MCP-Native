@@ -6,6 +6,7 @@ description: Use the installed gdmcp CLI to inspect, edit, run, and debug a Godo
 # gdmcp
 
 Use `gdmcp` from the shell for operations that require the running Godot editor.
+By default, invoke the project-local CLI from the project root at `.\.gdmcp\bin\gdmcp.exe` in PowerShell; the `gdmcp` command in the examples below is shorthand for this path. Use a PATH-installed `gdmcp` only as an explicit fallback when the local executable is unavailable.
 
 Start with:
 
