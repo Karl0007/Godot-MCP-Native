@@ -123,7 +123,7 @@ if (-not $DryRun) {
     if (Test-Path $staging) { Remove-Item -Recurse -Force $staging }
     New-Item -Path "$staging\addons" -ItemType Directory -Force | Out-Null
     Copy-Item -Recurse -Force "$RepoRoot\addons\godot_mcp" "$staging\addons\godot_mcp"
-    Compress-Archive -Path "$staging\addons" -DestinationPath $PluginZip -Force
+    Compress-Archive -Path "$staging\godot-mcp-native-$Version" -DestinationPath $PluginZip -Force
     Remove-Item -Recurse -Force $staging
     Write-Host "  $PluginZip"
 } else {
