@@ -23,7 +23,8 @@ jobs:
           TARGET_SHA: 97727060fac5fa570dbcf1ae0b8814a64cf0d6e0
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          git merge-base --is-ancestor "$TARGET_SHA" HEAD
+          test "$(git diff --name-only "$TARGET_SHA..HEAD" | sort -u)" = ".github/workflows/retarget-v1.0.8.yml"
           git tag --force v1.0.8 "$TARGET_SHA"
           git push origin refs/tags/v1.0.8 --force
           test "$(git ls-remote origin refs/tags/v1.0.8 | awk '{print $1}')" = "$TARGET_SHA"
