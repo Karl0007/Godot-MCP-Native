@@ -1,0 +1,29 @@
+name: Retarget v1.0.8
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/retarget-v1.0.8.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  retarget:
+    if: github.event.head_commit.message == 'chore: retarget v1.0.8 tag'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Move v1.0.8 to the verified main commit
+        env:
+          TARGET_SHA: 97727060fac5fa570dbcf1ae0b8814a64cf0d6e0
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          git tag --force v1.0.8 "$TARGET_SHA"
+          git push origin refs/tags/v1.0.8 --force
+          test "$(git ls-remote origin refs/tags/v1.0.8 | awk '{print $1}')" = "$TARGET_SHA"
