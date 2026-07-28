@@ -38,6 +38,11 @@ func test_search_returns_compact_results() -> void:
 	assert_eq(response["body"]["data"]["tools"][0]["name"], "echo")
 	assert_false(response["body"]["data"]["tools"][0].has("input_schema"))
 
+func test_doctor_reports_plugin_cfg_version() -> void:
+	var response: Dictionary = await _handler.handle_request("GET", "/cli/v1/doctor", {}, "")
+	assert_eq(response["status"], 200)
+	assert_eq(response["body"]["plugin_version"], "1.0.8")
+
 func test_search_rejects_zero_limit() -> void:
 	var response: Dictionary = await _handler.handle_request("GET", "/cli/v1/tools/search?q=echo&limit=0", {}, "")
 	assert_eq(response["status"], 400)

@@ -31,6 +31,14 @@ func test_infer_log_type_godot_format():
 	assert_eq(_debug_tools._infer_log_type_from_line("  ERROR: core/variant/variant_utility.cpp:1024 - message"), "Error", "Godot ERROR format should be Error")
 	assert_eq(_debug_tools._infer_log_type_from_line("  WARNING: core/variant/variant_utility.cpp:1034 - message"), "Warning", "Godot WARNING format should be Warning")
 
+func test_infer_log_type_trims_leading_whitespace():
+	assert_eq(_debug_tools._infer_log_type_from_line("\tSCRIPT ERROR: parser failure"), "Error", "Indented SCRIPT ERROR should be Error")
+	assert_eq(_debug_tools._infer_log_type_from_line("  WARN parser warning"), "Warning", "Indented WARN should be Warning")
+
+func test_infer_log_type_handles_godot_thin_space_prefix():
+	var godot_warning: String = String.chr(0x2009) + "WARNING: core/variant/variant_utility.cpp:1033 - warning"
+	assert_eq(_debug_tools._infer_log_type_from_line(godot_warning), "Warning", "Godot thin-space WARNING should be Warning")
+
 func test_get_editor_panel_logs_no_editor():
 	var result: Dictionary = _debug_tools._get_editor_panel_logs([], 100, 0, "desc")
 	assert_has(result, "source", "Should have source field")
@@ -55,6 +63,34 @@ func test_find_tree_control_returns_null():
 	var result = _debug_tools._find_tree_control(control)
 	assert_null(result, "Should return null when no Tree")
 	control.free()
+
+func test_find_editor_log_panel_matches_localized_labels():
+	var base: Control = Control.new()
+	add_child_autofree(base)
+	var error_panel: Control = Control.new()
+	error_panel.name = String.chr(0x9519) + String.chr(0x8BEF) + " (1)"
+	base.add_child(error_panel)
+	var warning_panel: Control = Control.new()
+	warning_panel.name = String.chr(0x8B66) + String.chr(0x544A) + " (2)"
+	base.add_child(warning_panel)
+
+	assert_eq(_debug_tools._find_editor_log_panel(base, "error"), error_panel, "Should match localized error panel labels")
+	assert_eq(_debug_tools._find_editor_log_panel(base, "warning"), warning_panel, "Should match localized warning panel labels")
+
+func test_append_editor_tree_logs_preserves_panel_type():
+	var panel: Control = Control.new()
+	add_child_autofree(panel)
+	var tree: Tree = Tree.new()
+	tree.columns = 1
+	panel.add_child(tree)
+	var root_item: TreeItem = tree.create_item()
+	var warning_item: TreeItem = tree.create_item(root_item)
+	warning_item.set_text(0, "Warning row")
+	var parsed_lines: Array[Dictionary] = []
+
+	assert_true(_debug_tools._append_editor_tree_logs(panel, "Warning", parsed_lines), "Should collect tree rows")
+	assert_eq(parsed_lines.size(), 1, "Should collect one tree row")
+	assert_eq(parsed_lines[0].type, "Warning", "Should preserve the panel log type")
 
 func test_find_script_editor_debugger_found():
 	# Create a mock ScriptEditorDebugger node and verify it is found by its class name

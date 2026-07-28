@@ -174,7 +174,7 @@ func _register_get_editor_logs(server_core: RefCounted) -> void:
 			"type": {
 				"type": "array",
 				"items": {"type": "string"},
-				"description": "Filter by log types (e.g. ['Error', 'Warning', 'Info']). Only applies to MCP source. Empty array returns all."
+				"description": "Filter by log types (e.g. ['Error', 'Warning', 'Info']). Applies to MCP and editor_panel sources. Empty array returns all."
 			},
 			"count": {
 				"type": "integer",
@@ -3695,6 +3695,77 @@ func _find_script_editor_debugger(base: Node) -> Node:
 			pending.append(child)
 	return null
 
+func _normalize_editor_panel_name(value: String) -> String:
+	var normalized: String = value.strip_edges().to_lower()
+	var count_marker: int = normalized.find(" (")
+	if count_marker >= 0:
+		normalized = normalized.substr(0, count_marker)
+	return normalized.strip_edges()
+
+func _get_editor_panel_label_tokens(panel_kind: String) -> Array[String]:
+	var labels: PackedStringArray = ["Errors", "Error"]
+	if panel_kind == "warning":
+		labels = ["Warnings", "Warning"]
+
+	var tokens: Array[String] = []
+	for label: String in labels:
+		var source_token: String = _normalize_editor_panel_name(label)
+		if not source_token.is_empty() and not tokens.has(source_token):
+			tokens.append(source_token)
+		var translated_token: String = _normalize_editor_panel_name(TranslationServer.translate(label))
+		if not translated_token.is_empty() and not tokens.has(translated_token):
+			tokens.append(translated_token)
+
+	# Godot editor translations may not be loaded when the plugin starts.
+	# Keep the common Chinese labels as code points so source files remain ASCII-only.
+	if panel_kind == "warning":
+		tokens.append(String.chr(0x8B66) + String.chr(0x544A))
+	else:
+		tokens.append(String.chr(0x9519) + String.chr(0x8BEF))
+	return tokens
+
+func _find_editor_log_panel(base: Node, panel_kind: String) -> Node:
+	var tokens: Array[String] = _get_editor_panel_label_tokens(panel_kind)
+	var pending: Array[Node] = [base]
+	while not pending.is_empty():
+		var node: Node = pending.pop_back()
+		var normalized_name: String = _normalize_editor_panel_name(str(node.name))
+		for token: String in tokens:
+			if not token.is_empty() and normalized_name.contains(token):
+				return node
+		for child in node.get_children():
+			pending.append(child)
+	return null
+
+func _append_editor_tree_logs(panel: Node, log_type: String, parsed_lines: Array[Dictionary]) -> bool:
+	var error_tree: Tree = _find_tree_control(panel)
+	if not error_tree:
+		return false
+	var root_item: TreeItem = error_tree.get_root()
+	if not root_item:
+		return false
+
+	var found_logs: bool = false
+	var item: TreeItem = root_item.get_first_child()
+	while item:
+		var error_text: String = ""
+		for col in range(error_tree.get_columns()):
+			var col_text: String = item.get_text(col)
+			if not col_text.is_empty():
+				if not error_text.is_empty():
+					error_text += " | "
+				error_text += col_text
+		if not error_text.is_empty():
+			parsed_lines.append({
+				"index": parsed_lines.size(),
+				"message": error_text,
+				"type": log_type,
+				"panel": "script_errors"
+			})
+			found_logs = true
+		item = item.get_next()
+	return found_logs
+
 func _get_editor_panel_logs(types: Array, count: int, offset: int, order: String) -> Dictionary:
 	var editor_interface: EditorInterface = _get_editor_interface()
 	if not editor_interface:
@@ -3714,31 +3785,20 @@ func _get_editor_panel_logs(types: Array, count: int, offset: int, order: String
 					var text_line: String = text_lines[j].strip_edges()
 					if text_line.is_empty(): continue
 					parsed_lines.append({'index': parsed_lines.size(), 'message': text_line, 'type': _infer_log_type_from_line(text_line), 'panel': 'output'})
-	var errors_panel: Node = base_control.find_child('*Errors*', true, false)
-	if not errors_panel:
-		errors_panel = base_control.find_child('*Error*', true, false)
-	if not errors_panel:
+	var error_panel: Node = _find_editor_log_panel(base_control, "error")
+	var warning_panel: Node = _find_editor_log_panel(base_control, "warning")
+	var tree_logs_found: bool = false
+	if error_panel:
+		tree_logs_found = _append_editor_tree_logs(error_panel, "Error", parsed_lines) or tree_logs_found
+	if warning_panel and warning_panel != error_panel:
+		tree_logs_found = _append_editor_tree_logs(warning_panel, "Warning", parsed_lines) or tree_logs_found
+	if not tree_logs_found:
 		var script_debugger: Node = _find_script_editor_debugger(base_control)
 		if script_debugger:
-			errors_panel = script_debugger
-	if errors_panel:
-		var error_tree: Tree = _find_tree_control(errors_panel)
-		if error_tree:
-			var root_item: TreeItem = error_tree.get_root()
-			if root_item:
-				var item: TreeItem = root_item.get_first_child()
-				while item:
-					var error_text: String = ''
-					for col in range(error_tree.get_columns()):
-						var col_text: String = item.get_text(col)
-						if not col_text.is_empty():
-							if not error_text.is_empty(): error_text += ' | '
-							error_text += col_text
-					if not error_text.is_empty():
-						parsed_lines.append({'index': parsed_lines.size(), 'message': error_text, 'type': 'Error', 'panel': 'script_errors'})
-					item = item.get_next()
+			tree_logs_found = _append_editor_tree_logs(script_debugger, "Error", parsed_lines)
 	# Fallback: try reading the editor log file directly when UI panels have no data
-	if parsed_lines.is_empty():
+	var requests_error_logs: bool = types.is_empty() or types.has("Error") or types.has("Warning")
+	if parsed_lines.is_empty() or (requests_error_logs and not tree_logs_found):
 		var editor_log_path: String = ""
 		if OS.has_feature("windows"):
 			var appdata: String = OS.get_environment("APPDATA")
@@ -3778,10 +3838,28 @@ func _get_editor_panel_logs(types: Array, count: int, offset: int, order: String
 	for i in range(start, end): result_lines.append(parsed_lines[i])
 	return {"logs": result_lines, "count": result_lines.size(), "total_available": total_available, "source": "editor_panel"}
 func _infer_log_type_from_line(line: String) -> String:
-	if line.begins_with("ERROR:") or line.begins_with("SCRIPT ERROR:") or line.begins_with("PARSE ERROR:") or line.begins_with("ERROR at") or line.find("error") == 0:
+	var normalized: String = line.to_lower()
+	while not normalized.is_empty() and _is_log_whitespace(normalized.unicode_at(0)):
+		normalized = normalized.substr(1)
+	normalized = normalized.strip_edges()
+	if normalized.begins_with("error:") or normalized.begins_with("script error:") or normalized.begins_with("parse error:") or normalized.begins_with("error at") or normalized.begins_with("error"):
 		return "Error"
-	if line.begins_with("WARNING:") or line.begins_with("WARN ") or line.find("warning") == 0:
+	if normalized.begins_with("warning:") or normalized.begins_with("warn ") or normalized.begins_with("warning"):
 		return "Warning"
-	if line.begins_with("DEBUG:") or line.begins_with("DEBUG "):
+	if normalized.begins_with("debug:") or normalized.begins_with("debug "):
 		return "Debug"
 	return "Info"
+
+func _is_log_whitespace(codepoint: int) -> bool:
+	return (
+		codepoint <= 0x20
+		or codepoint == 0x85
+		or codepoint == 0xA0
+		or (codepoint >= 0x2000 and codepoint <= 0x200A)
+		or codepoint == 0x2028
+		or codepoint == 0x2029
+		or codepoint == 0x202F
+		or codepoint == 0x205F
+		or codepoint == 0x3000
+		or codepoint == 0xFEFF
+	)
