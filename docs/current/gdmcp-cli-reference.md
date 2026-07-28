@@ -28,6 +28,10 @@ gdmcp --json tools schema get_runtime_scene_tree
 
 The compact catalog deliberately excludes complete input and output schemas.
 
+The `plugin_version` field returned by `doctor` is read from the installed
+`addons/godot_mcp/plugin.cfg`, so it stays synchronized with the plugin
+metadata instead of relying on a separate hard-coded value.
+
 ## Raw execution
 
 ```powershell

@@ -1265,6 +1265,10 @@ Godot MCP Native 实现了 **155 个工具**，分为 6 大类（含核心和补
 
 **注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`
 
+**行为**：
+- `editor_panel` 会按当前编辑器翻译后的 Errors/Warnings 面板标题查找调试器树，不依赖英文节点名。
+- 读取编辑器日志文件时会忽略行首空白后再识别 `Error`、`Warning` 和 `Debug` 类型。
+
 ---
 
 ### 41. execute_script
