@@ -94,4 +94,9 @@ gdmcp --json nodes delete /root/Main/Enemy --apply
 gdmcp --json scripts replace res://player.gd --content-file player.gd --apply
 ```
 
-Configuration precedence is command line, environment, config file, then defaults. Tokens are read from environment variables and are never printed by `doctor`.
+Configuration precedence is command line, environment, CLI config file,
+project MCP settings, then defaults. When run from a Godot project directory,
+`gdmcp` reads `user://mcp_settings.cfg` and uses its configured HTTP port.
+Use `--project-path` when the current directory is not the project, and
+`--godot-user-data-dir` when Godot uses a custom user-data root. Tokens are
+read from environment variables and are never printed by `doctor`.

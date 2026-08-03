@@ -8,6 +8,27 @@ description: Use the installed gdmcp CLI to inspect, edit, run, and debug a Godo
 Use `gdmcp` from the shell for operations that require the running Godot editor.
 By default, invoke the project-local CLI from the project root at `.\.gdmcp\bin\gdmcp.exe` in PowerShell; the `gdmcp` command in the examples below is shorthand for this path. Use a PATH-installed `gdmcp` only as an explicit fallback when the local executable is unavailable.
 
+## Project directory and configuration discovery
+
+Run the CLI from the Godot project root when possible. The CLI uses the
+process working directory to discover `project.godot`, then resolves the
+project's Godot `user://mcp_settings.cfg` so a persisted HTTP `http_port` is
+used automatically. The CLI executable directory (for example
+`.gdmcp/bin`) is not used as the project directory.
+
+When the current directory is not the project root, provide the project and,
+if necessary, Godot's custom user-data root explicitly:
+
+```bash
+gdmcp --project-path <project-root> --godot-user-data-dir <godot-user-data-root> --json doctor
+```
+
+Equivalent environment variables are `GODOT_MCP_PROJECT_PATH` and
+`GODOT_USER_DATA_DIR`. URL precedence remains: explicit `--url`,
+`GODOT_MCP_URL`, the CLI config file, the discovered Godot MCP settings, then
+the built-in `http://127.0.0.1:9080` fallback. Stdio MCP settings do not
+produce an HTTP endpoint and therefore use the normal fallback chain.
+
 Start with:
 
 ```bash

@@ -13,6 +13,10 @@ pub struct Cli {
     pub json: bool,
     #[arg(long, global = true)]
     pub url: Option<String>,
+    #[arg(long, global = true, value_name = "PATH")]
+    pub project_path: Option<PathBuf>,
+    #[arg(long, global = true, value_name = "PATH")]
+    pub godot_user_data_dir: Option<PathBuf>,
     #[arg(long, global = true)]
     pub token_env: Option<String>,
     #[arg(long, global = true)]

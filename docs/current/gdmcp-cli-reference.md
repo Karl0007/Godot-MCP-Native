@@ -144,7 +144,16 @@ High-level destructive commands require `--apply` locally before any network req
 
 ## Configuration
 
-Precedence is command-line options, environment variables, the OS-specific config file, then defaults. Supported environment variables are `GODOT_MCP_URL`, `GODOT_MCP_TOKEN`, and `GODOT_MCP_TIMEOUT`. `--token-env` selects a different token variable.
+Precedence is explicit command-line options, environment variables, the CLI's OS-specific config file, the Godot project's persisted MCP settings, then defaults. Supported environment variables are `GODOT_MCP_URL`, `GODOT_MCP_TOKEN`, `GODOT_MCP_TIMEOUT`, `GODOT_MCP_PROJECT_PATH`, and `GODOT_USER_DATA_DIR`. `--token-env` selects a different token variable.
+
+When the CLI runs from a Godot project directory (or when `--project-path` is
+provided), it reads the project's `mcp_settings.cfg` and uses its `http_port`
+when `transport_mode` is `http`. This removes the need to repeat a custom MCP
+port in every CLI invocation. `--godot-user-data-dir` is available when Godot
+was started with a custom user-data directory. An explicit `--url`,
+`GODOT_MCP_URL`, or CLI `config.toml` URL still takes precedence over the
+auto-discovered project setting. Stdio projects are not treated as HTTP
+endpoints and fall back to the normal URL resolution chain.
 
 ## Development and release distribution
 
