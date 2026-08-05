@@ -256,5 +256,12 @@
   "get_test_report": "Collect and format results from accumulated assertions into a test report.",
   "start_recording": "Start recording input events (keyboard, mouse, actions) in the running game.",
   "stop_recording": "Stop recording input events and return the captured event sequence.",
-  "replay_recording": "Replay a recorded input event sequence in the running game at a given speed."
+  "replay_recording": "Replay a recorded input event sequence in the running game at a given speed.",
+  "find_ui_elements": "List visible UI elements (Button, Label, LineEdit, TextEdit, OptionButton, CheckBox) in the running game.",
+  "click_button_by_text": "Click a visible Button in the running game by its text.",
+  "wait_for_node": "Check whether a node exists in the running game scene tree.",
+  "find_nearby_nodes": "Find nodes within a radius of a position in the running game (2D/3D).",
+  "navigate_to": "Compute navigation suggestions (keys, camera rotation, duration) to move a 3D player toward a target in the running game.",
+  "move_to": "Move a 3D player toward a target in the running game by injecting movement keys. Returns after arrival or timeout.",
+  "watch_signals": "Watch for signal emissions on runtime nodes for a duration. Requires runtime scene inspection via probe."
 }

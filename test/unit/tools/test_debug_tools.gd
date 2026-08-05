@@ -445,3 +445,56 @@ func test_start_recording_no_editor():
 	# Without debugger bridge, returns error or times out - check error path
 	var result: Dictionary = await tools._tool_start_recording({})
 	assert_true(result.has("error"), "Without bridge should error")
+
+# --- Batch 19: runtime UI ---
+
+func test_click_button_by_text_requires_text():
+	var tools: RefCounted = _new_debug_tools()
+	var result: Dictionary = tools._tool_click_button_by_text({})
+	assert_true(result.has("error"), "Missing text should error")
+
+func test_wait_for_node_requires_path():
+	var tools: RefCounted = _new_debug_tools()
+	var result: Dictionary = tools._tool_wait_for_node({})
+	assert_true(result.has("error"), "Missing node_path should error")
+
+func test_find_nearby_nodes_requires_position():
+	var tools: RefCounted = _new_debug_tools()
+	var result: Dictionary = tools._tool_find_nearby_nodes({})
+	assert_true(result.has("error"), "Missing position should error")
+
+func test_navigate_to_requires_target():
+	var tools: RefCounted = _new_debug_tools()
+	var result: Dictionary = tools._tool_navigate_to({})
+	assert_true(result.has("error"), "Missing target should error")
+
+func test_move_to_requires_target():
+	var tools: RefCounted = _new_debug_tools()
+	var result: Dictionary = tools._tool_move_to({})
+	assert_true(result.has("error"), "Missing target should error")
+
+func test_watch_signals_requires_paths():
+	var tools: RefCounted = _new_debug_tools()
+	var result: Dictionary = tools._tool_watch_signals({})
+	assert_true(result.has("error"), "Missing node_paths should error")
+
+func test_watch_signals_empty_paths():
+	var tools: RefCounted = _new_debug_tools()
+	var result: Dictionary = tools._tool_watch_signals({"node_paths": []})
+	assert_true(result.has("error"), "Empty node_paths should error")
+
+func test_find_ui_elements_no_editor():
+	var tools: RefCounted = _new_debug_tools()
+	var result: Dictionary = await tools._tool_find_ui_elements({})
+	assert_true(result.has("error"), "Without bridge should error")
+
+func test_props_to_vector3():
+	var tools: RefCounted = _new_debug_tools()
+	var v: Vector3 = tools._props_to_vector3({"x": 1.0, "y": 2.0, "z": 3.0})
+	assert_eq(v, Vector3(1, 2, 3), "Dict should convert to Vector3")
+
+func test_vector3_to_props():
+	var tools: RefCounted = _new_debug_tools()
+	var d: Dictionary = tools._vector3_to_props(Vector3(1, 2, 3))
+	assert_eq(d["x"], 1.0, "x should round-trip")
+	assert_eq(d["z"], 3.0, "z should round-trip")

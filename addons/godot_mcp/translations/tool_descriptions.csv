@@ -32,6 +32,7 @@ call_runtime_node_method,,Call a method on a node in the running game.,调用运
 clear_editor_selection,,Clear the current editor node selection.,清除当前编辑器节点选区。
 clear_output,,Clear the editor output panel.,清除编辑器输出面板。
 clear_runtime_theme_override,,Clear a theme override in the running game.,在运行中的游戏中清除主题覆盖。
+click_button_by_text,,Click a visible Button in the running game by its text.,按文本点击运行中游戏的可见按钮。
 close_scene_tab,,Close the active scene tab, or activate a specified scene tab and close it.,关闭当前活动的场景标签页，或激活指定的场景标签页然后关闭它。
 compare_render_screenshots,,Compare two screenshot images and report pixel differences, RMSE, and threshold-based match status.,比较两张截图图像并报告像素差异、RMSE 和基于阈值的匹配状态。
 connect_signal,,Connect a signal from one node to another.,将一个节点的信号连接到另一个节点。
@@ -69,9 +70,11 @@ execute_editor_script,,Execute a script in the editor with access to editor APIs
 execute_script,,Execute a script in the editor context.,在编辑器上下文中执行脚本。
 expand_debug_variable,,Expand a captured debug variable or evaluated expression value by scope and path, with pagination for arrays and dictionaries.,按作用域和路径展开捕获的调试变量或求值的表达式值，支持数组和字典的分页。
 export_project,,Generate the Godot CLI export command for a preset (debug or release). Direct export from the editor plugin is not supported in Godot 4.,为预设生成 Godot CLI 导出命令（debug 或 release）。Godot 4 不支持从编辑器插件直接导出。
+find_nearby_nodes,,Find nodes within a radius of a position in the running game (2D/3D).,查找运行中游戏某个位置半径内的节点（2D/3D）。
 find_nodes_in_group,,Find all nodes in a specific group.,查找特定组中的所有节点。
 find_script_symbol_definition,,Find definition locations for a script symbol across GDScript and C# project files.,在 GDScript 和 C# 项目文件中查找脚本符号的定义位置。
 find_script_symbol_references,,Find textual project references to a script symbol across GDScript, C#, and scene files.,在 GDScript、C# 和场景文件中查找脚本符号的文本引用。
+find_ui_elements,,"List visible UI elements (Button, Label, LineEdit, TextEdit, OptionButton, CheckBox) in the running game.",列出运行中游戏的可见 UI 元素（Button、Label、LineEdit、TextEdit、OptionButton、CheckBox）。
 fix_resource_uid,,Fix resource UID issues.,修复资源 UID 问题。
 get_android_preset_info,,Read an Android export preset's configuration from export_presets.cfg.,从 export_presets.cfg 读取 Android 导出预设的配置。
 get_animation_info,,"Read animation details: length, loop mode, step, and per-track keyframes.",读取动画详情：长度、循环模式、步长和每个轨道的关键帧。
@@ -162,6 +165,8 @@ list_runtime_input_actions,,List input actions available in the running game.,�
 list_runtime_tilemap_layers,,List TileMap layers in the running game.,列出运行中游戏中的 TileMap 图层。
 modify_script,,Modify the content of an existing GDScript file. Can replace entire content or specific lines.,修改现有 GDScript 文件的内容。可以替换整个内容或特定行。
 move_node,,Move a node to a new parent in the scene tree. Optionally preserves global transform.,将节点移动到场景树中的新父节点下。可选择保留全局变换。
+move_to,,Move a 3D player toward a target in the running game by injecting movement keys. Returns after arrival or timeout.,通过注入移动按键将 3D 玩家移向运行中游戏的目标。到达或超时后返回。
+navigate_to,,"Compute navigation suggestions (keys, camera rotation, duration) to move a 3D player toward a target in the running game.",计算导航建议（按键、相机旋转、时长）以将 3D 玩家移向运行中游戏的目标。
 open_scene,,Open a scene file from the project. Closes the current scene if one is open.,从项目中打开场景文件。如果当前有打开的场景，则先关闭它。
 open_script_at_line,,Open a script file at a specific line number in the Godot editor.,在 Godot 编辑器中的指定行号打开脚本文件。
 play_runtime_animation,,Play an animation in the running game.,播放运行中游戏中的动画。
@@ -257,3 +262,5 @@ upsert_project_input_action,,Create or update a project InputMap action in Proje
 upsert_runtime_input_action,,Create or update an input action in the running game.,在运行中的游戏中创建或更新输入动作。
 validate_export_preset,,Validate an export preset against export_presets.cfg and local template availability.,根据 export_presets.cfg 和本地模板可用性验证导出预设。
 validate_script,,Validate a script file for syntax errors.,验证脚本文件的语法错误。
+wait_for_node,,Check whether a node exists in the running game scene tree.,检查运行中游戏场景树中是否存在节点。
+watch_signals,,Watch for signal emissions on runtime nodes for a duration. Requires runtime scene inspection via probe.,在一段时间内监听运行时节点的信号发射。需要通过探针进行运行时场景检查。

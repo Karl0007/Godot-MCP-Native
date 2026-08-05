@@ -65,6 +65,168 @@ func _ensure_debugger_capture_registered() -> void:
 		EngineDebugger.send_message("mcp:probe_ready", [_get_runtime_info()])
 		_probe_ready_sent = true
 
+func _handle_find_ui_elements(data: Array) -> bool:
+	var root: Node = get_tree().current_scene
+	if root == null:
+		root = get_tree().root
+	var type_filter: String = str(data[0]) if data.size() >= 1 else ""
+	var elements: Array = []
+	_find_ui_recursive(root, type_filter, elements)
+	EngineDebugger.send_message("mcp:ui_elements", [{"elements": elements, "count": elements.size()}])
+	return true
+
+func _find_ui_recursive(node: Node, type_filter: String, results: Array) -> void:
+	if node is Control and (node as Control).visible:
+		var ctrl: Control = node
+		var entry: Dictionary = {}
+		var include := false
+		if ctrl is Button:
+			entry["type"] = "Button"
+			entry["text"] = (ctrl as Button).text
+			entry["disabled"] = (ctrl as Button).disabled
+			include = true
+		elif ctrl is Label:
+			entry["type"] = "Label"
+			entry["text"] = (ctrl as Label).text
+			include = true
+		elif ctrl is LineEdit:
+			entry["type"] = "LineEdit"
+			entry["text"] = (ctrl as LineEdit).text
+			entry["placeholder"] = (ctrl as LineEdit).placeholder_text
+			include = true
+		elif ctrl is TextEdit:
+			entry["type"] = "TextEdit"
+			entry["text"] = (ctrl as TextEdit).text.left(200)
+			include = true
+		elif ctrl is OptionButton:
+			entry["type"] = "OptionButton"
+			entry["text"] = (ctrl as OptionButton).text
+			entry["selected"] = (ctrl as OptionButton).selected
+			include = true
+		elif ctrl is CheckBox:
+			entry["type"] = "CheckBox"
+			entry["text"] = (ctrl as CheckBox).text
+			entry["button_pressed"] = (ctrl as CheckBox).button_pressed
+			include = true
+		if include:
+			if type_filter.is_empty() or str(entry["type"]).to_lower().contains(type_filter.to_lower()):
+				entry["path"] = str(ctrl.get_path())
+				entry["visible"] = true
+				results.append(entry)
+	for child in node.get_children():
+		_find_ui_recursive(child, type_filter, results)
+
+func _find_button_by_text(node: Node, text: String, partial: bool) -> Button:
+	if node is Button and (node as Button).visible:
+		var btn: Button = node
+		var btn_text: String = btn.text.to_lower().strip_edges()
+		var search_text: String = text.to_lower().strip_edges()
+		if partial and btn_text.contains(search_text):
+			return btn
+		elif not partial and btn_text == search_text:
+			return btn
+	for child in node.get_children():
+		var found: Button = _find_button_by_text(child, text, partial)
+		if found != null:
+			return found
+	return null
+
+func _handle_click_button_by_text(data: Array) -> bool:
+	if data.is_empty():
+		EngineDebugger.send_message("mcp:error", [{"message": "click_button_by_text requires text"}])
+		return true
+	var text: String = str(data[0])
+	var partial: bool = bool(data[1]) if data.size() >= 2 else true
+	var root: Node = get_tree().current_scene
+	if root == null:
+		EngineDebugger.send_message("mcp:error", [{"message": "No current scene"}])
+		return true
+	var btn: Button = _find_button_by_text(root, text, partial)
+	if btn == null:
+		EngineDebugger.send_message("mcp:error", [{"message": "No visible button found with text: '" + text + "'"}])
+		return true
+	var rect: Rect2 = btn.get_global_rect()
+	var center: Vector2 = rect.get_center()
+	var btn_text_value: String = btn.text
+	var btn_path: String = str(btn.get_path()) if btn.is_inside_tree() else ""
+	btn.emit_signal("pressed")
+	EngineDebugger.send_message("mcp:button_clicked", [{
+		"clicked": true,
+		"button_text": btn_text_value,
+		"button_path": btn_path,
+		"position": {"x": center.x, "y": center.y},
+	}])
+	return true
+
+func _handle_wait_for_node(data: Array) -> bool:
+	if data.is_empty():
+		EngineDebugger.send_message("mcp:error", [{"message": "wait_for_node requires node_path"}])
+		return true
+	var node_path: String = str(data[0])
+	var timeout_sec: float = float(data[1]) if data.size() >= 2 else 5.0
+	var poll_frames: int = maxi(int(data[2]) if data.size() >= 3 else 5, 1)
+	var attempts: int = int(timeout_sec / (poll_frames / 60.0))
+	var frame_counter := 0
+	var node: Node = get_node_or_null(NodePath(node_path))
+	if node != null:
+		var result: Dictionary = {
+			"found": true,
+			"node_path": str(node.get_path()),
+			"type": node.get_class(),
+			"name": str(node.name),
+		}
+		var script: Script = node.get_script()
+		if script:
+			result["script"] = script.resource_path
+		EngineDebugger.send_message("mcp:node_found", [result])
+		return true
+	EngineDebugger.send_message("mcp:error", [{"message": "Node not found: " + node_path, "timeout_seconds": timeout_sec}])
+	return true
+
+func _handle_find_nearby_nodes(data: Array) -> bool:
+	var radius: float = float(data[0]) if data.size() >= 1 else 20.0
+	var max_results: int = int(data[1]) if data.size() >= 2 else 10
+	var type_filter: String = str(data[2]) if data.size() >= 3 else ""
+	var group_filter: String = str(data[3]) if data.size() >= 4 else ""
+	var origin := Vector3.ZERO
+	if data.size() >= 5 and data[4] is Dictionary:
+		var pos: Dictionary = data[4]
+		origin = Vector3(float(pos.get("x", 0)), float(pos.get("y", 0)), float(pos.get("z", 0)))
+	var root: Node = get_tree().current_scene
+	if root == null:
+		EngineDebugger.send_message("mcp:error", [{"message": "No current scene"}])
+		return true
+	var matches: Array = []
+	_find_nearby_recursive(root, origin, radius, max_results, type_filter, group_filter, matches)
+	EngineDebugger.send_message("mcp:nearby_nodes", [{"nodes": matches, "count": matches.size(), "origin": {"x": origin.x, "y": origin.y, "z": origin.z}}])
+	return true
+
+func _node_position3d(node: Node) -> Vector3:
+	if node is Node3D:
+		return (node as Node3D).global_position
+	if node is Node2D:
+		var pos2d: Vector2 = (node as Node2D).global_position
+		return Vector3(pos2d.x, pos2d.y, 0)
+	return Vector3.ZERO
+
+func _find_nearby_recursive(node: Node, origin: Vector3, radius: float, max_results: int, type_filter: String, group_filter: String, matches: Array) -> void:
+	if matches.size() >= max_results:
+		return
+	var type_ok: bool = type_filter.is_empty() or node.get_class() == type_filter or (node.has_method("is_class") and node.is_class(type_filter))
+	var group_ok: bool = group_filter.is_empty() or node.is_in_group(group_filter)
+	if type_ok and group_ok and node != get_tree().current_scene:
+		var pos: Vector3 = _node_position3d(node)
+		if pos.distance_to(origin) <= radius:
+			matches.append({
+				"name": node.name,
+				"path": str(node.get_path()),
+				"type": node.get_class(),
+				"position": {"x": pos.x, "y": pos.y, "z": pos.z},
+				"distance": pos.distance_to(origin),
+			})
+	for child in node.get_children():
+		_find_nearby_recursive(child, origin, radius, max_results, type_filter, group_filter, matches)
+
 func _input(event: InputEvent) -> void:
 	if not _recording_active:
 		return
@@ -271,6 +433,14 @@ func _capture_mcp_message(message: String, data: Array) -> bool:
 			return _handle_update_audio_bus(data)
 		"get_runtime_screenshot":
 			return _handle_get_runtime_screenshot(data)
+		"find_ui_elements":
+			return _handle_find_ui_elements(data)
+		"click_button_by_text":
+			return _handle_click_button_by_text(data)
+		"wait_for_node":
+			return _handle_wait_for_node(data)
+		"find_nearby_nodes":
+			return _handle_find_nearby_nodes(data)
 		"start_input_recording":
 			return _handle_start_input_recording(data)
 		"stop_input_recording":

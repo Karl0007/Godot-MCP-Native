@@ -268,6 +268,13 @@ func _build_classifications() -> void:
 		{"name": "start_recording", "category": "supplementary", "group": "Debug-Advanced"},
 		{"name": "stop_recording", "category": "supplementary", "group": "Debug-Advanced"},
 		{"name": "replay_recording", "category": "supplementary", "group": "Debug-Advanced"},
+		{"name": "find_ui_elements", "category": "supplementary", "group": "Debug-Advanced"},
+		{"name": "click_button_by_text", "category": "supplementary", "group": "Debug-Advanced"},
+		{"name": "wait_for_node", "category": "supplementary", "group": "Debug-Advanced"},
+		{"name": "find_nearby_nodes", "category": "supplementary", "group": "Debug-Advanced"},
+		{"name": "navigate_to", "category": "supplementary", "group": "Debug-Advanced"},
+		{"name": "move_to", "category": "supplementary", "group": "Debug-Advanced"},
+		{"name": "watch_signals", "category": "supplementary", "group": "Debug-Advanced"},
 	]
 
 	for item in classifications:
