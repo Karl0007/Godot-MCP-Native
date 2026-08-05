@@ -3970,18 +3970,25 @@ func _execute_assert_step(step: Dictionary) -> Dictionary:
 	if step.has("text"):
 		return {"passed": false, "assert_type": "screen_text", "expected": str(step["text"]), "error": "Screen text assertion requires UI inspection; use runtime scene tree checks instead."}
 	elif step.has("node_path") and step.has("property"):
-		var result: Dictionary = await _tool_evaluate_runtime_expression({
-			"expression": str(step["node_path"]) + " " + str(step.get("operator", "eq")) + " " + str(step.get("expected", "")),
+		# Delegate to the property-comparison assertion (same code path as the
+		# standalone assert_node_state tool), instead of building a synthetic
+		# expression string that cannot parse.
+		var result: Dictionary = await _tool_assert_node_state({
 			"node_path": str(step["node_path"]),
+			"property": str(step["property"]),
+			"expected": step.get("expected", null),
+			"operator": str(step.get("operator", "eq")),
 		})
+		var inner: Dictionary = result.get("result", result)
 		return {
-			"passed": not result.has("error"),
+			"passed": bool(inner.get("passed", result.get("passed", false))),
 			"assert_type": "node_state",
 			"node_path": str(step["node_path"]),
 			"property": str(step["property"]),
 			"operator": str(step.get("operator", "eq")),
 			"expected": step.get("expected", null),
-			"error": result.get("error", "") if result.has("error") else "",
+			"actual": inner.get("actual", ""),
+			"error": result.get("error", ""),
 		}
 	return {"passed": false, "error": "Assert step requires 'text' or node_path+property"}
 
@@ -4038,7 +4045,9 @@ func _tool_run_test_scenario(params: Dictionary) -> Dictionary:
 					fail_count += 1
 				_test_results.append(step_result)
 			"screenshot":
-				var shot: Dictionary = await _tool_get_runtime_screenshot({"save_path": "user://mcp_test_screenshot_" + str(i) + ".png"})
+				var shot_path: String = str(step.get("path", "user://mcp_test_screenshot_" + str(i) + ".png"))
+				var shot_format: String = "png" if shot_path.to_lower().ends_with(".png") else "jpg"
+				var shot: Dictionary = await _tool_get_runtime_screenshot({"save_path": shot_path, "format": shot_format})
 				if shot.has("error"):
 					step_result["captured"] = false
 					step_result["error"] = str(shot["error"])
@@ -4165,11 +4174,12 @@ func _tool_assert_screen_text(params: Dictionary) -> Dictionary:
 		return {"error": "Missing required parameter: text"}
 	var partial: bool = bool(params.get("partial", true))
 
-	# Search runtime scene tree for Control nodes with matching text
+	# Search runtime scene tree for Control nodes with matching text.
+	# The probe responds with the serialized tree itself (not wrapped in a key).
 	var tree_result: Dictionary = await _request_runtime_probe_poll("get_scene_tree", [8], ["mcp:scene_tree"], {})
 	var found: bool = false
 	var found_in: String = ""
-	var tree_data: Variant = tree_result.get("scene_tree", {})
+	var tree_data: Variant = tree_result.get("scene_tree", tree_result)
 	var candidates: Array = []
 	_collect_control_texts(tree_data, candidates)
 	for candidate: Dictionary in candidates:

@@ -529,6 +529,12 @@ func _serialize_node(node: Node, depth: int, max_depth: int, include_properties:
 		"path": str(node.get_path()),
 		"child_count": node.get_child_count()
 	}
+	# Include the display text of common Control nodes so screen-text
+	# assertions can match without a full property dump.
+	if node is Control:
+		var text_value: Variant = node.get("text") if "text" in node else null
+		if text_value is String:
+			result["text"] = text_value
 	if include_properties:
 		result["properties"] = _serialize_properties(node)
 	if max_depth >= 0 and depth >= max_depth:
