@@ -13,6 +13,7 @@ audit_scene_node_persistence,,Audit node owner and persistence state for the cur
 await_debugger_state,,Wait for a specific debugger state.,等待特定的调试器状态。
 await_runtime_condition,,Wait for a condition to be true in the running game.,在运行中游戏中等待条件为真。
 await_scene_ready,,Poll the runtime until the specified scene is loaded and ready.,轮询运行时直到指定场景加载就绪。
+bake_navigation_mesh,,Bake a NavigationRegion3D navigation mesh or build a NavigationRegion2D polygon from an outline or source geometry.,烘焙 NavigationRegion3D 导航网格，或从轮廓/源几何构建 NavigationRegion2D 多边形。
 batch_scene_node_edits,,Apply multiple create/delete scene node edits inside one editor UndoRedo action so the full structure change undoes in a single step.,在单个编辑器 UndoRedo 操作中应用多个创建/删除场景节点编辑，使整个结构变更可在单步中撤销。
 batch_update_node_properties,,Update multiple node properties inside one editor UndoRedo action. Useful for transaction-style scene edits that should undo in a single step.,在一个编辑器 UndoRedo 操作中更新多个节点属性。适用于需要在单步中撤销的事务式场景编辑。
 call_runtime_node_method,,Call a method on a node in the running game.,调用运行中游戏中节点的方法。
@@ -67,6 +68,7 @@ get_editor_screenshot,,Capture a screenshot of the editor viewport and save it t
 get_editor_state,,Get the current state of the Godot editor, including active scene and selection info.,获取 Godot 编辑器的当前状态，包括活动场景和选择信息。
 get_import_metadata,,Get resource import metadata.,获取资源导入元数据。
 get_inspector_properties,,Inspect a node or resource and return property metadata and serialized values similar to the Inspector.,检查节点或资源并返回与检查器类似的属性元数据和序列化值。
+get_navigation_info,,"List navigation regions and agents under a node, including their properties and named layers.",列出节点下的导航区域和代理，包括其属性和命名层。
 get_node_groups,,Get groups that a node belongs to.,获取节点所属的组。
 get_node_properties,,Get all properties of a specific node in the scene tree.,获取场景树中特定节点的所有属性。
 get_performance_metrics,,Get performance metrics from the editor or running game.,从编辑器或运行中的游戏获取性能指标。
@@ -142,6 +144,7 @@ set_anchor_preset,,Set anchor preset for a Control node.,为 Control 节点设�
 set_debugger_breakpoint,,Enable or disable a breakpoint in active Godot debugger sessions.,在活动的 Godot 调试器会话中启用或禁用断点。
 set_editor_setting,,Set an editor setting value. Requires editor restart for some settings to take effect.,设置编辑器设置值。某些设置需要重启编辑器才能生效。
 set_material_3d,,"Create or update a StandardMaterial3D on a MeshInstance3D surface with PBR parameters (albedo, metallic, roughness, emission, transparency, cull mode).",在 MeshInstance3D 表面创建或更新 StandardMaterial3D，支持 PBR 参数（albedo/metallic/roughness/emission/transparency/cull mode）。
+set_navigation_layers,,"Set navigation_layers on a navigation region or agent. Accepts a bitmask, an array of layer numbers, or named layers from ProjectSettings.",设置导航区域或代理的 navigation_layers。接受位掩码、层号数组或 ProjectSettings 中的命名层。
 set_node_groups,,Set groups for a node.,设置节点所属的组。
 set_physics_layers,,Set collision_layer and/or collision_mask on a physics node. Accepts an integer bitmask or an array of layer numbers (1-32).,设置物理节点的 collision_layer 和/或 collision_mask。接受整数位掩码或层号数组（1-32）。
 set_runtime_animation_tree_active,,Set an animation tree active/inactive in the running game.,设置运行中游戏中动画树的活动/非活动状态。
@@ -152,6 +155,8 @@ setup_camera_3d,,"Create or configure a Camera3D with position, rotation, FOV, n
 setup_collision,,"Add a CollisionShape2D or CollisionShape3D to a physics body or area node. Supports rectangle, circle, capsule, segment, convex (2D) and box, sphere, capsule, cylinder, convex (3D).",向物理体或区域节点添加 CollisionShape2D 或 CollisionShape3D。支持 2D（rectangle/circle/capsule/segment/convex）和 3D（box/sphere/capsule/cylinder/convex）。
 setup_environment,,"Create or update a WorldEnvironment with background mode, procedural sky, ambient light, and tonemap settings.",创建或更新 WorldEnvironment，支持背景模式、程序化天空、环境光和色调映射设置。
 setup_lighting,,"Add a DirectionalLight3D, OmniLight3D, or SpotLight3D with color, energy, and shadow settings.",添加 DirectionalLight3D、OmniLight3D 或 SpotLight3D，支持颜色、能量和阴影设置。
+setup_navigation_agent,,Create a NavigationAgent2D or NavigationAgent3D with pathfinding and avoidance settings.,创建 NavigationAgent2D 或 NavigationAgent3D，支持寻路和避障设置。
+setup_navigation_region,,Create a NavigationRegion2D or NavigationRegion3D with configurable agent and cell properties.,创建 NavigationRegion2D 或 NavigationRegion3D，支持配置代理和单元格属性。
 setup_physics_body,,"Configure physics body properties. CharacterBody: motion_mode, floor settings, max_slides, slide_on_ceiling. RigidBody: mass, gravity_scale, damp, freeze, contact monitoring.",配置物理体属性。CharacterBody：motion_mode、floor 设置、max_slides、slide_on_ceiling。RigidBody：mass、gravity_scale、阻尼、freeze、接触监控。
 simulate_runtime_input_action,,Simulate an input action in the running game.,在运行中的游戏中模拟输入动作。
 simulate_runtime_input_event,,Simulate an input event in the running game.,在运行中的游戏中模拟输入事件。

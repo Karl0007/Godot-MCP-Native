@@ -142,6 +142,11 @@ func register_tools(server_core: RefCounted) -> void:
 	_register_add_raycast(server_core)
 	_register_setup_physics_body(server_core)
 	_register_get_collision_info(server_core)
+	_register_setup_navigation_region(server_core)
+	_register_bake_navigation_mesh(server_core)
+	_register_setup_navigation_agent(server_core)
+	_register_set_navigation_layers(server_core)
+	_register_get_navigation_info(server_core)
 
 # ============================================================================
 # add_mesh_instance - Create MeshInstance3D
@@ -1560,6 +1565,564 @@ func _register_get_collision_info(server_core: RefCounted) -> void:
 				"type": {"type": "string"},
 				"collision_shapes": {"type": "array"},
 				"raycasts": {"type": "array"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "World"
+	)
+
+# ============================================================================
+# Navigation tools (Batch 3)
+# ============================================================================
+
+func _is_3d_context(node: Node) -> bool:
+	if node is Node3D:
+		return true
+	if node is Node2D:
+		return false
+	var parent := node.get_parent()
+	while parent != null:
+		if parent is Node3D:
+			return true
+		if parent is Node2D:
+			return false
+		parent = parent.get_parent()
+	return false
+
+func _tool_setup_navigation_region(params: Dictionary) -> Dictionary:
+	var scene_root: Node = _get_user_scene_root()
+	if not scene_root:
+		return {"error": "No scene is currently open"}
+	var node_path: String = String(params.get("node_path", ""))
+	if node_path.is_empty():
+		return {"error": "Missing required parameter: node_path"}
+	var node: Node = _resolve_node_path(node_path)
+	if not node:
+		return {"error": "Node not found: " + node_path}
+
+	var force_mode: String = String(params.get("mode", "auto"))
+	var is_3d: bool
+	match force_mode:
+		"2d":
+			is_3d = false
+		"3d":
+			is_3d = true
+		_:
+			is_3d = _is_3d_context(node)
+
+	if is_3d:
+		var region := NavigationRegion3D.new()
+		region.name = String(params.get("name", "NavigationRegion3D"))
+		var nav_mesh := NavigationMesh.new()
+		nav_mesh.agent_radius = float(params.get("agent_radius", 0.5))
+		nav_mesh.agent_height = float(params.get("agent_height", 1.5))
+		nav_mesh.agent_max_climb = float(params.get("agent_max_climb", 0.25))
+		nav_mesh.agent_max_slope = float(params.get("agent_max_slope", 45.0))
+		nav_mesh.cell_size = float(params.get("cell_size", 0.25))
+		nav_mesh.cell_height = float(params.get("cell_height", 0.25))
+		region.navigation_mesh = nav_mesh
+		if params.has("navigation_layers"):
+			region.navigation_layers = int(params["navigation_layers"])
+		var error: Dictionary = _add_child_with_undo(node, region, scene_root, "MCP: Add NavigationRegion3D")
+		if not error.is_empty():
+			return error
+		return {
+			"node_path": str(region.get_path()),
+			"type": "NavigationRegion3D",
+			"agent_radius": nav_mesh.agent_radius,
+			"agent_height": nav_mesh.agent_height,
+			"cell_size": nav_mesh.cell_size,
+			"created": true
+		}
+	else:
+		var region := NavigationRegion2D.new()
+		region.name = String(params.get("name", "NavigationRegion2D"))
+		var nav_poly := NavigationPolygon.new()
+		if params.has("source_geometry_mode"):
+			var mode_str: String = str(params["source_geometry_mode"])
+			match mode_str:
+				"root_node":
+					nav_poly.source_geometry_mode = NavigationPolygon.SOURCE_GEOMETRY_ROOT_NODE_CHILDREN
+				"groups_with_children":
+					nav_poly.source_geometry_mode = NavigationPolygon.SOURCE_GEOMETRY_GROUPS_WITH_CHILDREN
+				"groups_explicit":
+					nav_poly.source_geometry_mode = NavigationPolygon.SOURCE_GEOMETRY_GROUPS_EXPLICIT
+		if params.has("cell_size"):
+			nav_poly.cell_size = float(params["cell_size"])
+		if params.has("agent_radius"):
+			nav_poly.agent_radius = float(params["agent_radius"])
+		region.navigation_polygon = nav_poly
+		if params.has("navigation_layers"):
+			region.navigation_layers = int(params["navigation_layers"])
+		var error: Dictionary = _add_child_with_undo(node, region, scene_root, "MCP: Add NavigationRegion2D")
+		if not error.is_empty():
+			return error
+		return {
+			"node_path": str(region.get_path()),
+			"type": "NavigationRegion2D",
+			"cell_size": nav_poly.cell_size,
+			"created": true
+		}
+
+func _tool_bake_navigation_mesh(params: Dictionary) -> Dictionary:
+	var scene_root: Node = _get_user_scene_root()
+	if not scene_root:
+		return {"error": "No scene is currently open"}
+	var node_path: String = String(params.get("node_path", ""))
+	if node_path.is_empty():
+		return {"error": "Missing required parameter: node_path"}
+	var node: Node = _resolve_node_path(node_path)
+	if not node:
+		return {"error": "Node not found: " + node_path}
+
+	if node is NavigationRegion3D:
+		var region: NavigationRegion3D = node as NavigationRegion3D
+		if region.navigation_mesh == null:
+			return {"error": "NavigationRegion3D has no NavigationMesh resource"}
+		region.bake_navigation_mesh()
+		_mark_scene_unsaved()
+		return {"node_path": node_path, "type": "NavigationRegion3D", "baked": true}
+	elif node is NavigationRegion2D:
+		var region: NavigationRegion2D = node as NavigationRegion2D
+		if region.navigation_polygon == null:
+			var nav_poly := NavigationPolygon.new()
+			region.navigation_polygon = nav_poly
+		if params.has("outline"):
+			var outline_data: Array = params["outline"]
+			var outline := PackedVector2Array()
+			for point: Variant in outline_data:
+				if point is Array and (point as Array).size() >= 2:
+					outline.append(Vector2(float(point[0]), float(point[1])))
+				elif point is Dictionary:
+					outline.append(Vector2(float(point.get("x", 0)), float(point.get("y", 0))))
+			if outline.size() >= 3:
+				while region.navigation_polygon.get_outline_count() > 0:
+					region.navigation_polygon.remove_outline(0)
+				region.navigation_polygon.add_outline(outline)
+				region.navigation_polygon.make_polygons_from_outlines()
+				_mark_scene_unsaved()
+				return {"node_path": node_path, "type": "NavigationRegion2D", "outline_vertices": outline.size(), "baked": true}
+			else:
+				return {"error": "Outline must have at least 3 vertices"}
+		else:
+			region.bake_navigation_polygon()
+			_mark_scene_unsaved()
+			return {"node_path": node_path, "type": "NavigationRegion2D", "baked": true}
+	return {"error": "Node '" + node_path + "' is not a NavigationRegion2D or NavigationRegion3D"}
+
+func _mark_scene_unsaved() -> void:
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if editor_interface and editor_interface.has_method("mark_scene_as_unsaved"):
+		editor_interface.mark_scene_as_unsaved()
+
+func _tool_setup_navigation_agent(params: Dictionary) -> Dictionary:
+	var scene_root: Node = _get_user_scene_root()
+	if not scene_root:
+		return {"error": "No scene is currently open"}
+	var node_path: String = String(params.get("node_path", ""))
+	if node_path.is_empty():
+		return {"error": "Missing required parameter: node_path"}
+	var node: Node = _resolve_node_path(node_path)
+	if not node:
+		return {"error": "Node not found: " + node_path}
+
+	var force_mode: String = String(params.get("mode", "auto"))
+	var is_3d: bool
+	match force_mode:
+		"2d":
+			is_3d = false
+		"3d":
+			is_3d = true
+		_:
+			is_3d = _is_3d_context(node)
+
+	var agent_name: String = String(params.get("name", "NavigationAgent3D" if is_3d else "NavigationAgent2D"))
+
+	if is_3d:
+		var agent := NavigationAgent3D.new()
+		agent.name = agent_name
+		if params.has("path_desired_distance"):
+			agent.path_desired_distance = float(params["path_desired_distance"])
+		if params.has("target_desired_distance"):
+			agent.target_desired_distance = float(params["target_desired_distance"])
+		if params.has("radius"):
+			agent.radius = float(params["radius"])
+		if params.has("neighbor_distance"):
+			agent.neighbor_distance = float(params["neighbor_distance"])
+		if params.has("max_neighbors"):
+			agent.max_neighbors = int(params["max_neighbors"])
+		if params.has("max_speed"):
+			agent.max_speed = float(params["max_speed"])
+		if params.has("avoidance_enabled"):
+			agent.avoidance_enabled = bool(params["avoidance_enabled"])
+		if params.has("navigation_layers"):
+			agent.navigation_layers = int(params["navigation_layers"])
+		var error: Dictionary = _add_child_with_undo(node, agent, scene_root, "MCP: Add NavigationAgent3D")
+		if not error.is_empty():
+			return error
+		return {
+			"node_path": str(agent.get_path()),
+			"type": "NavigationAgent3D",
+			"radius": agent.radius,
+			"max_speed": agent.max_speed,
+			"avoidance_enabled": agent.avoidance_enabled,
+			"navigation_layers": agent.navigation_layers,
+			"created": true
+		}
+	else:
+		var agent := NavigationAgent2D.new()
+		agent.name = agent_name
+		if params.has("path_desired_distance"):
+			agent.path_desired_distance = float(params["path_desired_distance"])
+		if params.has("target_desired_distance"):
+			agent.target_desired_distance = float(params["target_desired_distance"])
+		if params.has("radius"):
+			agent.radius = float(params["radius"])
+		if params.has("neighbor_distance"):
+			agent.neighbor_distance = float(params["neighbor_distance"])
+		if params.has("max_neighbors"):
+			agent.max_neighbors = int(params["max_neighbors"])
+		if params.has("max_speed"):
+			agent.max_speed = float(params["max_speed"])
+		if params.has("avoidance_enabled"):
+			agent.avoidance_enabled = bool(params["avoidance_enabled"])
+		if params.has("navigation_layers"):
+			agent.navigation_layers = int(params["navigation_layers"])
+		var error: Dictionary = _add_child_with_undo(node, agent, scene_root, "MCP: Add NavigationAgent2D")
+		if not error.is_empty():
+			return error
+		return {
+			"node_path": str(agent.get_path()),
+			"type": "NavigationAgent2D",
+			"radius": agent.radius,
+			"max_speed": agent.max_speed,
+			"avoidance_enabled": agent.avoidance_enabled,
+			"navigation_layers": agent.navigation_layers,
+			"created": true
+		}
+
+func _tool_set_navigation_layers(params: Dictionary) -> Dictionary:
+	var scene_root: Node = _get_user_scene_root()
+	if not scene_root:
+		return {"error": "No scene is currently open"}
+	var node_path: String = String(params.get("node_path", ""))
+	if node_path.is_empty():
+		return {"error": "Missing required parameter: node_path"}
+	var node: Node = _resolve_node_path(node_path)
+	if not node:
+		return {"error": "Node not found: " + node_path}
+
+	var is_nav_node: bool = node is NavigationRegion2D or node is NavigationRegion3D or node is NavigationAgent2D or node is NavigationAgent3D
+	if not is_nav_node:
+		return {"error": "Node '" + node_path + "' is not a navigation region or agent"}
+
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if not editor_interface:
+		return {"error": "Editor interface not available"}
+	var undo_redo: EditorUndoRedoManager = editor_interface.get_editor_undo_redo()
+
+	if params.has("layers"):
+		var layers_val: int = int(params["layers"])
+		var old_l: Variant = node.get("navigation_layers")
+		undo_redo.create_action("MCP: Set navigation layers")
+		undo_redo.add_do_property(node, "navigation_layers", layers_val)
+		undo_redo.add_undo_property(node, "navigation_layers", old_l)
+		undo_redo.commit_action()
+		editor_interface.mark_scene_as_unsaved()
+		return {"node_path": node_path, "navigation_layers": layers_val, "updated": true}
+
+	if params.has("layer_bits"):
+		var bits: Array = params["layer_bits"]
+		var current_layers: int = 0
+		for bit: Variant in bits:
+			var layer_num: int = int(bit)
+			if layer_num >= 1 and layer_num <= 32:
+				current_layers |= (1 << (layer_num - 1))
+		var old_b: Variant = node.get("navigation_layers")
+		undo_redo.create_action("MCP: Set navigation layers")
+		undo_redo.add_do_property(node, "navigation_layers", current_layers)
+		undo_redo.add_undo_property(node, "navigation_layers", old_b)
+		undo_redo.commit_action()
+		editor_interface.mark_scene_as_unsaved()
+		return {"node_path": node_path, "navigation_layers": current_layers, "layer_bits": bits, "updated": true}
+
+	if params.has("layer_names"):
+		var names: Array = params["layer_names"]
+		var current_layers: int = 0
+		var is_2d: bool = node is NavigationRegion2D or node is NavigationAgent2D
+		var prefix: String = "layer_names/2d_navigation/layer_" if is_2d else "layer_names/3d_navigation/layer_"
+		for i in range(1, 33):
+			var setting_key: String = prefix + str(i)
+			if ProjectSettings.has_setting(setting_key):
+				var layer_name: String = str(ProjectSettings.get_setting(setting_key))
+				if layer_name in names:
+					current_layers |= (1 << (i - 1))
+		var old_n: Variant = node.get("navigation_layers")
+		undo_redo.create_action("MCP: Set navigation layers")
+		undo_redo.add_do_property(node, "navigation_layers", current_layers)
+		undo_redo.add_undo_property(node, "navigation_layers", old_n)
+		undo_redo.commit_action()
+		editor_interface.mark_scene_as_unsaved()
+		return {"node_path": node_path, "navigation_layers": current_layers, "layer_names": names, "updated": true}
+
+	return {"error": "Must provide 'layers' (bitmask), 'layer_bits' (array of layer numbers), or 'layer_names' (array of named layers)"}
+
+func _collect_navigation_nodes(node: Node, regions: Array, agents: Array) -> void:
+	if node is NavigationRegion2D:
+		var region: NavigationRegion2D = node as NavigationRegion2D
+		var region_info: Dictionary = {
+			"path": str(region.get_path()),
+			"type": "NavigationRegion2D",
+			"enabled": region.enabled,
+			"navigation_layers": region.navigation_layers,
+			"has_polygon": region.navigation_polygon != null
+		}
+		if region.navigation_polygon != null:
+			var nav_poly: NavigationPolygon = region.navigation_polygon
+			region_info["outline_count"] = nav_poly.get_outline_count()
+			region_info["polygon_count"] = nav_poly.get_polygon_count()
+			region_info["cell_size"] = nav_poly.cell_size
+			region_info["agent_radius"] = nav_poly.agent_radius
+		regions.append(region_info)
+	elif node is NavigationRegion3D:
+		var region: NavigationRegion3D = node as NavigationRegion3D
+		var region_info: Dictionary = {
+			"path": str(region.get_path()),
+			"type": "NavigationRegion3D",
+			"enabled": region.enabled,
+			"navigation_layers": region.navigation_layers,
+			"has_mesh": region.navigation_mesh != null
+		}
+		if region.navigation_mesh != null:
+			var nav_mesh: NavigationMesh = region.navigation_mesh
+			region_info["agent_radius"] = nav_mesh.agent_radius
+			region_info["agent_height"] = nav_mesh.agent_height
+			region_info["agent_max_climb"] = nav_mesh.agent_max_climb
+			region_info["agent_max_slope"] = nav_mesh.agent_max_slope
+			region_info["cell_size"] = nav_mesh.cell_size
+			region_info["cell_height"] = nav_mesh.cell_height
+		regions.append(region_info)
+	if node is NavigationAgent2D:
+		var agent: NavigationAgent2D = node as NavigationAgent2D
+		agents.append({
+			"path": str(agent.get_path()),
+			"type": "NavigationAgent2D",
+			"radius": agent.radius,
+			"max_speed": agent.max_speed,
+			"path_desired_distance": agent.path_desired_distance,
+			"target_desired_distance": agent.target_desired_distance,
+			"neighbor_distance": agent.neighbor_distance,
+			"max_neighbors": agent.max_neighbors,
+			"avoidance_enabled": agent.avoidance_enabled,
+			"navigation_layers": agent.navigation_layers
+		})
+	elif node is NavigationAgent3D:
+		var agent: NavigationAgent3D = node as NavigationAgent3D
+		agents.append({
+			"path": str(agent.get_path()),
+			"type": "NavigationAgent3D",
+			"radius": agent.radius,
+			"max_speed": agent.max_speed,
+			"path_desired_distance": agent.path_desired_distance,
+			"target_desired_distance": agent.target_desired_distance,
+			"neighbor_distance": agent.neighbor_distance,
+			"max_neighbors": agent.max_neighbors,
+			"avoidance_enabled": agent.avoidance_enabled,
+			"navigation_layers": agent.navigation_layers
+		})
+	for child in node.get_children():
+		_collect_navigation_nodes(child, regions, agents)
+
+func _tool_get_navigation_info(params: Dictionary) -> Dictionary:
+	var scene_root: Node = _get_user_scene_root()
+	if not scene_root:
+		return {"error": "No scene is currently open"}
+	var node_path: String = String(params.get("node_path", ""))
+	if node_path.is_empty():
+		return {"error": "Missing required parameter: node_path"}
+	var node: Node = _resolve_node_path(node_path)
+	if not node:
+		return {"error": "Node not found: " + node_path}
+
+	var regions: Array = []
+	var agents: Array = []
+	_collect_navigation_nodes(node, regions, agents)
+
+	var layer_names_2d: Dictionary = {}
+	var layer_names_3d: Dictionary = {}
+	for i in range(1, 33):
+		var key_2d: String = "layer_names/2d_navigation/layer_" + str(i)
+		var key_3d: String = "layer_names/3d_navigation/layer_" + str(i)
+		if ProjectSettings.has_setting(key_2d):
+			var name_2d: String = str(ProjectSettings.get_setting(key_2d))
+			if not name_2d.is_empty():
+				layer_names_2d[i] = name_2d
+		if ProjectSettings.has_setting(key_3d):
+			var name_3d: String = str(ProjectSettings.get_setting(key_3d))
+			if not name_3d.is_empty():
+				layer_names_3d[i] = name_3d
+
+	return {
+		"node_path": node_path,
+		"regions": regions,
+		"agents": agents,
+		"region_count": regions.size(),
+		"agent_count": agents.size(),
+		"layer_names_2d": layer_names_2d,
+		"layer_names_3d": layer_names_3d
+	}
+
+# ============================================================================
+# Registration helpers (Batch 3 navigation)
+# ============================================================================
+
+func _register_setup_navigation_region(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"setup_navigation_region",
+		"Create a NavigationRegion2D or NavigationRegion3D with configurable agent and cell properties.",
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string", "description": "Parent node path."},
+				"name": {"type": "string", "description": "Region node name."},
+				"mode": {"type": "string", "description": "auto, 2d, or 3d. Default auto (detected from context)."},
+				"agent_radius": {"type": "number", "description": "Agent radius."},
+				"agent_height": {"type": "number", "description": "Agent height (3D)."},
+				"agent_max_climb": {"type": "number", "description": "Max climb (3D)."},
+				"agent_max_slope": {"type": "number", "description": "Max slope degrees (3D)."},
+				"cell_size": {"type": "number", "description": "Cell size."},
+				"cell_height": {"type": "number", "description": "Cell height (3D)."},
+				"navigation_layers": {"type": "integer", "description": "Navigation layers bitmask."},
+				"source_geometry_mode": {"type": "string", "description": "2D: root_node, groups_with_children, or groups_explicit."}
+			},
+			"required": ["node_path"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_setup_navigation_region"),
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"type": {"type": "string"},
+				"created": {"type": "boolean"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false},
+		"supplementary", "World"
+	)
+
+func _register_bake_navigation_mesh(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"bake_navigation_mesh",
+		"Bake a NavigationRegion3D navigation mesh or build a NavigationRegion2D polygon from an outline or source geometry.",
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string", "description": "NavigationRegion2D or NavigationRegion3D node path."},
+				"outline": {"type": "array", "description": "2D: outline vertices as [[x,y], ...] to build polygons from."}
+			},
+			"required": ["node_path"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_bake_navigation_mesh"),
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"type": {"type": "string"},
+				"baked": {"type": "boolean"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "World"
+	)
+
+func _register_setup_navigation_agent(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"setup_navigation_agent",
+		"Create a NavigationAgent2D or NavigationAgent3D with pathfinding and avoidance settings.",
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"name": {"type": "string"},
+				"mode": {"type": "string", "description": "auto, 2d, or 3d."},
+				"path_desired_distance": {"type": "number"},
+				"target_desired_distance": {"type": "number"},
+				"radius": {"type": "number"},
+				"neighbor_distance": {"type": "number"},
+				"max_neighbors": {"type": "integer"},
+				"max_speed": {"type": "number"},
+				"avoidance_enabled": {"type": "boolean"},
+				"navigation_layers": {"type": "integer"}
+			},
+			"required": ["node_path"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_setup_navigation_agent"),
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"type": {"type": "string"},
+				"radius": {"type": "number"},
+				"max_speed": {"type": "number"},
+				"created": {"type": "boolean"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false},
+		"supplementary", "World"
+	)
+
+func _register_set_navigation_layers(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"set_navigation_layers",
+		"Set navigation_layers on a navigation region or agent. Accepts a bitmask, an array of layer numbers, or named layers from ProjectSettings.",
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"layers": {"type": "integer", "description": "Bitmask value."},
+				"layer_bits": {"type": "array", "description": "Array of layer numbers (1-32)."},
+				"layer_names": {"type": "array", "description": "Array of named layers."}
+			},
+			"required": ["node_path"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_set_navigation_layers"),
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"navigation_layers": {"type": "integer"},
+				"updated": {"type": "boolean"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "World"
+	)
+
+func _register_get_navigation_info(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"get_navigation_info",
+		"List navigation regions and agents under a node, including their properties and named layers.",
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"}
+			},
+			"required": ["node_path"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_get_navigation_info"),
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"regions": {"type": "array"},
+				"agents": {"type": "array"},
+				"region_count": {"type": "integer"},
+				"agent_count": {"type": "integer"}
 			}
 		},
 		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},

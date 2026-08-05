@@ -177,6 +177,11 @@ func _build_classifications() -> void:
 		{"name": "add_raycast", "category": "supplementary", "group": "World"},
 		{"name": "setup_physics_body", "category": "supplementary", "group": "World"},
 		{"name": "get_collision_info", "category": "supplementary", "group": "World"},
+		{"name": "setup_navigation_region", "category": "supplementary", "group": "World"},
+		{"name": "bake_navigation_mesh", "category": "supplementary", "group": "World"},
+		{"name": "setup_navigation_agent", "category": "supplementary", "group": "World"},
+		{"name": "set_navigation_layers", "category": "supplementary", "group": "World"},
+		{"name": "get_navigation_info", "category": "supplementary", "group": "World"},
 	]
 
 	for item in classifications:

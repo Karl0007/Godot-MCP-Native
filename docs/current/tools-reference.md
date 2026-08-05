@@ -29,7 +29,7 @@ Godot MCP Native 实现了 **161 个工具**，分为 7 大类（含核心和补
 | [Editor Tools](#editor-tools) | 4 | 12 | 16 | `editor_tools_native.gd` | 编辑器操作（运行、停止、状态、截图、信号、导出、选择） |
 | [Debug Tools](#debug-tools) | 3 | 68 | 71 | `debug_tools_native.gd` | 调试和运行时（日志、断点、栈帧、Profiler、运行时探针、动画、音频、着色器、瓦片地图） |
 | [Project Tools](#project-tools) | 3 | 23 | 26 | `project_tools_native.gd` | 项目配置（信息、设置、测试、输入映射、自动加载、全局类、资源诊断） |
-| [World Tools](#world-tools) | 0 | 12 | 12 | `world_tools_native.gd` | 3D 场景构建与物理（网格、光照、材质、环境、相机、GridMap、碰撞、物理层、射线） |
+| [World Tools](#world-tools) | 0 | 17 | 17 | `world_tools_native.gd` | 3D 场景构建、物理与导航（网格、光照、材质、环境、相机、GridMap、碰撞、物理层、射线、导航区域、寻路代理） |
 
 ### Vibe Coding / 免打扰模式
 
@@ -3924,7 +3924,7 @@ Continue：恢复执行。
 
 ## World Tools
 
-3D 场景构建与物理工具（批次 1-2，共 12 个补充工具），源文件 `world_tools_native.gd`。
+3D 场景构建、物理与导航工具（批次 1-3，共 17 个补充工具），源文件 `world_tools_native.gd`。
 
 ### 156. add_mesh_instance
 
@@ -4118,6 +4118,70 @@ Continue：恢复执行。
 
 ---
 
+### 168. setup_navigation_region
+
+创建 NavigationRegion2D / NavigationRegion3D。
+
+**参数**：
+| 参数 | 类型 | 必需 | 描述 |
+|------|------|------|------|
+| `node_path` | string | 是 | 父节点路径 |
+| `name` | string | 否 | 区域节点名 |
+| `mode` | string | 否 | `auto`/`2d`/`3d`，默认自动检测 |
+| `agent_radius`/`agent_height`/`agent_max_climb`/`agent_max_slope` | number | 否 | 代理参数（3D 全支持，2D 仅 radius） |
+| `cell_size`/`cell_height` | number | 否 | 单元格参数 |
+| `navigation_layers` | int | 否 | 层位掩码 |
+| `source_geometry_mode` | string | 否 | 2D：`root_node`/`groups_with_children`/`groups_explicit` |
+
+**返回值**：`node_path`、`type`、`created`
+
+### 169. bake_navigation_mesh
+
+烘焙导航网格（3D）或从轮廓构建多边形（2D）。
+
+**参数**：`node_path`（是）、`outline`（否，2D 轮廓顶点数组）
+
+**返回值**：`node_path`、`type`、`baked`、`outline_vertices`（2D）
+
+**注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 170. setup_navigation_agent
+
+创建 NavigationAgent2D / NavigationAgent3D。
+
+**参数**：
+| 参数 | 类型 | 必需 | 描述 |
+|------|------|------|------|
+| `node_path` | string | 是 | 父节点路径 |
+| `name` | string | 否 | 代理节点名 |
+| `mode` | string | 否 | `auto`/`2d`/`3d` |
+| `path_desired_distance`/`target_desired_distance`/`radius`/`neighbor_distance`/`max_speed` | number | 否 | 寻路参数 |
+| `max_neighbors` | int | 否 | 邻居上限 |
+| `avoidance_enabled` | boolean | 否 | 避障 |
+| `navigation_layers` | int | 否 | 层位掩码 |
+
+**返回值**：`node_path`、`type`、`radius`、`max_speed`、`avoidance_enabled`、`navigation_layers`、`created`
+
+### 171. set_navigation_layers
+
+设置导航层（位掩码/层号数组/命名层三种模式）。
+
+**参数**：`node_path`（是）、`layers`、`layer_bits`、`layer_names`（三选一）
+
+**返回值**：`node_path`、`navigation_layers`、`updated`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 172. get_navigation_info
+
+列出节点下的导航区域与代理及命名层。
+
+**参数**：`node_path`（是）
+
+**返回值**：`node_path`、`regions`、`agents`、`region_count`、`agent_count`、`layer_names_2d`、`layer_names_3d`
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
 ## 通用数据类型
 
 ### Vector2
@@ -4217,7 +4281,7 @@ Continue：恢复执行。
 
 ## 总结
 
-本手册详细说明了 Godot MCP Native 项目的所有核心工具及部分补充工具。项目共 **167 个工具**（30 核心 + 137 补充），所有工具均可通过 MCP 工具管理面板按分组动态启用/禁用。补充工具（`*-Advanced` 分组）默认不启用，需在工具管理面板中手动开启。
+本手册详细说明了 Godot MCP Native 项目的所有核心工具及部分补充工具。项目共 **172 个工具**（30 核心 + 142 补充），所有工具均可通过 MCP 工具管理面板按分组动态启用/禁用。补充工具（`*-Advanced` 分组）默认不启用，需在工具管理面板中手动开启。
 
 **提示**：
 - 使用 `tools/list` 方法获取所有工具的实时列表和完整 JSON Schema

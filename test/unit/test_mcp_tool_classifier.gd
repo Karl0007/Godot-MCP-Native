@@ -13,7 +13,7 @@ func test_classifier_initializes():
 
 func test_all_155_tools_registered():
 	var all_tools: Array = _classifier.get_all_tools()
-	assert_eq(all_tools.size(), 167, "Should have exactly 167 tools registered (155 + 12 World)")
+	assert_eq(all_tools.size(), 172, "Should have exactly 172 tools registered (155 + 17 World)")
 
 func test_core_tools_count_within_limit():
 	var core_tools: Array = _classifier.get_core_tools()
@@ -21,7 +21,7 @@ func test_core_tools_count_within_limit():
 
 func test_supplementary_tools_count():
 	var supp_tools: Array = _classifier.get_supplementary_tools()
-	assert_eq(supp_tools.size(), 137, "Should have 137 supplementary tools (125 + 12 World)")
+	assert_eq(supp_tools.size(), 142, "Should have 142 supplementary tools (125 + 17 World)")
 
 func test_get_tool_category_create_node():
 	var cat: String = _classifier.get_tool_category("create_node")

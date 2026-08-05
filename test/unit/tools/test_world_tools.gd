@@ -136,9 +136,10 @@ func test_register_tools_registers_all_twelve():
 	server_core.register_tool = func(name: String, desc: String, schema: Dictionary, cb: Callable, out: Dictionary = {}, ann: Dictionary = {}, cat: String = "core", group: String = "") -> void:
 		registered.append(name)
 	_world_tools.register_tools(server_core)
-	assert_eq(registered.size(), 12, "Should register exactly 12 tools")
+	assert_eq(registered.size(), 17, "Should register exactly 17 tools")
 	for name in ["add_mesh_instance", "setup_lighting", "set_material_3d", "setup_environment", "setup_camera_3d", "add_gridmap",
-			"setup_collision", "set_physics_layers", "get_physics_layers", "add_raycast", "setup_physics_body", "get_collision_info"]:
+			"setup_collision", "set_physics_layers", "get_physics_layers", "add_raycast", "setup_physics_body", "get_collision_info",
+			"setup_navigation_region", "bake_navigation_mesh", "setup_navigation_agent", "set_navigation_layers", "get_navigation_info"]:
 		assert_true(name in registered, name + " should be registered")
 
 # --- Physics (Batch 2) ---
@@ -205,4 +206,52 @@ func test_layer_bitmask_to_info():
 func test_detect_dimension_unknown():
 	var node := Node.new()
 	assert_eq(_world_tools._detect_dimension(node), "", "Plain Node has no dimension")
+	node.free()
+
+# --- Navigation (Batch 3) ---
+
+func test_setup_navigation_region_requires_node_path():
+	var result: Dictionary = _world_tools._tool_setup_navigation_region({})
+	assert_true(result.has("error"), "Missing node_path should error")
+
+func test_setup_navigation_region_no_scene():
+	var result: Dictionary = _world_tools._tool_setup_navigation_region({"node_path": "/root/Main"})
+	assert_true(result.has("error"), "No open scene should error")
+
+func test_bake_navigation_mesh_requires_node_path():
+	var result: Dictionary = _world_tools._tool_bake_navigation_mesh({})
+	assert_true(result.has("error"), "Missing node_path should error")
+
+func test_bake_navigation_mesh_no_scene():
+	var result: Dictionary = _world_tools._tool_bake_navigation_mesh({"node_path": "/root/Main"})
+	assert_true(result.has("error"), "No open scene should error")
+
+func test_setup_navigation_agent_requires_node_path():
+	var result: Dictionary = _world_tools._tool_setup_navigation_agent({})
+	assert_true(result.has("error"), "Missing node_path should error")
+
+func test_setup_navigation_agent_no_scene():
+	var result: Dictionary = _world_tools._tool_setup_navigation_agent({"node_path": "/root/Main"})
+	assert_true(result.has("error"), "No open scene should error")
+
+func test_set_navigation_layers_requires_node_path():
+	var result: Dictionary = _world_tools._tool_set_navigation_layers({})
+	assert_true(result.has("error"), "Missing node_path should error")
+
+func test_set_navigation_layers_requires_mode():
+	var result: Dictionary = _world_tools._tool_set_navigation_layers({"node_path": "/root/Main"})
+	assert_true(result.has("error"), "No layers/layer_bits/layer_names should error")
+
+func test_get_navigation_info_no_scene():
+	var result: Dictionary = _world_tools._tool_get_navigation_info({"node_path": "/root/Main"})
+	assert_true(result.has("error"), "No open scene should error")
+
+func test_is_3d_context_node3d():
+	var node := Node3D.new()
+	assert_true(_world_tools._is_3d_context(node), "Node3D should be 3D context")
+	node.free()
+
+func test_is_3d_context_node2d():
+	var node := Node2D.new()
+	assert_false(_world_tools._is_3d_context(node), "Node2D should be 2D context")
 	node.free()

@@ -165,5 +165,10 @@
   "get_physics_layers": "Read collision_layer and collision_mask from a physics node, including resolved layer names.",
   "add_raycast": "Add a RayCast2D or RayCast3D to a node with configurable target position, collision mask, and hit settings.",
   "setup_physics_body": "Configure physics body properties. CharacterBody: motion_mode, floor settings, max_slides, slide_on_ceiling. RigidBody: mass, gravity_scale, damp, freeze, contact monitoring.",
-  "get_collision_info": "Read collision shapes, raycasts, layers, and body settings from a physics node (including children)."
+  "get_collision_info": "Read collision shapes, raycasts, layers, and body settings from a physics node (including children).",
+  "setup_navigation_region": "Create a NavigationRegion2D or NavigationRegion3D with configurable agent and cell properties.",
+  "bake_navigation_mesh": "Bake a NavigationRegion3D navigation mesh or build a NavigationRegion2D polygon from an outline or source geometry.",
+  "setup_navigation_agent": "Create a NavigationAgent2D or NavigationAgent3D with pathfinding and avoidance settings.",
+  "set_navigation_layers": "Set navigation_layers on a navigation region or agent. Accepts a bitmask, an array of layer numbers, or named layers from ProjectSettings.",
+  "get_navigation_info": "List navigation regions and agents under a node, including their properties and named layers."
 }
