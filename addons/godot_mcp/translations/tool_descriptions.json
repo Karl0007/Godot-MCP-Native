@@ -153,5 +153,11 @@
   "list_export_presets": "List export presets from export_presets.cfg.",
   "inspect_export_templates": "Inspect locally installed Godot export templates for the current editor version.",
   "validate_export_preset": "Validate an export preset against export_presets.cfg and local template availability.",
-  "run_export": "Run a Godot CLI export for a configured preset."
+  "run_export": "Run a Godot CLI export for a configured preset.",
+  "add_mesh_instance": "Create a MeshInstance3D with a primitive mesh (box, sphere, cylinder, capsule, plane, quad, prism, torus) or load a mesh from a .glb/.gltf/.obj file.",
+  "setup_lighting": "Add a DirectionalLight3D, OmniLight3D, or SpotLight3D with color, energy, and shadow settings.",
+  "set_material_3d": "Create or update a StandardMaterial3D on a MeshInstance3D surface with PBR parameters (albedo, metallic, roughness, emission, transparency, cull mode).",
+  "setup_environment": "Create or update a WorldEnvironment with background mode, procedural sky, ambient light, and tonemap settings.",
+  "setup_camera_3d": "Create or configure a Camera3D with position, rotation, FOV, near/far planes, and current camera flag.",
+  "add_gridmap": "Create a GridMap node, optionally assign a MeshLibrary resource and set cell size."
 }

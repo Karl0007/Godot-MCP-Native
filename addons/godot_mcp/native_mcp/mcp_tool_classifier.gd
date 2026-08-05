@@ -165,6 +165,12 @@ func _build_classifications() -> void:
 		{"name": "scan_cyclic_resource_dependencies", "category": "supplementary", "group": "Project-Advanced"},
 		{"name": "detect_broken_scripts", "category": "supplementary", "group": "Project-Advanced"},
 		{"name": "audit_project_health", "category": "supplementary", "group": "Project-Advanced"},
+		{"name": "add_mesh_instance", "category": "supplementary", "group": "World"},
+		{"name": "setup_lighting", "category": "supplementary", "group": "World"},
+		{"name": "set_material_3d", "category": "supplementary", "group": "World"},
+		{"name": "setup_environment", "category": "supplementary", "group": "World"},
+		{"name": "setup_camera_3d", "category": "supplementary", "group": "World"},
+		{"name": "add_gridmap", "category": "supplementary", "group": "World"},
 	]
 
 	for item in classifications:

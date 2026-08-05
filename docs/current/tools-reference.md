@@ -11,14 +11,15 @@
 5. [Editor Tools](#editor-tools)
 6. [Debug Tools](#debug-tools)
 7. [Project Tools](#project-tools)
-8. [通用数据类型](#通用数据类型)
-9. [错误处理](#错误处理)
+8. [World Tools](#world-tools)
+9. [通用数据类型](#通用数据类型)
+10. [错误处理](#错误处理)
 
 ---
 
 ## 工具概述
 
-Godot MCP Native 实现了 **155 个工具**，分为 6 大类（含核心和补充工具）：
+Godot MCP Native 实现了 **161 个工具**，分为 7 大类（含核心和补充工具）：
 
 | 类别 | 核心工具 | 补充工具 | 总计 | 源文件 | 用途 |
 |------|----------|----------|------|--------|------|
@@ -28,6 +29,7 @@ Godot MCP Native 实现了 **155 个工具**，分为 6 大类（含核心和补
 | [Editor Tools](#editor-tools) | 4 | 12 | 16 | `editor_tools_native.gd` | 编辑器操作（运行、停止、状态、截图、信号、导出、选择） |
 | [Debug Tools](#debug-tools) | 3 | 68 | 71 | `debug_tools_native.gd` | 调试和运行时（日志、断点、栈帧、Profiler、运行时探针、动画、音频、着色器、瓦片地图） |
 | [Project Tools](#project-tools) | 3 | 23 | 26 | `project_tools_native.gd` | 项目配置（信息、设置、测试、输入映射、自动加载、全局类、资源诊断） |
+| [World Tools](#world-tools) | 0 | 6 | 6 | `world_tools_native.gd` | 3D 场景构建（网格、光照、材质、环境、相机、GridMap） |
 
 ### Vibe Coding / 免打扰模式
 
@@ -3920,6 +3922,119 @@ Continue：恢复执行。
 
 ---
 
+## World Tools
+
+3D 场景构建工具（批次 1，共 6 个补充工具），源文件 `world_tools_native.gd`。
+
+### 156. add_mesh_instance
+
+创建 MeshInstance3D，支持基本体网格或从文件加载网格。
+
+**参数**：
+| 参数 | 类型 | 必需 | 描述 |
+|------|------|------|------|
+| `parent_path` | string | 否 | 父节点路径，默认 `.`（场景根） |
+| `name` | string | 否 | 节点名，默认 `MeshInstance3D` |
+| `mesh_type` | string | 否 | 基本体类型：`box`/`sphere`/`cylinder`/`capsule`/`plane`/`quad`/`prism`/`torus` |
+| `mesh_file` | string | 否 | 网格文件路径（.glb/.gltf/.obj/.tres） |
+| `material` | object | 否 | 材质字典 `{albedo_color, metallic, roughness}` |
+| `position` | object | 否 | 位置 `{x,y,z}` 或 `Vector3(x,y,z)` |
+| `rotation_degrees` | object | 否 | 旋转（度） |
+| `scale` | object | 否 | 缩放 |
+
+**返回值**：`node_path`、`node_type`、`mesh_source`、`created`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=false`, `openWorldHint=false`
+
+### 157. setup_lighting
+
+添加 DirectionalLight3D / OmniLight3D / SpotLight3D。
+
+**参数**：
+| 参数 | 类型 | 必需 | 描述 |
+|------|------|------|------|
+| `parent_path` | string | 否 | 父节点路径，默认 `.` |
+| `name` | string | 否 | 灯光节点名 |
+| `light_type` | string | 否 | `directional`（默认）/`omni`/`spot` |
+| `color` | string | 否 | 灯光颜色 `#RRGGBB` 或 `Color(r,g,b,a)` |
+| `energy` | number | 否 | 能量，默认 1.0 |
+| `position` / `rotation_degrees` | object | 否 | 变换 |
+| `shadow_enabled` | boolean | 否 | 阴影，方向光默认 true |
+| `range` | number | 否 | omni/spot 灯范围 |
+
+**返回值**：`node_path`、`light_type`、`created`
+
+### 158. set_material_3d
+
+在 MeshInstance3D 表面创建/更新 StandardMaterial3D（PBR）。
+
+**参数**：
+| 参数 | 类型 | 必需 | 描述 |
+|------|------|------|------|
+| `node_path` | string | 是 | MeshInstance3D 节点路径 |
+| `surface_index` | int | 否 | 表面索引，默认 0 |
+| `albedo_color` / `albedo_texture` | string | 否 | 基础色/贴图 |
+| `metallic` / `roughness` | number | 否 | 金属度/粗糙度 |
+| `emission_color` / `emission_energy` | string/number | 否 | 自发光 |
+| `transparency` | string | 否 | `disabled`/`alpha`/`alpha_scissor`/`alpha_hash`/`alpha_depth_pre_pass` |
+| `cull_mode` | string | 否 | `back`/`front`/`disabled` |
+| `normal_texture` / `metallic_texture` / `roughness_texture` | string | 否 | 贴图 |
+
+**返回值**：`node_path`、`surface_index`、`albedo_color`、`metallic`、`roughness`、`updated`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 159. setup_environment
+
+创建/更新 WorldEnvironment（天空/背景/环境光/色调映射）。
+
+**参数**：
+| 参数 | 类型 | 必需 | 描述 |
+|------|------|------|------|
+| `parent_path` | string | 否 | 父节点路径，默认 `.` |
+| `name` | string | 否 | 节点名，默认 `WorldEnvironment` |
+| `background_mode` | string | 否 | `sky`（默认）/`color`/`canvas`/`clear_color` |
+| `background_color` | string | 否 | `color` 模式背景色 |
+| `sky` | object | 否 | 程序化天空字典 `{sky_top_color, sky_horizon_color, ground_bottom_color, ground_horizon_color, sun_angle_max, sky_curve}` |
+| `ambient_light_color` / `ambient_light_energy` / `ambient_light_source` | 多种 | 否 | 环境光 |
+| `tonemap_mode` | string | 否 | `linear`/`reinhard`/`filmic`/`aces`/`agx` |
+| `exposure` | number | 否 | 曝光 |
+
+**返回值**：`node_path`、`background_mode`、`created`
+
+### 160. setup_camera_3d
+
+创建/配置 Camera3D。
+
+**参数**：
+| 参数 | 类型 | 必需 | 描述 |
+|------|------|------|------|
+| `parent_path` | string | 否 | 父节点路径，默认 `.` |
+| `name` | string | 否 | 节点名，默认 `Camera3D` |
+| `position` / `rotation_degrees` | object | 否 | 变换 |
+| `fov` | number | 否 | 视场角，默认 75 |
+| `near` / `far` | number | 否 | 裁剪面，默认 0.05/4000 |
+| `current` | boolean | 否 | 设为当前相机，默认 true |
+
+**返回值**：`node_path`、`fov`、`current`、`created`
+
+### 161. add_gridmap
+
+创建 GridMap 节点。
+
+**参数**：
+| 参数 | 类型 | 必需 | 描述 |
+|------|------|------|------|
+| `parent_path` | string | 否 | 父节点路径，默认 `.` |
+| `name` | string | 否 | 节点名，默认 `GridMap` |
+| `mesh_library` | string | 否 | MeshLibrary .tres 资源路径 |
+| `cell_size` | object | 否 | 单元格大小，默认 (1,1,1) |
+| `cell_scale` | number | 否 | 单元格缩放，默认 1.0 |
+
+**返回值**：`node_path`、`mesh_library`、`created`
+
+---
+
 ## 通用数据类型
 
 ### Vector2
@@ -4019,7 +4134,7 @@ Continue：恢复执行。
 
 ## 总结
 
-本手册详细说明了 Godot MCP Native 项目的所有核心工具及部分补充工具。项目共 **155 个工具**（30 核心 + 125 补充），所有工具均可通过 MCP 工具管理面板按分组动态启用/禁用。补充工具（`*-Advanced` 分组）默认不启用，需在工具管理面板中手动开启。
+本手册详细说明了 Godot MCP Native 项目的所有核心工具及部分补充工具。项目共 **161 个工具**（30 核心 + 131 补充），所有工具均可通过 MCP 工具管理面板按分组动态启用/禁用。补充工具（`*-Advanced` 分组）默认不启用，需在工具管理面板中手动开启。
 
 **提示**：
 - 使用 `tools/list` 方法获取所有工具的实时列表和完整 JSON Schema
