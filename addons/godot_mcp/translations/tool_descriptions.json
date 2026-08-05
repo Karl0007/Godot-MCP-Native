@@ -159,5 +159,11 @@
   "set_material_3d": "Create or update a StandardMaterial3D on a MeshInstance3D surface with PBR parameters (albedo, metallic, roughness, emission, transparency, cull mode).",
   "setup_environment": "Create or update a WorldEnvironment with background mode, procedural sky, ambient light, and tonemap settings.",
   "setup_camera_3d": "Create or configure a Camera3D with position, rotation, FOV, near/far planes, and current camera flag.",
-  "add_gridmap": "Create a GridMap node, optionally assign a MeshLibrary resource and set cell size."
+  "add_gridmap": "Create a GridMap node, optionally assign a MeshLibrary resource and set cell size.",
+  "setup_collision": "Add a CollisionShape2D or CollisionShape3D to a physics body or area node. Supports rectangle, circle, capsule, segment, convex (2D) and box, sphere, capsule, cylinder, convex (3D).",
+  "set_physics_layers": "Set collision_layer and/or collision_mask on a physics node. Accepts an integer bitmask or an array of layer numbers (1-32).",
+  "get_physics_layers": "Read collision_layer and collision_mask from a physics node, including resolved layer names.",
+  "add_raycast": "Add a RayCast2D or RayCast3D to a node with configurable target position, collision mask, and hit settings.",
+  "setup_physics_body": "Configure physics body properties. CharacterBody: motion_mode, floor settings, max_slides, slide_on_ceiling. RigidBody: mass, gravity_scale, damp, freeze, contact monitoring.",
+  "get_collision_info": "Read collision shapes, raycasts, layers, and body settings from a physics node (including children)."
 }

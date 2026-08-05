@@ -129,13 +129,80 @@ func test_add_gridmap_output_format():
 
 # --- registration ---
 
-func test_register_tools_registers_all_six():
+func test_register_tools_registers_all_twelve():
 	var server_core: RefCounted = load("res://addons/godot_mcp/native_mcp/mcp_server_core.gd").new()
 	var registered: Array = []
 	var original: Callable = server_core.register_tool
 	server_core.register_tool = func(name: String, desc: String, schema: Dictionary, cb: Callable, out: Dictionary = {}, ann: Dictionary = {}, cat: String = "core", group: String = "") -> void:
 		registered.append(name)
 	_world_tools.register_tools(server_core)
-	assert_eq(registered.size(), 6, "Should register exactly 6 tools")
-	for name in ["add_mesh_instance", "setup_lighting", "set_material_3d", "setup_environment", "setup_camera_3d", "add_gridmap"]:
+	assert_eq(registered.size(), 12, "Should register exactly 12 tools")
+	for name in ["add_mesh_instance", "setup_lighting", "set_material_3d", "setup_environment", "setup_camera_3d", "add_gridmap",
+			"setup_collision", "set_physics_layers", "get_physics_layers", "add_raycast", "setup_physics_body", "get_collision_info"]:
 		assert_true(name in registered, name + " should be registered")
+
+# --- Physics (Batch 2) ---
+
+func test_setup_collision_requires_node_path():
+	var result: Dictionary = _world_tools._tool_setup_collision({})
+	assert_true(result.has("error"), "Missing node_path should error")
+
+func test_setup_collision_requires_shape():
+	var result: Dictionary = _world_tools._tool_setup_collision({"node_path": "/root/Main"})
+	assert_true(result.has("error"), "Missing shape should error")
+
+func test_setup_collision_unknown_2d_shape():
+	var result: Dictionary = _world_tools._tool_setup_collision({"node_path": "/root/Main", "shape": "triangle"})
+	assert_true(result.has("error"), "Unknown 2D shape should error")
+
+func test_setup_collision_no_scene():
+	var result: Dictionary = _world_tools._tool_setup_collision({"node_path": "/root/Main", "shape": "circle"})
+	assert_true(result.has("error"), "No open scene should error")
+
+func test_set_physics_layers_requires_node_path():
+	var result: Dictionary = _world_tools._tool_set_physics_layers({})
+	assert_true(result.has("error"), "Missing node_path should error")
+
+func test_set_physics_layers_requires_layers():
+	var result: Dictionary = _world_tools._tool_set_physics_layers({"node_path": "/root/Main"})
+	assert_true(result.has("error"), "No layer params should error")
+
+func test_get_physics_layers_no_scene():
+	var result: Dictionary = _world_tools._tool_get_physics_layers({"node_path": "/root/Main"})
+	assert_true(result.has("error"), "No open scene should error")
+
+func test_add_raycast_requires_node_path():
+	var result: Dictionary = _world_tools._tool_add_raycast({})
+	assert_true(result.has("error"), "Missing node_path should error")
+
+func test_add_raycast_no_scene():
+	var result: Dictionary = _world_tools._tool_add_raycast({"node_path": "/root/Main"})
+	assert_true(result.has("error"), "No open scene should error")
+
+func test_setup_physics_body_no_scene():
+	var result: Dictionary = _world_tools._tool_setup_physics_body({"node_path": "/root/Main", "mass": 2.0})
+	assert_true(result.has("error"), "No open scene should error")
+
+func test_get_collision_info_no_scene():
+	var result: Dictionary = _world_tools._tool_get_collision_info({"node_path": "/root/Main"})
+	assert_true(result.has("error"), "No open scene should error")
+
+func test_parse_layer_value_int():
+	assert_eq(_world_tools._parse_layer_value(5), 5, "Int layer should pass through")
+
+func test_parse_layer_value_array():
+	assert_eq(_world_tools._parse_layer_value([1, 3]), 5, "[1,3] should become bitmask 5")
+
+func test_parse_layer_value_invalid_array():
+	assert_eq(_world_tools._parse_layer_value([0, 33]), 0, "Out-of-range layers should be ignored")
+
+func test_layer_bitmask_to_info():
+	var info: Array = _world_tools._layer_bitmask_to_info(5, "2d")
+	assert_eq(info.size(), 2, "Bitmask 5 should map to 2 layers")
+	assert_eq(info[0]["layer"], 1, "First layer should be 1")
+	assert_eq(info[1]["layer"], 3, "Second layer should be 3")
+
+func test_detect_dimension_unknown():
+	var node := Node.new()
+	assert_eq(_world_tools._detect_dimension(node), "", "Plain Node has no dimension")
+	node.free()

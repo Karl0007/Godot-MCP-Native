@@ -136,6 +136,12 @@ func register_tools(server_core: RefCounted) -> void:
 	_register_setup_environment(server_core)
 	_register_setup_camera_3d(server_core)
 	_register_add_gridmap(server_core)
+	_register_setup_collision(server_core)
+	_register_set_physics_layers(server_core)
+	_register_get_physics_layers(server_core)
+	_register_add_raycast(server_core)
+	_register_setup_physics_body(server_core)
+	_register_get_collision_info(server_core)
 
 # ============================================================================
 # add_mesh_instance - Create MeshInstance3D
@@ -782,3 +788,780 @@ func _tool_add_gridmap(params: Dictionary) -> Dictionary:
 		"mesh_library": str(gridmap.mesh_library.resource_path) if gridmap.mesh_library else "",
 		"created": true
 	}
+
+# ============================================================================
+# Physics tools (Batch 2)
+# ============================================================================
+
+func _detect_dimension(node: Node) -> String:
+	if node is Node2D or node is Control:
+		return "2d"
+	if node is Node3D:
+		return "3d"
+	var parent := node.get_parent()
+	while parent != null:
+		if parent is Node2D or parent is Control:
+			return "2d"
+		if parent is Node3D:
+			return "3d"
+		parent = parent.get_parent()
+	return ""
+
+func _get_layer_name(dim: String, layer_index: int) -> String:
+	var setting_key: String = "layer_names/%s_physics/layer_%d" % [dim, layer_index]
+	if ProjectSettings.has_setting(setting_key):
+		var name_val: Variant = ProjectSettings.get_setting(setting_key)
+		if name_val is String and not String(name_val).is_empty():
+			return String(name_val)
+	return ""
+
+func _layer_bitmask_to_info(bitmask: int, dim: String) -> Array:
+	var layers: Array = []
+	for i in range(1, 33):
+		if bitmask & (1 << (i - 1)):
+			var layer_name: String = _get_layer_name(dim, i)
+			var entry: Dictionary = {"layer": i}
+			if not layer_name.is_empty():
+				entry["name"] = layer_name
+			layers.append(entry)
+	return layers
+
+func _parse_layer_value(value: Variant) -> int:
+	if value is int or value is float:
+		return int(value)
+	if value is Array:
+		var bitmask: int = 0
+		for layer_num: Variant in value:
+			var n: int = int(layer_num)
+			if n >= 1 and n <= 32:
+				bitmask |= (1 << (n - 1))
+		return bitmask
+	return int(value)
+
+func _tool_setup_collision(params: Dictionary) -> Dictionary:
+	var scene_root: Node = _get_user_scene_root()
+	if not scene_root:
+		return {"error": "No scene is currently open"}
+
+	var node_path: String = String(params.get("node_path", ""))
+	if node_path.is_empty():
+		return {"error": "Missing required parameter: node_path"}
+	var shape_name: String = String(params.get("shape", ""))
+	if shape_name.is_empty():
+		return {"error": "Missing required parameter: shape"}
+
+	var node: Node = _resolve_node_path(node_path)
+	if not node:
+		return {"error": "Node not found: " + node_path}
+
+	var dim: String = _detect_dimension(node)
+	if dim.is_empty():
+		dim = String(params.get("dimension", "2d")).to_lower()
+
+	var valid_parents_2d: Array = ["PhysicsBody2D", "Area2D", "StaticBody2D", "CharacterBody2D", "RigidBody2D", "AnimatableBody2D"]
+	var valid_parents_3d: Array = ["PhysicsBody3D", "Area3D", "StaticBody3D", "CharacterBody3D", "RigidBody3D", "AnimatableBody3D"]
+	var is_valid_parent: bool = false
+	var parents: Array = valid_parents_2d if dim == "2d" else valid_parents_3d
+	for vp: String in parents:
+		if node.is_class(vp):
+			is_valid_parent = true
+			break
+	if not is_valid_parent:
+		return {"error": "Node '" + node_path + "' (" + node.get_class() + ") is not a physics body or area. CollisionShape should be added to a PhysicsBody or Area node."}
+
+	var shape: Resource = null
+	var child_name: String = "CollisionShape"
+
+	if dim == "2d":
+		match shape_name:
+			"rectangle", "rect":
+				shape = RectangleShape2D.new()
+				(shape as RectangleShape2D).size = Vector2(float(params.get("width", 32.0)), float(params.get("height", 32.0)))
+			"circle":
+				shape = CircleShape2D.new()
+				(shape as CircleShape2D).radius = float(params.get("radius", 16.0))
+			"capsule":
+				shape = CapsuleShape2D.new()
+				(shape as CapsuleShape2D).radius = float(params.get("radius", 16.0))
+				(shape as CapsuleShape2D).height = float(params.get("height", 40.0))
+			"segment":
+				shape = SegmentShape2D.new()
+				(shape as SegmentShape2D).a = Vector2(float(params.get("ax", 0.0)), float(params.get("ay", 0.0)))
+				(shape as SegmentShape2D).b = Vector2(float(params.get("bx", 32.0)), float(params.get("by", 0.0)))
+			"custom":
+				shape = ConvexPolygonShape2D.new()
+				var points_data: Array = params.get("points", [])
+				var pool := PackedVector2Array()
+				for p: Variant in points_data:
+					if p is Array and (p as Array).size() >= 2:
+						pool.append(Vector2(float(p[0]), float(p[1])))
+				if pool.size() >= 3:
+					(shape as ConvexPolygonShape2D).points = pool
+			_:
+				return {"error": "Unknown 2D shape: '" + shape_name + "'. Available: rectangle, circle, capsule, segment, custom"}
+
+		var collision_node := CollisionShape2D.new()
+		collision_node.shape = shape
+		collision_node.name = child_name
+		collision_node.disabled = bool(params.get("disabled", false))
+		collision_node.one_way_collision = bool(params.get("one_way_collision", false))
+		var error: Dictionary = _add_child_with_undo(node, collision_node, scene_root, "MCP: Add CollisionShape2D to " + str(node.name))
+		if not error.is_empty():
+			return error
+		return {
+			"node_path": str(collision_node.get_path()),
+			"shape_type": shape.get_class(),
+			"dimension": "2D"
+		}
+	else:
+		match shape_name:
+			"box", "rectangle", "rect":
+				shape = BoxShape3D.new()
+				(shape as BoxShape3D).size = Vector3(float(params.get("width", 1.0)), float(params.get("height", 1.0)), float(params.get("depth", 1.0)))
+			"sphere", "circle":
+				shape = SphereShape3D.new()
+				(shape as SphereShape3D).radius = float(params.get("radius", 0.5))
+			"capsule":
+				shape = CapsuleShape3D.new()
+				(shape as CapsuleShape3D).radius = float(params.get("radius", 0.5))
+				(shape as CapsuleShape3D).height = float(params.get("height", 2.0))
+			"cylinder":
+				shape = CylinderShape3D.new()
+				(shape as CylinderShape3D).radius = float(params.get("radius", 0.5))
+				(shape as CylinderShape3D).height = float(params.get("height", 2.0))
+			"convex", "custom":
+				shape = ConvexPolygonShape3D.new()
+				var points_data: Array = params.get("points", [])
+				var pool := PackedVector3Array()
+				for p: Variant in points_data:
+					if p is Array and (p as Array).size() >= 3:
+						pool.append(Vector3(float(p[0]), float(p[1]), float(p[2])))
+				if pool.size() >= 4:
+					(shape as ConvexPolygonShape3D).points = pool
+			_:
+				return {"error": "Unknown 3D shape: '" + shape_name + "'. Available: box, sphere, capsule, cylinder, convex"}
+
+		var collision_node := CollisionShape3D.new()
+		collision_node.shape = shape
+		collision_node.name = child_name
+		collision_node.disabled = bool(params.get("disabled", false))
+		var error: Dictionary = _add_child_with_undo(node, collision_node, scene_root, "MCP: Add CollisionShape3D to " + str(node.name))
+		if not error.is_empty():
+			return error
+		return {
+			"node_path": str(collision_node.get_path()),
+			"shape_type": shape.get_class(),
+			"dimension": "3D"
+		}
+
+func _tool_set_physics_layers(params: Dictionary) -> Dictionary:
+	var scene_root: Node = _get_user_scene_root()
+	if not scene_root:
+		return {"error": "No scene is currently open"}
+
+	var node_path: String = String(params.get("node_path", ""))
+	if node_path.is_empty():
+		return {"error": "Missing required parameter: node_path"}
+	var node: Node = _resolve_node_path(node_path)
+	if not node:
+		return {"error": "Node not found: " + node_path}
+	if not "collision_layer" in node:
+		return {"error": "Node '" + node_path + "' (" + node.get_class() + ") does not have collision_layer property"}
+
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if not editor_interface:
+		return {"error": "Editor interface not available"}
+	var undo_redo: EditorUndoRedoManager = editor_interface.get_editor_undo_redo()
+	undo_redo.create_action("MCP: Set physics layers on " + str(node.name))
+
+	var changes: Dictionary = {}
+	if params.has("collision_layer"):
+		var old_layer: Variant = node.get("collision_layer")
+		var new_layer: int = _parse_layer_value(params["collision_layer"])
+		undo_redo.add_do_property(node, "collision_layer", new_layer)
+		undo_redo.add_undo_property(node, "collision_layer", old_layer)
+		changes["collision_layer"] = new_layer
+	if params.has("collision_mask"):
+		var old_mask: Variant = node.get("collision_mask")
+		var new_mask: int = _parse_layer_value(params["collision_mask"])
+		undo_redo.add_do_property(node, "collision_mask", new_mask)
+		undo_redo.add_undo_property(node, "collision_mask", old_mask)
+		changes["collision_mask"] = new_mask
+	if changes.is_empty():
+		undo_redo.commit_action()
+		return {"error": "Must provide collision_layer and/or collision_mask"}
+	undo_redo.commit_action()
+	editor_interface.mark_scene_as_unsaved()
+
+	var dim: String = _detect_dimension(node)
+	if dim.is_empty():
+		dim = "2d"
+	var result: Dictionary = {"node_path": node_path}
+	if changes.has("collision_layer"):
+		result["collision_layer"] = changes["collision_layer"]
+		result["collision_layer_info"] = _layer_bitmask_to_info(changes["collision_layer"], dim)
+	if changes.has("collision_mask"):
+		result["collision_mask"] = changes["collision_mask"]
+		result["collision_mask_info"] = _layer_bitmask_to_info(changes["collision_mask"], dim)
+	return result
+
+func _tool_get_physics_layers(params: Dictionary) -> Dictionary:
+	var scene_root: Node = _get_user_scene_root()
+	if not scene_root:
+		return {"error": "No scene is currently open"}
+	var node_path: String = String(params.get("node_path", ""))
+	if node_path.is_empty():
+		return {"error": "Missing required parameter: node_path"}
+	var node: Node = _resolve_node_path(node_path)
+	if not node:
+		return {"error": "Node not found: " + node_path}
+	if not "collision_layer" in node:
+		return {"error": "Node '" + node_path + "' (" + node.get_class() + ") does not have collision_layer property"}
+	var layer: int = int(node.get("collision_layer"))
+	var mask: int = int(node.get("collision_mask"))
+	var dim: String = _detect_dimension(node)
+	if dim.is_empty():
+		dim = "2d"
+	return {
+		"node_path": node_path,
+		"type": node.get_class(),
+		"collision_layer": layer,
+		"collision_layer_info": _layer_bitmask_to_info(layer, dim),
+		"collision_mask": mask,
+		"collision_mask_info": _layer_bitmask_to_info(mask, dim),
+	}
+
+func _tool_add_raycast(params: Dictionary) -> Dictionary:
+	var scene_root: Node = _get_user_scene_root()
+	if not scene_root:
+		return {"error": "No scene is currently open"}
+	var node_path: String = String(params.get("node_path", ""))
+	if node_path.is_empty():
+		return {"error": "Missing required parameter: node_path"}
+	var node: Node = _resolve_node_path(node_path)
+	if not node:
+		return {"error": "Node not found: " + node_path}
+
+	var dim: String = _detect_dimension(node)
+	if dim.is_empty():
+		dim = String(params.get("dimension", "2d")).to_lower()
+	var ray_name: String = String(params.get("name", "RayCast"))
+	var enabled: bool = bool(params.get("enabled", true))
+	var collision_mask: int = int(params.get("collision_mask", 1))
+	var collide_with_areas: bool = bool(params.get("collide_with_areas", false))
+	var collide_with_bodies: bool = bool(params.get("collide_with_bodies", true))
+	var hit_from_inside: bool = bool(params.get("hit_from_inside", false))
+
+	if dim == "2d":
+		var ray := RayCast2D.new()
+		ray.name = ray_name
+		ray.enabled = enabled
+		ray.collision_mask = collision_mask
+		ray.collide_with_areas = collide_with_areas
+		ray.collide_with_bodies = collide_with_bodies
+		ray.hit_from_inside = hit_from_inside
+		ray.target_position = Vector2(float(params.get("target_x", 0.0)), float(params.get("target_y", 50.0)))
+		var error: Dictionary = _add_child_with_undo(node, ray, scene_root, "MCP: Add RayCast2D to " + str(node.name))
+		if not error.is_empty():
+			return error
+		return {
+			"node_path": str(ray.get_path()),
+			"type": "RayCast2D",
+			"target_position": "Vector2(%s, %s)" % [ray.target_position.x, ray.target_position.y],
+			"collision_mask": collision_mask,
+		}
+	else:
+		var ray := RayCast3D.new()
+		ray.name = ray_name
+		ray.enabled = enabled
+		ray.collision_mask = collision_mask
+		ray.collide_with_areas = collide_with_areas
+		ray.collide_with_bodies = collide_with_bodies
+		ray.hit_from_inside = hit_from_inside
+		ray.target_position = Vector3(float(params.get("target_x", 0.0)), float(params.get("target_y", -1.0)), float(params.get("target_z", 0.0)))
+		var error: Dictionary = _add_child_with_undo(node, ray, scene_root, "MCP: Add RayCast3D to " + str(node.name))
+		if not error.is_empty():
+			return error
+		return {
+			"node_path": str(ray.get_path()),
+			"type": "RayCast3D",
+			"target_position": "Vector3(%s, %s, %s)" % [ray.target_position.x, ray.target_position.y, ray.target_position.z],
+			"collision_mask": collision_mask,
+		}
+
+func _tool_setup_physics_body(params: Dictionary) -> Dictionary:
+	var scene_root: Node = _get_user_scene_root()
+	if not scene_root:
+		return {"error": "No scene is currently open"}
+	var node_path: String = String(params.get("node_path", ""))
+	if node_path.is_empty():
+		return {"error": "Missing required parameter: node_path"}
+	var node: Node = _resolve_node_path(node_path)
+	if not node:
+		return {"error": "Node not found: " + node_path}
+
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if not editor_interface:
+		return {"error": "Editor interface not available"}
+	var undo_redo: EditorUndoRedoManager = editor_interface.get_editor_undo_redo()
+	undo_redo.create_action("MCP: Setup physics body " + str(node.name))
+
+	var applied: Dictionary = {}
+
+	if node is CharacterBody2D or node is CharacterBody3D:
+		if params.has("floor_stop_on_slope"):
+			var old_b: Variant = node.floor_stop_on_slope
+			var new_b: bool = bool(params["floor_stop_on_slope"])
+			undo_redo.add_do_property(node, "floor_stop_on_slope", new_b)
+			undo_redo.add_undo_property(node, "floor_stop_on_slope", old_b)
+			applied["floor_stop_on_slope"] = new_b
+		if params.has("floor_max_angle"):
+			var old_f: Variant = node.floor_max_angle
+			var new_f: float = float(params["floor_max_angle"])
+			undo_redo.add_do_property(node, "floor_max_angle", new_f)
+			undo_redo.add_undo_property(node, "floor_max_angle", old_f)
+			applied["floor_max_angle"] = new_f
+		if params.has("floor_snap_length"):
+			var old_s: Variant = node.floor_snap_length
+			var new_s: float = float(params["floor_snap_length"])
+			undo_redo.add_do_property(node, "floor_snap_length", new_s)
+			undo_redo.add_undo_property(node, "floor_snap_length", old_s)
+			applied["floor_snap_length"] = new_s
+		if params.has("wall_min_slide_angle"):
+			var old_w: Variant = node.wall_min_slide_angle
+			var new_w: float = float(params["wall_min_slide_angle"])
+			undo_redo.add_do_property(node, "wall_min_slide_angle", new_w)
+			undo_redo.add_undo_property(node, "wall_min_slide_angle", old_w)
+			applied["wall_min_slide_angle"] = new_w
+		if params.has("motion_mode"):
+			var mode_str: String = str(params["motion_mode"])
+			var mode_val: int = 0
+			if node is CharacterBody2D:
+				match mode_str.to_lower():
+					"grounded":
+						mode_val = CharacterBody2D.MOTION_MODE_GROUNDED
+					"floating":
+						mode_val = CharacterBody2D.MOTION_MODE_FLOATING
+					_:
+						mode_val = int(params["motion_mode"])
+			else:
+				match mode_str.to_lower():
+					"grounded":
+						mode_val = CharacterBody3D.MOTION_MODE_GROUNDED
+					"floating":
+						mode_val = CharacterBody3D.MOTION_MODE_FLOATING
+					_:
+						mode_val = int(params["motion_mode"])
+			var old_m: Variant = node.motion_mode
+			undo_redo.add_do_property(node, "motion_mode", mode_val)
+			undo_redo.add_undo_property(node, "motion_mode", old_m)
+			applied["motion_mode"] = mode_str
+		if params.has("max_slides"):
+			var old_x: Variant = node.max_slides
+			var new_x: int = int(params["max_slides"])
+			undo_redo.add_do_property(node, "max_slides", new_x)
+			undo_redo.add_undo_property(node, "max_slides", old_x)
+			applied["max_slides"] = new_x
+		if params.has("slide_on_ceiling"):
+			var old_c: Variant = node.slide_on_ceiling
+			var new_c: bool = bool(params["slide_on_ceiling"])
+			undo_redo.add_do_property(node, "slide_on_ceiling", new_c)
+			undo_redo.add_undo_property(node, "slide_on_ceiling", old_c)
+			applied["slide_on_ceiling"] = new_c
+
+	elif node is RigidBody2D or node is RigidBody3D:
+		if params.has("mass"):
+			var old_ma: Variant = node.mass
+			var new_ma: float = float(params["mass"])
+			undo_redo.add_do_property(node, "mass", new_ma)
+			undo_redo.add_undo_property(node, "mass", old_ma)
+			applied["mass"] = new_ma
+		if params.has("gravity_scale"):
+			var old_g: Variant = node.gravity_scale
+			var new_g: float = float(params["gravity_scale"])
+			undo_redo.add_do_property(node, "gravity_scale", new_g)
+			undo_redo.add_undo_property(node, "gravity_scale", old_g)
+			applied["gravity_scale"] = new_g
+		if params.has("linear_damp"):
+			var old_l: Variant = node.linear_damp
+			var new_l: float = float(params["linear_damp"])
+			undo_redo.add_do_property(node, "linear_damp", new_l)
+			undo_redo.add_undo_property(node, "linear_damp", old_l)
+			applied["linear_damp"] = new_l
+		if params.has("angular_damp"):
+			var old_a: Variant = node.angular_damp
+			var new_a: float = float(params["angular_damp"])
+			undo_redo.add_do_property(node, "angular_damp", new_a)
+			undo_redo.add_undo_property(node, "angular_damp", old_a)
+			applied["angular_damp"] = new_a
+		if params.has("freeze"):
+			var old_z: Variant = node.freeze
+			var new_z: bool = bool(params["freeze"])
+			undo_redo.add_do_property(node, "freeze", new_z)
+			undo_redo.add_undo_property(node, "freeze", old_z)
+			applied["freeze"] = new_z
+		if params.has("freeze_mode"):
+			var fm_str: String = str(params["freeze_mode"])
+			var fm_val: int = 0
+			if node is RigidBody2D:
+				match fm_str.to_lower():
+					"static":
+						fm_val = RigidBody2D.FREEZE_MODE_STATIC
+					"kinematic":
+						fm_val = RigidBody2D.FREEZE_MODE_KINEMATIC
+					_:
+						fm_val = int(params["freeze_mode"])
+			else:
+				match fm_str.to_lower():
+					"static":
+						fm_val = RigidBody3D.FREEZE_MODE_STATIC
+					"kinematic":
+						fm_val = RigidBody3D.FREEZE_MODE_KINEMATIC
+					_:
+						fm_val = int(params["freeze_mode"])
+			var old_fm: Variant = node.freeze_mode
+			undo_redo.add_do_property(node, "freeze_mode", fm_val)
+			undo_redo.add_undo_property(node, "freeze_mode", old_fm)
+			applied["freeze_mode"] = fm_str
+		if params.has("contact_monitor"):
+			var old_cm: Variant = node.contact_monitor
+			var new_cm: bool = bool(params["contact_monitor"])
+			undo_redo.add_do_property(node, "contact_monitor", new_cm)
+			undo_redo.add_undo_property(node, "contact_monitor", old_cm)
+			applied["contact_monitor"] = new_cm
+		if params.has("max_contacts_reported"):
+			var old_mc: Variant = node.max_contacts_reported
+			var new_mc: int = int(params["max_contacts_reported"])
+			undo_redo.add_do_property(node, "max_contacts_reported", new_mc)
+			undo_redo.add_undo_property(node, "max_contacts_reported", old_mc)
+			applied["max_contacts_reported"] = new_mc
+	else:
+		undo_redo.commit_action()
+		return {"error": "Node '" + node_path + "' (" + node.get_class() + ") is not a recognized physics body type. Supported: CharacterBody2D/3D, RigidBody2D/3D, StaticBody2D/3D, AnimatableBody2D/3D"}
+
+	if applied.is_empty():
+		undo_redo.commit_action()
+		return {"error": "No valid properties provided for " + node.get_class()}
+
+	undo_redo.commit_action()
+	editor_interface.mark_scene_as_unsaved()
+
+	return {
+		"node_path": node_path,
+		"type": node.get_class(),
+		"applied": applied,
+	}
+
+func _tool_get_collision_info(params: Dictionary) -> Dictionary:
+	var scene_root: Node = _get_user_scene_root()
+	if not scene_root:
+		return {"error": "No scene is currently open"}
+	var node_path: String = String(params.get("node_path", ""))
+	if node_path.is_empty():
+		return {"error": "Missing required parameter: node_path"}
+	var node: Node = _resolve_node_path(node_path)
+	if not node:
+		return {"error": "Node not found: " + node_path}
+
+	var include_children: bool = bool(params.get("include_children", true))
+	var info: Dictionary = {
+		"node_path": node_path,
+		"type": node.get_class(),
+	}
+
+	if "collision_layer" in node:
+		var dim: String = _detect_dimension(node)
+		if dim.is_empty():
+			dim = "2d"
+		var layer_val: int = int(node.get("collision_layer"))
+		var mask_val: int = int(node.get("collision_mask"))
+		info["collision_layer"] = layer_val
+		info["collision_layer_info"] = _layer_bitmask_to_info(layer_val, dim)
+		info["collision_mask"] = mask_val
+		info["collision_mask_info"] = _layer_bitmask_to_info(mask_val, dim)
+
+	if node is CharacterBody2D or node is CharacterBody3D:
+		info["body_settings"] = {
+			"motion_mode": node.motion_mode,
+			"floor_stop_on_slope": node.floor_stop_on_slope,
+			"floor_max_angle": node.floor_max_angle,
+			"floor_snap_length": node.floor_snap_length,
+			"wall_min_slide_angle": node.wall_min_slide_angle,
+			"max_slides": node.max_slides,
+			"slide_on_ceiling": node.slide_on_ceiling,
+		}
+	elif node is RigidBody2D or node is RigidBody3D:
+		info["body_settings"] = {
+			"mass": node.mass,
+			"gravity_scale": node.gravity_scale,
+			"linear_damp": node.linear_damp,
+			"angular_damp": node.angular_damp,
+			"freeze": node.freeze,
+			"freeze_mode": node.freeze_mode,
+			"contact_monitor": node.contact_monitor,
+			"max_contacts_reported": node.max_contacts_reported,
+		}
+
+	var shapes: Array = []
+	var raycasts: Array = []
+	var nodes_to_check: Array = [node]
+	if include_children:
+		var queue: Array = [node]
+		while queue.size() > 0:
+			var current: Node = queue.pop_front()
+			for child_idx in current.get_child_count():
+				var child: Node = current.get_child(child_idx)
+				nodes_to_check.append(child)
+				queue.append(child)
+
+	for check_node: Node in nodes_to_check:
+		if check_node is CollisionShape2D:
+			var shape_info: Dictionary = {
+				"node_path": node_path,
+				"disabled": check_node.disabled,
+				"one_way_collision": check_node.one_way_collision,
+			}
+			if check_node.shape != null:
+				shape_info["shape_type"] = check_node.shape.get_class()
+				if check_node.shape is RectangleShape2D:
+					shape_info["size"] = "Vector2(%s, %s)" % [(check_node.shape as RectangleShape2D).size.x, (check_node.shape as RectangleShape2D).size.y]
+				elif check_node.shape is CircleShape2D:
+					shape_info["radius"] = (check_node.shape as CircleShape2D).radius
+				elif check_node.shape is CapsuleShape2D:
+					shape_info["radius"] = (check_node.shape as CapsuleShape2D).radius
+					shape_info["height"] = (check_node.shape as CapsuleShape2D).height
+			shapes.append(shape_info)
+		elif check_node is CollisionShape3D:
+			var shape_info: Dictionary = {
+				"node_path": node_path,
+				"disabled": check_node.disabled,
+			}
+			if check_node.shape != null:
+				shape_info["shape_type"] = check_node.shape.get_class()
+				if check_node.shape is BoxShape3D:
+					shape_info["size"] = "Vector3(%s, %s, %s)" % [(check_node.shape as BoxShape3D).size.x, (check_node.shape as BoxShape3D).size.y, (check_node.shape as BoxShape3D).size.z]
+				elif check_node.shape is SphereShape3D:
+					shape_info["radius"] = (check_node.shape as SphereShape3D).radius
+				elif check_node.shape is CapsuleShape3D:
+					shape_info["radius"] = (check_node.shape as CapsuleShape3D).radius
+					shape_info["height"] = (check_node.shape as CapsuleShape3D).height
+				elif check_node.shape is CylinderShape3D:
+					shape_info["radius"] = (check_node.shape as CylinderShape3D).radius
+					shape_info["height"] = (check_node.shape as CylinderShape3D).height
+			shapes.append(shape_info)
+		elif check_node is RayCast2D:
+			raycasts.append({
+				"node_path": node_path,
+				"type": "RayCast2D",
+				"enabled": check_node.enabled,
+				"target_position": "Vector2(%s, %s)" % [check_node.target_position.x, check_node.target_position.y],
+				"collision_mask": check_node.collision_mask,
+			})
+		elif check_node is RayCast3D:
+			raycasts.append({
+				"node_path": node_path,
+				"type": "RayCast3D",
+				"enabled": check_node.enabled,
+				"target_position": "Vector3(%s, %s, %s)" % [check_node.target_position.x, check_node.target_position.y, check_node.target_position.z],
+				"collision_mask": check_node.collision_mask,
+			})
+
+	info["collision_shapes"] = shapes
+	info["raycasts"] = raycasts
+	return info
+
+# ============================================================================
+# Registration helpers (Batch 2 physics)
+# ============================================================================
+
+func _register_setup_collision(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"setup_collision",
+		"Add a CollisionShape2D or CollisionShape3D to a physics body or area node. Supports rectangle, circle, capsule, segment, convex (2D) and box, sphere, capsule, cylinder, convex (3D).",
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string", "description": "Physics body or area node path."},
+				"shape": {"type": "string", "description": "Shape name: rectangle/circle/capsule/segment/custom (2D) or box/sphere/capsule/cylinder/convex (3D)."},
+				"dimension": {"type": "string", "description": "2d or 3d. Auto-detected from node context when omitted."},
+				"width": {"type": "number", "description": "Width for rectangle/box."},
+				"height": {"type": "number", "description": "Height for rectangle/box/capsule/cylinder."},
+				"depth": {"type": "number", "description": "Depth for 3D box."},
+				"radius": {"type": "number", "description": "Radius for circle/sphere/capsule/cylinder."},
+				"points": {"type": "array", "description": "Array of [x,y] (2D) or [x,y,z] (3D) points for convex/custom shapes."},
+				"disabled": {"type": "boolean", "description": "Start disabled. Default false."},
+				"one_way_collision": {"type": "boolean", "description": "2D one-way collision. Default false."}
+			},
+			"required": ["node_path", "shape"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_setup_collision"),
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"shape_type": {"type": "string"},
+				"dimension": {"type": "string"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false},
+		"supplementary", "World"
+	)
+
+func _register_set_physics_layers(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"set_physics_layers",
+		"Set collision_layer and/or collision_mask on a physics node. Accepts an integer bitmask or an array of layer numbers (1-32).",
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"collision_layer": {"type": "integer", "description": "Layer bitmask or array of layer numbers."},
+				"collision_mask": {"type": "integer", "description": "Mask bitmask or array of layer numbers."}
+			},
+			"required": ["node_path"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_set_physics_layers"),
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"collision_layer": {"type": "integer"},
+				"collision_layer_info": {"type": "array"},
+				"collision_mask": {"type": "integer"},
+				"collision_mask_info": {"type": "array"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "World"
+	)
+
+func _register_get_physics_layers(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"get_physics_layers",
+		"Read collision_layer and collision_mask from a physics node, including resolved layer names.",
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"}
+			},
+			"required": ["node_path"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_get_physics_layers"),
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"type": {"type": "string"},
+				"collision_layer": {"type": "integer"},
+				"collision_mask": {"type": "integer"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "World"
+	)
+
+func _register_add_raycast(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"add_raycast",
+		"Add a RayCast2D or RayCast3D to a node with configurable target position, collision mask, and hit settings.",
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"name": {"type": "string", "description": "Ray node name. Default 'RayCast'."},
+				"dimension": {"type": "string", "description": "2d or 3d. Auto-detected when omitted."},
+				"enabled": {"type": "boolean", "description": "Enabled on start. Default true."},
+				"collision_mask": {"type": "integer", "description": "Collision mask bitmask. Default 1."},
+				"collide_with_areas": {"type": "boolean", "description": "Hit areas. Default false."},
+				"collide_with_bodies": {"type": "boolean", "description": "Hit bodies. Default true."},
+				"hit_from_inside": {"type": "boolean", "description": "Detect from inside. Default false."},
+				"target_x": {"type": "number", "description": "Target X. Default 0."},
+				"target_y": {"type": "number", "description": "Target Y. Default 50 (2D) or -1 (3D)."},
+				"target_z": {"type": "number", "description": "Target Z (3D). Default 0."}
+			},
+			"required": ["node_path"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_add_raycast"),
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"type": {"type": "string"},
+				"target_position": {"type": "string"},
+				"collision_mask": {"type": "integer"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false},
+		"supplementary", "World"
+	)
+
+func _register_setup_physics_body(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"setup_physics_body",
+		"Configure physics body properties. CharacterBody: motion_mode, floor_* settings, max_slides, slide_on_ceiling. RigidBody: mass, gravity_scale, damp, freeze, contact monitoring.",
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"motion_mode": {"type": "string", "description": "CharacterBody: grounded or floating."},
+				"floor_stop_on_slope": {"type": "boolean"},
+				"floor_max_angle": {"type": "number"},
+				"floor_snap_length": {"type": "number"},
+				"wall_min_slide_angle": {"type": "number"},
+				"max_slides": {"type": "integer"},
+				"slide_on_ceiling": {"type": "boolean"},
+				"mass": {"type": "number"},
+				"gravity_scale": {"type": "number"},
+				"linear_damp": {"type": "number"},
+				"angular_damp": {"type": "number"},
+				"freeze": {"type": "boolean"},
+				"freeze_mode": {"type": "string", "description": "RigidBody: static or kinematic."},
+				"contact_monitor": {"type": "boolean"},
+				"max_contacts_reported": {"type": "integer"}
+			},
+			"required": ["node_path"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_setup_physics_body"),
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"type": {"type": "string"},
+				"applied": {"type": "object"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "World"
+	)
+
+func _register_get_collision_info(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"get_collision_info",
+		"Read collision shapes, raycasts, layers, and body settings from a physics node (including children).",
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"include_children": {"type": "boolean", "description": "Scan child nodes for shapes/raycasts. Default true."}
+			},
+			"required": ["node_path"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_get_collision_info"),
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"type": {"type": "string"},
+				"collision_shapes": {"type": "array"},
+				"raycasts": {"type": "array"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "World"
+	)

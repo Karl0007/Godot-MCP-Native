@@ -29,7 +29,7 @@ Godot MCP Native 实现了 **161 个工具**，分为 7 大类（含核心和补
 | [Editor Tools](#editor-tools) | 4 | 12 | 16 | `editor_tools_native.gd` | 编辑器操作（运行、停止、状态、截图、信号、导出、选择） |
 | [Debug Tools](#debug-tools) | 3 | 68 | 71 | `debug_tools_native.gd` | 调试和运行时（日志、断点、栈帧、Profiler、运行时探针、动画、音频、着色器、瓦片地图） |
 | [Project Tools](#project-tools) | 3 | 23 | 26 | `project_tools_native.gd` | 项目配置（信息、设置、测试、输入映射、自动加载、全局类、资源诊断） |
-| [World Tools](#world-tools) | 0 | 6 | 6 | `world_tools_native.gd` | 3D 场景构建（网格、光照、材质、环境、相机、GridMap） |
+| [World Tools](#world-tools) | 0 | 12 | 12 | `world_tools_native.gd` | 3D 场景构建与物理（网格、光照、材质、环境、相机、GridMap、碰撞、物理层、射线） |
 
 ### Vibe Coding / 免打扰模式
 
@@ -3924,7 +3924,7 @@ Continue：恢复执行。
 
 ## World Tools
 
-3D 场景构建工具（批次 1，共 6 个补充工具），源文件 `world_tools_native.gd`。
+3D 场景构建与物理工具（批次 1-2，共 12 个补充工具），源文件 `world_tools_native.gd`。
 
 ### 156. add_mesh_instance
 
@@ -4033,6 +4033,89 @@ Continue：恢复执行。
 
 **返回值**：`node_path`、`mesh_library`、`created`
 
+### 162. setup_collision
+
+向物理体/区域节点添加碰撞形状（2D/3D 自动检测）。
+
+**参数**：
+| 参数 | 类型 | 必需 | 描述 |
+|------|------|------|------|
+| `node_path` | string | 是 | 物理体或区域节点路径 |
+| `shape` | string | 是 | 2D：`rectangle`/`circle`/`capsule`/`segment`/`custom`；3D：`box`/`sphere`/`capsule`/`cylinder`/`convex` |
+| `dimension` | string | 否 | `2d`/`3d`，默认自动检测 |
+| `width`/`height`/`depth` | number | 否 | 矩形/盒体尺寸 |
+| `radius` | number | 否 | 圆/球/胶囊/圆柱半径 |
+| `points` | array | 否 | 凸多边形顶点数组 |
+| `disabled` | boolean | 否 | 初始禁用，默认 false |
+| `one_way_collision` | boolean | 否 | 2D 单向碰撞，默认 false |
+
+**返回值**：`node_path`、`shape_type`、`dimension`
+
+### 163. set_physics_layers
+
+设置物理节点 collision_layer / collision_mask（整数位掩码或层号数组）。
+
+**参数**：`node_path`（是）、`collision_layer`、`collision_mask`
+
+**返回值**：`node_path`、`collision_layer(_info)`、`collision_mask(_info)`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 164. get_physics_layers
+
+读取物理节点层设置及解析后的层名。
+
+**参数**：`node_path`（是）
+
+**返回值**：`node_path`、`type`、`collision_layer(_info)`、`collision_mask(_info)`
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 165. add_raycast
+
+添加 RayCast2D / RayCast3D。
+
+**参数**：
+| 参数 | 类型 | 必需 | 描述 |
+|------|------|------|------|
+| `node_path` | string | 是 | 父节点路径 |
+| `name` | string | 否 | 节点名，默认 `RayCast` |
+| `dimension` | string | 否 | `2d`/`3d`，默认自动检测 |
+| `enabled` | boolean | 否 | 默认 true |
+| `collision_mask` | int | 否 | 默认 1 |
+| `collide_with_areas` / `collide_with_bodies` | boolean | 否 | 命中目标 |
+| `hit_from_inside` | boolean | 否 | 从内部检测 |
+| `target_x`/`target_y`/`target_z` | number | 否 | 目标方向 |
+
+**返回值**：`node_path`、`type`、`target_position`、`collision_mask`
+
+### 166. setup_physics_body
+
+配置物理体属性（CharacterBody / RigidBody）。
+
+**参数**：
+| 参数 | 类型 | 必需 | 描述 |
+|------|------|------|------|
+| `node_path` | string | 是 | 物理体节点路径 |
+| `motion_mode` | string | 否 | CharacterBody：`grounded`/`floating` |
+| `floor_stop_on_slope` / `floor_max_angle` / `floor_snap_length` / `wall_min_slide_angle` | 多种 | 否 | 地面行为 |
+| `max_slides` / `slide_on_ceiling` | int/bool | 否 | 滑动行为 |
+| `mass` / `gravity_scale` / `linear_damp` / `angular_damp` | number | 否 | RigidBody 物理 |
+| `freeze` / `freeze_mode` | bool/string | 否 | RigidBody 冻结 |
+| `contact_monitor` / `max_contacts_reported` | bool/int | 否 | 接触监控 |
+
+**返回值**：`node_path`、`type`、`applied`（已应用属性字典）
+
+### 167. get_collision_info
+
+读取物理节点碰撞形状、射线、层与物理体设置（含子节点）。
+
+**参数**：`node_path`（是）、`include_children`（否，默认 true）
+
+**返回值**：`node_path`、`type`、`collision_layer(_info)`、`collision_mask(_info)`、`body_settings`、`collision_shapes`、`raycasts`
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
 ---
 
 ## 通用数据类型
@@ -4134,7 +4217,7 @@ Continue：恢复执行。
 
 ## 总结
 
-本手册详细说明了 Godot MCP Native 项目的所有核心工具及部分补充工具。项目共 **161 个工具**（30 核心 + 131 补充），所有工具均可通过 MCP 工具管理面板按分组动态启用/禁用。补充工具（`*-Advanced` 分组）默认不启用，需在工具管理面板中手动开启。
+本手册详细说明了 Godot MCP Native 项目的所有核心工具及部分补充工具。项目共 **167 个工具**（30 核心 + 137 补充），所有工具均可通过 MCP 工具管理面板按分组动态启用/禁用。补充工具（`*-Advanced` 分组）默认不启用，需在工具管理面板中手动开启。
 
 **提示**：
 - 使用 `tools/list` 方法获取所有工具的实时列表和完整 JSON Schema

@@ -171,6 +171,12 @@ func _build_classifications() -> void:
 		{"name": "setup_environment", "category": "supplementary", "group": "World"},
 		{"name": "setup_camera_3d", "category": "supplementary", "group": "World"},
 		{"name": "add_gridmap", "category": "supplementary", "group": "World"},
+		{"name": "setup_collision", "category": "supplementary", "group": "World"},
+		{"name": "set_physics_layers", "category": "supplementary", "group": "World"},
+		{"name": "get_physics_layers", "category": "supplementary", "group": "World"},
+		{"name": "add_raycast", "category": "supplementary", "group": "World"},
+		{"name": "setup_physics_body", "category": "supplementary", "group": "World"},
+		{"name": "get_collision_info", "category": "supplementary", "group": "World"},
 	]
 
 	for item in classifications:
