@@ -71,6 +71,12 @@ func register_tools(server_core: RefCounted) -> void:
 	_register_list_project_scenes(server_core)
 	_register_list_open_scenes(server_core)
 	_register_close_scene_tab(server_core)
+	_register_delete_scene(server_core)
+	_register_add_scene_instance(server_core)
+	_register_play_scene(server_core)
+	_register_stop_scene(server_core)
+	_register_get_scene_file_content(server_core)
+	_register_get_scene_exports(server_core)
 
 # ============================================================================
 # create_scene - 创建新场�?
@@ -788,3 +794,308 @@ func _collect_scenes(directory_path: String, result: Array[String]) -> void:
 		file_name = dir.get_next()
 	
 	dir.list_dir_end()
+
+# ============================================================================
+# Batch 12 - Scene operations (delete/instance/play/stop/exports/content)
+# ============================================================================
+
+func _resolve_scene_node(node_path: String) -> Node:
+	var scene_root: Node = _get_user_scene_root()
+	if not scene_root:
+		return null
+	if node_path == "/root" or node_path.is_empty() or node_path == ".":
+		return scene_root
+	var relative: String = node_path.trim_prefix("/root/")
+	if relative == scene_root.name:
+		return scene_root
+	if relative.begins_with(scene_root.name + "/"):
+		relative = relative.substr(scene_root.name.length() + 1)
+	return scene_root.get_node_or_null(relative)
+
+func _register_delete_scene(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"delete_scene",
+		"Delete a scene file (.tscn) and its .import sidecar from the project.",
+		{
+			"type": "object",
+			"properties": {
+				"path": {"type": "string", "description": "Scene path (res://..., .tscn)."}
+			},
+			"required": ["path"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_delete_scene"),
+		{
+			"type": "object",
+			"properties": {
+				"path": {"type": "string"},
+				"deleted": {"type": "boolean"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": true, "idempotentHint": false, "openWorldHint": false},
+		"supplementary", "Scene-Advanced"
+	)
+
+func _tool_delete_scene(params: Dictionary) -> Dictionary:
+	var path: String = String(params.get("path", ""))
+	if path.is_empty():
+		return {"error": "Missing required parameter: path"}
+	if not FileAccess.file_exists(path):
+		return {"error": "Scene file '" + path + "' not found"}
+	var err: Error = DirAccess.remove_absolute(path)
+	if err != OK:
+		return {"error": "Failed to delete scene: " + error_string(err)}
+	var import_path: String = path + ".import"
+	if FileAccess.file_exists(import_path):
+		DirAccess.remove_absolute(import_path)
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if editor_interface:
+		editor_interface.get_resource_filesystem().scan()
+	return {"path": path, "deleted": true}
+
+func _register_add_scene_instance(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"add_scene_instance",
+		"Instantiate a scene (.tscn) as a child of a node.",
+		{
+			"type": "object",
+			"properties": {
+				"scene_path": {"type": "string", "description": "Scene to instantiate."},
+				"parent_path": {"type": "string", "description": "Parent node path. Default '.'."},
+				"name": {"type": "string", "description": "Instance name. Defaults to scene file name."}
+			},
+			"required": ["scene_path"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_add_scene_instance"),
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"scene_path": {"type": "string"},
+				"name": {"type": "string"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false},
+		"supplementary", "Scene-Advanced"
+	)
+
+func _set_owner_recursive(node: Node, owner: Node) -> void:
+	node.owner = owner
+	for child in node.get_children():
+		_set_owner_recursive(child, owner)
+
+func _tool_add_scene_instance(params: Dictionary) -> Dictionary:
+	var scene_root: Node = _get_user_scene_root()
+	if not scene_root:
+		return {"error": "No scene is currently open"}
+	var scene_path: String = String(params.get("scene_path", ""))
+	if scene_path.is_empty():
+		return {"error": "Missing required parameter: scene_path"}
+	var parent_path: String = String(params.get("parent_path", "."))
+	var instance_name: String = String(params.get("name", ""))
+	if not FileAccess.file_exists(scene_path):
+		return {"error": "Scene file '" + scene_path + "' not found"}
+	var parent: Node = _resolve_scene_node(parent_path)
+	if not parent:
+		return {"error": "Parent node '" + parent_path + "' not found"}
+
+	var packed: PackedScene = load(scene_path)
+	if packed == null:
+		return {"error": "Failed to load scene: " + scene_path}
+	var instance: Node = packed.instantiate()
+	if not instance_name.is_empty():
+		instance.name = instance_name
+
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if not editor_interface:
+		return {"error": "Editor interface not available"}
+	var undo_redo: EditorUndoRedoManager = editor_interface.get_editor_undo_redo()
+	undo_redo.create_action("MCP: Add scene instance")
+	undo_redo.add_do_method(parent, "add_child", instance)
+	undo_redo.add_do_method(instance, "set_owner", scene_root)
+	undo_redo.add_do_reference(instance)
+	undo_redo.add_undo_method(parent, "remove_child", instance)
+	undo_redo.commit_action()
+	_set_owner_recursive(instance, scene_root)
+	editor_interface.mark_scene_as_unsaved()
+
+	return {"node_path": str(instance.get_path()), "scene_path": scene_path, "name": instance.name}
+
+func _register_play_scene(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"play_scene",
+		"Play the main scene, current scene, or a specific scene path.",
+		{
+			"type": "object",
+			"properties": {
+				"mode": {"type": "string", "description": "main, current, or a scene path. Default 'main'."}
+			},
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_play_scene"),
+		{
+			"type": "object",
+			"properties": {
+				"playing": {"type": "boolean"},
+				"mode": {"type": "string"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": true},
+		"supplementary", "Scene-Advanced"
+	)
+
+func _tool_play_scene(params: Dictionary) -> Dictionary:
+	var policy_result: Dictionary = VIBE_CODING_POLICY.evaluate_runtime_window(_is_vibe_coding_mode(), params)
+	if policy_result.get("blocked", false):
+		return policy_result
+	var mode: String = String(params.get("mode", "main"))
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if not editor_interface:
+		return {"error": "Editor interface not available"}
+	match mode:
+		"main":
+			editor_interface.play_main_scene()
+		"current":
+			editor_interface.play_current_scene()
+		_:
+			if not FileAccess.file_exists(mode):
+				return {"error": "Scene file '" + mode + "' not found"}
+			editor_interface.play_custom_scene(mode)
+	return {"playing": true, "mode": mode}
+
+func _register_stop_scene(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"stop_scene",
+		"Stop the running game scene.",
+		{
+			"type": "object",
+			"properties": {},
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_stop_scene"),
+		{
+			"type": "object",
+			"properties": {
+				"stopped": {"type": "boolean"},
+				"message": {"type": "string"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": true},
+		"supplementary", "Scene-Advanced"
+	)
+
+func _tool_stop_scene(params: Dictionary) -> Dictionary:
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if not editor_interface:
+		return {"error": "Editor interface not available"}
+	if not editor_interface.is_playing_scene():
+		return {"stopped": false, "message": "No scene is currently playing"}
+	editor_interface.stop_playing_scene()
+	return {"stopped": true}
+
+func _register_get_scene_file_content(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"get_scene_file_content",
+		"Read a scene file's raw text content.",
+		{
+			"type": "object",
+			"properties": {
+				"path": {"type": "string"}
+			},
+			"required": ["path"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_get_scene_file_content"),
+		{
+			"type": "object",
+			"properties": {
+				"path": {"type": "string"},
+				"content": {"type": "string"},
+				"size": {"type": "integer"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Scene-Advanced"
+	)
+
+func _tool_get_scene_file_content(params: Dictionary) -> Dictionary:
+	var path: String = String(params.get("path", ""))
+	if path.is_empty():
+		return {"error": "Missing required parameter: path"}
+	if not FileAccess.file_exists(path):
+		return {"error": "Scene file '" + path + "' not found"}
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return {"error": "Cannot read file: " + error_string(FileAccess.get_open_error())}
+	var content: String = file.get_as_text()
+	file.close()
+	return {"path": path, "content": content, "size": content.length()}
+
+func _register_get_scene_exports(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"get_scene_exports",
+		"List all @export properties of every scripted node in a scene file.",
+		{
+			"type": "object",
+			"properties": {
+				"path": {"type": "string", "description": "Scene file path."}
+			},
+			"required": ["path"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_get_scene_exports"),
+		{
+			"type": "object",
+			"properties": {
+				"path": {"type": "string"},
+				"nodes": {"type": "array"},
+				"count": {"type": "integer"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Scene-Advanced"
+	)
+
+func _collect_exports_recursive(node: Node, root: Node, nodes_data: Array) -> void:
+	var script: Script = node.get_script()
+	if script != null:
+		var exports: Dictionary = {}
+		for prop_info: Dictionary in script.get_script_property_list():
+			var usage: int = prop_info["usage"]
+			if (usage & PROPERTY_USAGE_EDITOR) and (usage & PROPERTY_USAGE_SCRIPT_VARIABLE):
+				var prop_name: String = prop_info["name"]
+				exports[prop_name] = {
+					"value": str(node.get(prop_name)),
+					"type": prop_info["type"],
+					"hint": prop_info.get("hint", 0),
+					"hint_string": prop_info.get("hint_string", ""),
+				}
+		if not exports.is_empty():
+			var node_path: String = "." if node == root else str(root.get_path_to(node))
+			nodes_data.append({
+				"node_path": node_path,
+				"node_name": node.name,
+				"node_type": node.get_class(),
+				"script_path": script.resource_path,
+				"exports": exports,
+			})
+	for child in node.get_children():
+		_collect_exports_recursive(child, root, nodes_data)
+
+func _tool_get_scene_exports(params: Dictionary) -> Dictionary:
+	var path: String = String(params.get("path", ""))
+	if path.is_empty():
+		return {"error": "Missing required parameter: path"}
+	if not FileAccess.file_exists(path):
+		return {"error": "Scene file '" + path + "' not found"}
+	var packed: PackedScene = load(path)
+	if packed == null:
+		return {"error": "Failed to load scene: " + path}
+	var instance: Node = packed.instantiate()
+	if instance == null:
+		return {"error": "Failed to instantiate scene: " + path}
+	var nodes_data: Array = []
+	_collect_exports_recursive(instance, instance, nodes_data)
+	instance.queue_free()
+	return {"path": path, "nodes": nodes_data, "count": nodes_data.size()}

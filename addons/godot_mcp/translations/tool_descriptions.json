@@ -223,5 +223,11 @@
   "get_editor_selection": "Read the current editor selection (top-level or all selected nodes).",
   "select_nodes": "Select one or more nodes in the scene tree. Modes: replace, add, remove. Optionally focus/inspect a single node.",
   "clear_editor_selection": "Clear the current editor node selection.",
-  "reload_plugin": "Reload the Godot MCP plugin by disabling and re-enabling it. The MCP connection will briefly drop and reconnect."
+  "reload_plugin": "Reload the Godot MCP plugin by disabling and re-enabling it. The MCP connection will briefly drop and reconnect.",
+  "delete_scene": "Delete a scene file (.tscn) and its .import sidecar from the project.",
+  "add_scene_instance": "Instantiate a scene (.tscn) as a child of a node.",
+  "play_scene": "Play the main scene, current scene, or a specific scene path.",
+  "stop_scene": "Stop the running game scene.",
+  "get_scene_file_content": "Read a scene file's raw text content.",
+  "get_scene_exports": "List all @export properties of every scripted node in a scene file."
 }

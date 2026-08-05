@@ -235,6 +235,12 @@ func _build_classifications() -> void:
 		{"name": "select_nodes", "category": "supplementary", "group": "Editor-Advanced"},
 		{"name": "clear_editor_selection", "category": "supplementary", "group": "Editor-Advanced"},
 		{"name": "reload_plugin", "category": "supplementary", "group": "Editor-Advanced"},
+		{"name": "delete_scene", "category": "supplementary", "group": "Scene-Advanced"},
+		{"name": "add_scene_instance", "category": "supplementary", "group": "Scene-Advanced"},
+		{"name": "play_scene", "category": "supplementary", "group": "Scene-Advanced"},
+		{"name": "stop_scene", "category": "supplementary", "group": "Scene-Advanced"},
+		{"name": "get_scene_file_content", "category": "supplementary", "group": "Scene-Advanced"},
+		{"name": "get_scene_exports", "category": "supplementary", "group": "Scene-Advanced"},
 	]
 
 	for item in classifications:

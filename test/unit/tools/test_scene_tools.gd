@@ -75,3 +75,49 @@ func test_open_scene_returns_verification_tip_on_success():
 	if result.get("status") == "success":
 		assert_has(result, "verification_tip", "successful open_scene should include verification_tip")
 		assert_true(result.get("verification_tip", "").length() > 0, "verification_tip should not be empty")
+
+# --- Batch 12: scene operations ---
+
+func test_delete_scene_requires_path():
+	var result: Dictionary = _scene_tools._tool_delete_scene({})
+	assert_true(result.has("error"), "Missing path should error")
+
+func test_delete_scene_not_found():
+	var result: Dictionary = _scene_tools._tool_delete_scene({"path": "res://nonexistent.tscn"})
+	assert_true(result.has("error"), "Missing file should error")
+
+func test_add_scene_instance_requires_path():
+	var result: Dictionary = _scene_tools._tool_add_scene_instance({})
+	assert_true(result.has("error"), "Missing scene_path should error")
+
+func test_add_scene_instance_not_found():
+	var result: Dictionary = _scene_tools._tool_add_scene_instance({"scene_path": "res://nonexistent.tscn"})
+	assert_true(result.has("error"), "Missing scene file should error")
+
+func test_play_scene_invalid_path():
+	var result: Dictionary = _scene_tools._tool_play_scene({"mode": "res://nonexistent.tscn"})
+	assert_true(result.has("error"), "Invalid scene path should error")
+
+func test_stop_scene_no_editor():
+	var result: Dictionary = _scene_tools._tool_stop_scene({})
+	assert_true(result.has("error"), "Without editor interface should error")
+
+func test_get_scene_file_content_requires_path():
+	var result: Dictionary = _scene_tools._tool_get_scene_file_content({})
+	assert_true(result.has("error"), "Missing path should error")
+
+func test_get_scene_file_content_not_found():
+	var result: Dictionary = _scene_tools._tool_get_scene_file_content({"path": "res://nonexistent.tscn"})
+	assert_true(result.has("error"), "Missing file should error")
+
+func test_get_scene_exports_requires_path():
+	var result: Dictionary = _scene_tools._tool_get_scene_exports({})
+	assert_true(result.has("error"), "Missing path should error")
+
+func test_get_scene_exports_not_found():
+	var result: Dictionary = _scene_tools._tool_get_scene_exports({"path": "res://nonexistent.tscn"})
+	assert_true(result.has("error"), "Missing file should error")
+
+func test_resolve_scene_node_no_scene():
+	var result: Node = _scene_tools._resolve_scene_node("/root/Main")
+	assert_eq(result, null, "Without scene root should return null")

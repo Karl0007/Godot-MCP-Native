@@ -8,6 +8,7 @@ add_gridmap,,"Create a GridMap node, optionally assign a MeshLibrary resource an
 add_mesh_instance,,"Create a MeshInstance3D with a primitive mesh (box, sphere, cylinder, capsule, plane, quad, prism, torus) or load a mesh from a .glb/.gltf/.obj file.",创建 MeshInstance3D，支持基本体网格（box/sphere/cylinder/capsule/plane/quad/prism/torus）或从 .glb/.gltf/.obj 文件加载网格。
 add_raycast,,"Add a RayCast2D or RayCast3D to a node with configurable target position, collision mask, and hit settings.",向节点添加 RayCast2D 或 RayCast3D，支持目标位置、碰撞掩码和命中设置。
 add_resource,,Add a resource child node to a target node.,向目标节点添加资源子节点。
+add_scene_instance,,Instantiate a scene (.tscn) as a child of a node.,将场景（.tscn）实例化为节点的子节点。
 add_state_machine_state,,"Add a state to an AnimationNodeStateMachine. State types: animation, blend_tree, or state_machine.",向 AnimationNodeStateMachine 添加状态。状态类型：animation、blend_tree 或 state_machine。
 add_state_machine_transition,,Add a transition between two states in an AnimationNodeStateMachine.,在 AnimationNodeStateMachine 中两个状态之间添加过渡。
 analyze_script,,Analyze a GDScript file and report code quality issues.,分析 GDScript 文件并报告代码质量问题。
@@ -52,6 +53,7 @@ debug_step_over,,Step over the next line in the debugger.,在调试器中步过�
 debug_step_over_and_wait,,Step over and wait for the debugger to pause.,步过并等待调试器暂停。
 delete_node,,Delete a node from the Godot scene tree. This operation is destructive and cannot be undone.,从 Godot 场景树中删除节点。此操作是破坏性的，无法撤销。
 delete_runtime_node,,Delete a node in the running game.,在运行中的游戏中删除节点。
+delete_scene,,Delete a scene file (.tscn) and its .import sidecar from the project.,删除项目的场景文件（.tscn）及其 .import 附加文件。
 detect_broken_scripts,,Detect broken scripts in the project.,检测项目中的损坏脚本。
 disconnect_signal,,Disconnect a signal from one node to another.,断开一个节点到另一个节点的信号连接。
 duplicate_node,,Duplicate a node and its children in the scene tree. Returns the new node path.,在场景树中复制节点及其子节点。返回新节点的路径。
@@ -114,6 +116,8 @@ get_runtime_screenshot,,Take a screenshot of the running game.,截取运行中�
 get_runtime_shader_parameters,,Get shader parameters in the running game.,获取运行中游戏中的着色器参数。
 get_runtime_theme_item,,Get a theme item in the running game.,获取运行中游戏中的主题项。
 get_runtime_tilemap_cell,,Get a TileMap cell in the running game.,获取运行中游戏中的 TileMap 单元格。
+get_scene_exports,,List all @export properties of every scripted node in a scene file.,列出场景文件中每个脚本节点的所有 @export 属性。
+get_scene_file_content,,Read a scene file's raw text content.,读取场景文件的原始文本内容。
 get_scene_structure,,Get the complete structure of the current scene as a tree. Returns node types, names, and hierarchy.,以树形结构获取当前场景的完整结构。返回节点类型、名称和层级关系。
 get_scene_tree,,Get the complete scene tree hierarchy starting from the scene root. Returns full tree structure with node types.,获取从场景根节点开始的完整场景树层级。返回包含节点类型的完整树结构。
 get_selected_nodes,,Get the list of currently selected nodes in the editor.,获取编辑器中当前选中节点的列表。
@@ -146,6 +150,7 @@ move_node,,Move a node to a new parent in the scene tree. Optionally preserves g
 open_scene,,Open a scene file from the project. Closes the current scene if one is open.,从项目中打开场景文件。如果当前有打开的场景，则先关闭它。
 open_script_at_line,,Open a script file at a specific line number in the Godot editor.,在 Godot 编辑器中的指定行号打开脚本文件。
 play_runtime_animation,,Play an animation in the running game.,播放运行中游戏中的动画。
+play_scene,,"Play the main scene, current scene, or a specific scene path.",播放主场景、当前场景或指定场景路径。
 read_script,,Read the content of a GDScript file (.gd). Returns the complete script source code.,读取 GDScript 文件（.gd）的内容。返回完整的脚本源代码。
 read_shader,,Read a shader file's content.,读取着色器文件内容。
 reimport_resources,,Reimport project resources.,重新导入项目资源。
@@ -209,6 +214,7 @@ simulate_runtime_input_action,,Simulate an input action in the running game.,在
 simulate_runtime_input_event,,Simulate an input event in the running game.,在运行中的游戏中模拟输入事件。
 stop_project,,Stop the currently running project and return to editor mode.,停止当前正在运行的项目并返回编辑器模式。
 stop_runtime_animation,,Stop an animation in the running game.,停止运行中游戏中的动画。
+stop_scene,,Stop the running game scene.,停止正在运行的游戏场景。
 tilemap_clear,,"Clear a TileMapLayer or legacy TileMap (optionally one layer), undoable.",清空 TileMapLayer 或旧版 TileMap（可选单层），可撤销。
 tilemap_fill_rect,,Fill a rectangular region of a TileMapLayer or legacy TileMap with a tile (undoable).,用瓦片填充 TileMapLayer 或旧版 TileMap 的矩形区域（可撤销）。
 tilemap_get_cell,,Read a cell from a TileMapLayer or legacy TileMap.,从 TileMapLayer 或旧版 TileMap 读取单元格。
