@@ -182,6 +182,7 @@ remove_state_machine_state,,Remove a state from an AnimationNodeStateMachine (un
 remove_state_machine_transition,,Remove a transition between two states in an AnimationNodeStateMachine (undoable).,移除 AnimationNodeStateMachine 中两个状态之间的过渡（可撤销）。
 rename_node,,Rename a node in the scene tree. The new name must be unique among siblings.,重命名场景树中的节点。新名称必须在同级节点中唯一。
 rename_script_symbol,,Rename a script symbol across project files using identifier-boundary text replacements. Supports dry-run previews before applying changes.,使用标识符边界文本替换在项目文件中重命名脚本符号。支持在应用更改前进行试运行预览。
+replay_recording,,Replay a recorded input event sequence in the running game at a given speed.,以指定速度在运行中的游戏里回放录制的输入事件序列。
 request_debug_break,,Request the debugger to break at the current execution point.,请求调试器在当前执行点断点。
 run_export,,Run a Godot CLI export for a configured preset.,为配置的预设运行 Godot CLI 导出。
 run_project,,Run the current project or a specific scene. Launches the game in play mode.,运行当前项目或指定场景。以运行模式启动游戏。
@@ -235,7 +236,9 @@ setup_navigation_region,,Create a NavigationRegion2D or NavigationRegion3D with 
 setup_physics_body,,"Configure physics body properties. CharacterBody: motion_mode, floor settings, max_slides, slide_on_ceiling. RigidBody: mass, gravity_scale, damp, freeze, contact monitoring.",配置物理体属性。CharacterBody：motion_mode、floor 设置、max_slides、slide_on_ceiling。RigidBody：mass、gravity_scale、阻尼、freeze、接触监控。
 simulate_runtime_input_action,,Simulate an input action in the running game.,在运行中的游戏中模拟输入动作。
 simulate_runtime_input_event,,Simulate an input event in the running game.,在运行中的游戏中模拟输入事件。
+start_recording,,"Start recording input events (keyboard, mouse, actions) in the running game.",开始录制运行中游戏的输入事件（键盘、鼠标、动作）。
 stop_project,,Stop the currently running project and return to editor mode.,停止当前正在运行的项目并返回编辑器模式。
+stop_recording,,Stop recording input events and return the captured event sequence.,停止录制输入事件并返回捕获的事件序列。
 stop_runtime_animation,,Stop an animation in the running game.,停止运行中游戏中的动画。
 stop_scene,,Stop the running game scene.,停止正在运行的游戏场景。
 tilemap_clear,,"Clear a TileMapLayer or legacy TileMap (optionally one layer), undoable.",清空 TileMapLayer 或旧版 TileMap（可选单层），可撤销。

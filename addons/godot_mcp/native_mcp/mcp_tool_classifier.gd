@@ -265,6 +265,9 @@ func _build_classifications() -> void:
 		{"name": "assert_screen_text", "category": "supplementary", "group": "Debug-Advanced"},
 		{"name": "run_stress_test", "category": "supplementary", "group": "Debug-Advanced"},
 		{"name": "get_test_report", "category": "supplementary", "group": "Debug-Advanced"},
+		{"name": "start_recording", "category": "supplementary", "group": "Debug-Advanced"},
+		{"name": "stop_recording", "category": "supplementary", "group": "Debug-Advanced"},
+		{"name": "replay_recording", "category": "supplementary", "group": "Debug-Advanced"},
 	]
 
 	for item in classifications:

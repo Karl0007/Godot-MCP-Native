@@ -150,6 +150,9 @@ func register_tools(server_core: RefCounted) -> void:
 	_register_assert_screen_text(server_core)
 	_register_run_stress_test(server_core)
 	_register_get_test_report(server_core)
+	_register_start_recording(server_core)
+	_register_stop_recording(server_core)
+	_register_replay_recording(server_core)
 
 func _on_log_message(level: String, message: String) -> void:
 	var log_entry: String = "[%s] %s" % [level, message]
@@ -4323,3 +4326,118 @@ func _tool_get_test_report(params: Dictionary) -> Dictionary:
 	if clear:
 		_test_results.clear()
 	return report
+
+# ============================================================================
+# Batch 18 - Input recording / replay
+# ============================================================================
+
+func _register_start_recording(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"start_recording",
+		"Start recording input events (keyboard, mouse, actions) in the running game.",
+		{
+			"type": "object",
+			"properties": {
+				"session_id": {"type": "integer"},
+				"timeout_ms": {"type": "integer", "default": 1500}
+			},
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_start_recording"),
+		{
+			"type": "object",
+			"properties": {
+				"recording": {"type": "boolean"},
+				"message": {"type": "string"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": true},
+		"supplementary", "Debug-Advanced"
+	)
+
+func _tool_start_recording(params: Dictionary) -> Dictionary:
+	var result: Dictionary = await _request_runtime_probe_poll("start_input_recording", [], ["mcp:input_recording_started"], params)
+	if result.has("error"):
+		return {"error": str(result["error"])}
+	return {"recording": true, "message": "Recording started. Call stop_recording to get the events."}
+
+func _register_stop_recording(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"stop_recording",
+		"Stop recording input events and return the captured event sequence.",
+		{
+			"type": "object",
+			"properties": {
+				"session_id": {"type": "integer"},
+				"timeout_ms": {"type": "integer", "default": 3000}
+			},
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_stop_recording"),
+		{
+			"type": "object",
+			"properties": {
+				"recording": {"type": "boolean"},
+				"events": {"type": "array"},
+				"event_count": {"type": "integer"},
+				"duration_ms": {"type": "integer"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": true},
+		"supplementary", "Debug-Advanced"
+	)
+
+func _tool_stop_recording(params: Dictionary) -> Dictionary:
+	var result: Dictionary = await _request_runtime_probe_poll("stop_input_recording", [], ["mcp:input_recording_stopped"], params)
+	if result.has("error"):
+		return {"error": str(result["error"])}
+	return result
+
+func _register_replay_recording(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"replay_recording",
+		"Replay a recorded input event sequence in the running game at a given speed.",
+		{
+			"type": "object",
+			"properties": {
+				"events": {"type": "array", "description": "Recorded events (from stop_recording)."},
+				"speed": {"type": "number", "description": "Replay speed multiplier. Default 1.0."},
+				"session_id": {"type": "integer"},
+				"timeout_ms": {"type": "integer", "default": 30000}
+			},
+			"required": ["events"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_replay_recording"),
+		{
+			"type": "object",
+			"properties": {
+				"replayed": {"type": "boolean"},
+				"event_count": {"type": "integer"},
+				"speed": {"type": "number"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": true},
+		"supplementary", "Debug-Advanced"
+	)
+
+func _tool_replay_recording(params: Dictionary) -> Dictionary:
+	if not params.has("events") or not params["events"] is Array:
+		return {"error": "'events' array is required"}
+	var events: Array = params["events"]
+	if events.is_empty():
+		return {"error": "Events array is empty"}
+	var speed: float = float(params.get("speed", 1.0))
+	var max_time_ms: int = 0
+	for event_data: Variant in events:
+		if event_data is Dictionary:
+			var t: int = int(event_data.get("time_ms", 0))
+			if t > max_time_ms:
+				max_time_ms = t
+	var timeout_ms: int = mini(int((max_time_ms / speed) + 5000.0), 120000) if speed > 0 else 30000
+	var call_params: Dictionary = params.duplicate()
+	call_params["timeout_ms"] = timeout_ms
+	var result: Dictionary = await _request_runtime_probe_poll("replay_input_recording", [events, speed], ["mcp:input_recording_replayed"], call_params)
+	if result.has("error"):
+		return {"error": str(result["error"])}
+	return result

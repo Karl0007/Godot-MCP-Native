@@ -427,3 +427,21 @@ func test_collect_control_texts_nested():
 	tools._collect_control_texts({"type": "Node2D", "children": [{"type": "Label", "text": "Score: 10"}]}, candidates)
 	assert_eq(candidates.size(), 1, "Nested Label should be collected")
 	assert_eq(candidates[0]["text"], "Score: 10", "Nested text should round-trip")
+
+# --- Batch 18: recording ---
+
+func test_replay_recording_requires_events():
+	var tools: RefCounted = _new_debug_tools()
+	var result: Dictionary = tools._tool_replay_recording({})
+	assert_true(result.has("error"), "Missing events should error")
+
+func test_replay_recording_empty_events():
+	var tools: RefCounted = _new_debug_tools()
+	var result: Dictionary = tools._tool_replay_recording({"events": []})
+	assert_true(result.has("error"), "Empty events should error")
+
+func test_start_recording_no_editor():
+	var tools: RefCounted = _new_debug_tools()
+	# Without debugger bridge, returns error or times out - check error path
+	var result: Dictionary = await tools._tool_start_recording({})
+	assert_true(result.has("error"), "Without bridge should error")

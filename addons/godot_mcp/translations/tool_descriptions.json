@@ -253,5 +253,8 @@
   "assert_node_state": "Assert a runtime node property against an expected value with an operator (eq, neq, gt, lt, gte, lte, contains).",
   "assert_screen_text": "Assert that a text string appears in a runtime UI element (requires visible Control nodes with text).",
   "run_stress_test": "Send random inputs to the running game for N seconds and check for crashes.",
-  "get_test_report": "Collect and format results from accumulated assertions into a test report."
+  "get_test_report": "Collect and format results from accumulated assertions into a test report.",
+  "start_recording": "Start recording input events (keyboard, mouse, actions) in the running game.",
+  "stop_recording": "Stop recording input events and return the captured event sequence.",
+  "replay_recording": "Replay a recorded input event sequence in the running game at a given speed."
 }

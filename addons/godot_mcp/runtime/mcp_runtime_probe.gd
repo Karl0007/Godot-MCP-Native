@@ -3,18 +3,46 @@ extends Node
 const CAPTURE_PREFIX: StringName = &"mcp"
 var _capture_registered: bool = false
 var _probe_ready_sent: bool = false
+var _recording_active: bool = false
+var _recording_start_msec: int = 0
+var _recording_events: Array = []
+var _replay_active: bool = false
+var _replay_queue: Array = []
+var _replay_speed: float = 1.0
+var _replay_start_msec: int = 0
+var _replay_next_index: int = 0
 
 func _ready() -> void:
 	_ensure_debugger_capture_registered()
 	set_process(not _capture_registered)
 
-func _process(_delta: float) -> void:
-	if _capture_registered:
+func _process(delta: float) -> void:
+	if _replay_active:
+		_process_replay_tick()
+	if _capture_registered and not _replay_active:
 		set_process(false)
 		return
 	_ensure_debugger_capture_registered()
-	if _capture_registered:
+	if _capture_registered and not _replay_active:
 		set_process(false)
+
+func _process_replay_tick() -> void:
+	if _replay_next_index >= _replay_queue.size():
+		_replay_active = false
+		set_process(not _capture_registered)
+		EngineDebugger.send_message("mcp:input_recording_replayed", [{"replayed": true, "event_count": _replay_queue.size(), "speed": _replay_speed}])
+		return
+	var event_data: Variant = _replay_queue[_replay_next_index]
+	if event_data is Dictionary:
+		var dict: Dictionary = event_data
+		var delay_ms: int = int(dict.get("time_ms", 0))
+		var adjusted_delay: int = int(delay_ms / _replay_speed)
+		if Time.get_ticks_msec() - _replay_start_msec < adjusted_delay:
+			return
+		var event: InputEvent = _build_replay_event(dict)
+		if event != null:
+			Input.parse_input_event(event)
+	_replay_next_index += 1
 
 func _exit_tree() -> void:
 	if EngineDebugger.is_active() and EngineDebugger.has_capture(CAPTURE_PREFIX):
@@ -36,6 +64,120 @@ func _ensure_debugger_capture_registered() -> void:
 	if not _probe_ready_sent:
 		EngineDebugger.send_message("mcp:probe_ready", [_get_runtime_info()])
 		_probe_ready_sent = true
+
+func _input(event: InputEvent) -> void:
+	if not _recording_active:
+		return
+	var time_ms: int = Time.get_ticks_msec() - _recording_start_msec
+	var data: Dictionary = {"time_ms": time_ms}
+	if event is InputEventKey:
+		var key: InputEventKey = event
+		data["type"] = "key"
+		data["keycode"] = OS.get_keycode_string(key.keycode) if key.keycode != 0 else ""
+		data["physical_keycode"] = OS.get_keycode_string(key.physical_keycode) if key.physical_keycode != 0 else ""
+		data["pressed"] = key.pressed
+		data["shift"] = key.shift_pressed
+		data["ctrl"] = key.ctrl_pressed
+		data["alt"] = key.alt_pressed
+	elif event is InputEventMouseButton:
+		var mb: InputEventMouseButton = event
+		data["type"] = "mouse_button"
+		data["button"] = mb.button_index
+		data["pressed"] = mb.pressed
+		data["position"] = {"x": mb.position.x, "y": mb.position.y}
+		data["double_click"] = mb.double_click
+	elif event is InputEventMouseMotion:
+		var mm: InputEventMouseMotion = event
+		data["type"] = "mouse_motion"
+		data["position"] = {"x": mm.position.x, "y": mm.position.y}
+		data["relative"] = {"x": mm.relative.x, "y": mm.relative.y}
+	elif event is InputEventAction:
+		var act: InputEventAction = event
+		data["type"] = "action"
+		data["action"] = act.action
+		data["pressed"] = act.pressed
+		data["strength"] = act.strength
+	else:
+		return
+	_recording_events.append(data)
+
+func _handle_start_input_recording(data: Array) -> bool:
+	_recording_events.clear()
+	_recording_start_msec = Time.get_ticks_msec()
+	_recording_active = true
+	set_process_input(true)
+	EngineDebugger.send_message("mcp:input_recording_started", [{"recording": true}])
+	return true
+
+func _handle_stop_input_recording(data: Array) -> bool:
+	if not _recording_active:
+		EngineDebugger.send_message("mcp:input_recording_stopped", [{"recording": false, "events": [], "event_count": 0}])
+		return true
+	set_process_input(false)
+	_recording_active = false
+	var events: Array = _recording_events.duplicate()
+	var duration_ms: int = Time.get_ticks_msec() - _recording_start_msec
+	EngineDebugger.send_message("mcp:input_recording_stopped", [{
+		"recording": false,
+		"events": events,
+		"event_count": events.size(),
+		"duration_ms": duration_ms,
+	}])
+	return true
+
+func _handle_replay_input_recording(data: Array) -> bool:
+	if data.is_empty() or not data[0] is Array:
+		EngineDebugger.send_message("mcp:error", [{"message": "replay_input_recording requires an events array"}])
+		return true
+	var events: Array = data[0]
+	var speed: float = float(data[1]) if data.size() >= 2 else 1.0
+	# Replay asynchronously via a state machine driven by _process, so the
+	# capture callback stays synchronous (EngineDebugger requires it).
+	_replay_queue = events.duplicate()
+	_replay_speed = speed if speed > 0 else 1.0
+	_replay_start_msec = Time.get_ticks_msec()
+	_replay_next_index = 0
+	_replay_active = true
+	set_process(true)
+	return true
+
+func _build_replay_event(data: Dictionary) -> InputEvent:
+	var type: String = str(data.get("type", ""))
+	match type:
+		"key":
+			var event := InputEventKey.new()
+			var keycode_str: String = str(data.get("keycode", ""))
+			if not keycode_str.is_empty():
+				event.keycode = OS.find_keycode_from_string(keycode_str)
+			event.pressed = bool(data.get("pressed", true))
+			event.shift_pressed = bool(data.get("shift", false))
+			event.ctrl_pressed = bool(data.get("ctrl", false))
+			event.alt_pressed = bool(data.get("alt", false))
+			return event
+		"mouse_button":
+			var event := InputEventMouseButton.new()
+			event.button_index = int(data.get("button", MOUSE_BUTTON_LEFT))
+			event.pressed = bool(data.get("pressed", true))
+			event.double_click = bool(data.get("double_click", false))
+			var pos: Dictionary = data.get("position", {})
+			event.position = Vector2(float(pos.get("x", 0)), float(pos.get("y", 0)))
+			event.global_position = event.position
+			return event
+		"mouse_motion":
+			var event := InputEventMouseMotion.new()
+			var pos: Dictionary = data.get("position", {})
+			event.position = Vector2(float(pos.get("x", 0)), float(pos.get("y", 0)))
+			event.global_position = event.position
+			var rel: Dictionary = data.get("relative", {})
+			event.relative = Vector2(float(rel.get("x", 0)), float(rel.get("y", 0)))
+			return event
+		"action":
+			var event := InputEventAction.new()
+			event.action = str(data.get("action", ""))
+			event.pressed = bool(data.get("pressed", true))
+			event.strength = float(data.get("strength", 1.0))
+			return event
+	return null
 
 func _capture_mcp_message(message: String, data: Array) -> bool:
 	match message:
@@ -129,6 +271,12 @@ func _capture_mcp_message(message: String, data: Array) -> bool:
 			return _handle_update_audio_bus(data)
 		"get_runtime_screenshot":
 			return _handle_get_runtime_screenshot(data)
+		"start_input_recording":
+			return _handle_start_input_recording(data)
+		"stop_input_recording":
+			return _handle_stop_input_recording(data)
+		"replay_input_recording":
+			return _handle_replay_input_recording(data)
 		"debug_break":
 			EngineDebugger.debug(true, false)
 			return true
