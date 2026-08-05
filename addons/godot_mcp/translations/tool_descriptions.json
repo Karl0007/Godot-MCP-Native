@@ -263,5 +263,9 @@
   "find_nearby_nodes": "Find nodes within a radius of a position in the running game (2D/3D).",
   "navigate_to": "Compute navigation suggestions (keys, camera rotation, duration) to move a 3D player toward a target in the running game.",
   "move_to": "Move a 3D player toward a target in the running game by injecting movement keys. Returns after arrival or timeout.",
-  "watch_signals": "Watch for signal emissions on runtime nodes for a duration. Requires runtime scene inspection via probe."
+  "watch_signals": "Watch for signal emissions on runtime nodes for a duration. Requires runtime scene inspection via probe.",
+  "analyze_signal_flow": "Analyze signal connections in the current scene: sources, targets, and connection count.",
+  "analyze_scene_complexity": "Analyze a scene's complexity: node count, depth, node types, scripts, and potential issues.",
+  "detect_circular_dependencies": "Detect circular scene dependencies (.tscn files referencing each other) using DFS cycle detection.",
+  "find_unused_resources": "Scan the project for resource files not referenced by any scene, script, or resource file."
 }

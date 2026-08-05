@@ -12,7 +12,9 @@ add_resource,,Add a resource child node to a target node.,向目标节点添加�
 add_scene_instance,,Instantiate a scene (.tscn) as a child of a node.,将场景（.tscn）实例化为节点的子节点。
 add_state_machine_state,,"Add a state to an AnimationNodeStateMachine. State types: animation, blend_tree, or state_machine.",向 AnimationNodeStateMachine 添加状态。状态类型：animation、blend_tree 或 state_machine。
 add_state_machine_transition,,Add a transition between two states in an AnimationNodeStateMachine.,在 AnimationNodeStateMachine 中两个状态之间添加过渡。
+analyze_scene_complexity,,"Analyze a scene's complexity: node count, depth, node types, scripts, and potential issues.",分析场景复杂度：节点数、深度、节点类型、脚本和潜在问题。
 analyze_script,,Analyze a GDScript file and report code quality issues.,分析 GDScript 文件并报告代码质量问题。
+analyze_signal_flow,,"Analyze signal connections in the current scene: sources, targets, and connection count.",分析当前场景中的信号连接：源、目标和连接数。
 apply_particle_preset,,"Apply a predefined particle preset: explosion, fire, smoke, sparks, rain, snow, magic, or dust.",应用预定义粒子预设：explosion、fire、smoke、sparks、rain、snow、magic 或 dust。
 assert_node_state,,"Assert a runtime node property against an expected value with an operator (eq, neq, gt, lt, gte, lte, contains).",用运算符（eq、neq、gt、lt、gte、lte、contains）断言运行时节点属性与期望值。
 assert_runtime_condition,,Assert a condition in the running game.,在运行中游戏中断言一个条件。
@@ -60,6 +62,7 @@ delete_runtime_node,,Delete a node in the running game.,在运行中的游戏中
 delete_scene,,Delete a scene file (.tscn) and its .import sidecar from the project.,删除项目的场景文件（.tscn）及其 .import 附加文件。
 deploy_to_android,,Export an Android preset and install the APK on a connected device via adb.,导出 Android 预设并通过 adb 将 APK 安装到连接的设备。
 detect_broken_scripts,,Detect broken scripts in the project.,检测项目中的损坏脚本。
+detect_circular_dependencies,,Detect circular scene dependencies (.tscn files referencing each other) using DFS cycle detection.,使用 DFS 循环检测检测循环场景依赖（.tscn 文件互相引用）。
 disconnect_signal,,Disconnect a signal from one node to another.,断开一个节点到另一个节点的信号连接。
 duplicate_node,,Duplicate a node and its children in the scene tree. Returns the new node path.,在场景树中复制节点及其子节点。返回新节点的路径。
 edit_resource,,Modify properties of a resource file and save it.,修改资源文件的属性并保存。
@@ -75,6 +78,7 @@ find_nodes_in_group,,Find all nodes in a specific group.,查找特定组中的�
 find_script_symbol_definition,,Find definition locations for a script symbol across GDScript and C# project files.,在 GDScript 和 C# 项目文件中查找脚本符号的定义位置。
 find_script_symbol_references,,Find textual project references to a script symbol across GDScript, C#, and scene files.,在 GDScript、C# 和场景文件中查找脚本符号的文本引用。
 find_ui_elements,,"List visible UI elements (Button, Label, LineEdit, TextEdit, OptionButton, CheckBox) in the running game.",列出运行中游戏的可见 UI 元素（Button、Label、LineEdit、TextEdit、OptionButton、CheckBox）。
+find_unused_resources,,"Scan the project for resource files not referenced by any scene, script, or resource file.",扫描项目中未被任何场景、脚本或资源文件引用的资源文件。
 fix_resource_uid,,Fix resource UID issues.,修复资源 UID 问题。
 get_android_preset_info,,Read an Android export preset's configuration from export_presets.cfg.,从 export_presets.cfg 读取 Android 导出预设的配置。
 get_animation_info,,"Read animation details: length, loop mode, step, and per-track keyframes.",读取动画详情：长度、循环模式、步长和每个轨道的关键帧。

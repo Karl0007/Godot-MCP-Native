@@ -63,6 +63,10 @@ func register_tools(server_core: RefCounted) -> void:
 	_register_get_resource_preview(server_core)
 	_register_get_input_actions(server_core)
 	_register_set_input_action(server_core)
+	_register_analyze_signal_flow(server_core)
+	_register_analyze_scene_complexity(server_core)
+	_register_detect_circular_dependencies(server_core)
+	_register_find_unused_resources(server_core)
 
 # ============================================================================
 # get_project_info - 获取项目信息
@@ -4039,3 +4043,357 @@ func _tool_set_input_action(params: Dictionary) -> Dictionary:
 		InputMap.action_add_event(action_name, event)
 
 	return {"action": action_name, "deadzone": deadzone, "events_count": events.size(), "saved": true}
+
+func _get_user_scene_root() -> Node:
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if not editor_interface:
+		return null
+	var scene_root: Node = editor_interface.get_edited_scene_root()
+	if scene_root and not scene_root.name.begins_with("@") and scene_root.get_class() != "PanelContainer":
+		return scene_root
+	var open_scene_roots: Array = editor_interface.get_open_scene_roots()
+	for root: Node in open_scene_roots:
+		if root and not root.name.begins_with("@") and root.get_class() != "PanelContainer":
+			return root
+	return scene_root
+
+# ============================================================================
+# Batch 20 - Project analysis tools
+# ============================================================================
+
+func _register_analyze_signal_flow(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"analyze_signal_flow",
+		"Analyze signal connections in the current scene: sources, targets, and connection count.",
+		{
+			"type": "object",
+			"properties": {
+				"signal_name": {"type": "string", "description": "Optional signal name filter."},
+				"node_path": {"type": "string", "description": "Optional node path filter."}
+			},
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_analyze_signal_flow"),
+		{
+			"type": "object",
+			"properties": {
+				"connections": {"type": "array"},
+				"count": {"type": "integer"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Project-Advanced"
+	)
+
+func _collect_signal_data(node: Node, root: Node, signal_filter: String, node_filter: String, out: Array) -> void:
+	var node_path: String = str(root.get_path_to(node))
+	if node_filter.is_empty() or node_path.contains(node_filter):
+		for sig_info: Dictionary in node.get_signal_list():
+			var sig_name: String = sig_info["name"]
+			if not signal_filter.is_empty() and not sig_name.contains(signal_filter):
+				continue
+			for conn: Dictionary in node.get_signal_connection_list(sig_name):
+				out.append({
+					"source": node_path,
+					"signal": sig_name,
+					"target": str(root.get_path_to(conn["callable"].get_object())),
+					"method": conn["callable"].get_method(),
+				})
+	for child in node.get_children():
+		_collect_signal_data(child, root, signal_filter, node_filter, out)
+
+func _tool_analyze_signal_flow(params: Dictionary) -> Dictionary:
+	var scene_root: Node = _get_user_scene_root()
+	if not scene_root:
+		return {"error": "No scene is currently open"}
+	var signal_filter: String = String(params.get("signal_name", ""))
+	var node_filter: String = String(params.get("node_path", ""))
+	var connections: Array = []
+	_collect_signal_data(scene_root, scene_root, signal_filter, node_filter, connections)
+	return {"connections": connections, "count": connections.size()}
+
+func _register_analyze_scene_complexity(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"analyze_scene_complexity",
+		"Analyze a scene's complexity: node count, depth, node types, scripts, and potential issues.",
+		{
+			"type": "object",
+			"properties": {
+				"path": {"type": "string", "description": "Scene path. Defaults to the current scene."}
+			},
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_analyze_scene_complexity"),
+		{
+			"type": "object",
+			"properties": {
+				"scene_path": {"type": "string"},
+				"total_nodes": {"type": "integer"},
+				"max_depth": {"type": "integer"},
+				"nodes_by_type": {"type": "object"},
+				"issues": {"type": "array"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Project-Advanced"
+	)
+
+func _count_nodes_recursive_analysis(node: Node) -> int:
+	var count := 1
+	for child in node.get_children():
+		count += _count_nodes_recursive_analysis(child)
+	return count
+
+func _get_max_depth_analysis(node: Node, current_depth: int) -> int:
+	var max_d: int = current_depth
+	for child in node.get_children():
+		var child_depth: int = _get_max_depth_analysis(child, current_depth + 1)
+		if child_depth > max_d:
+			max_d = child_depth
+	return max_d
+
+func _analyze_node_recursive(node: Node, root: Node, types: Dictionary, scripts: Array) -> void:
+	var type_name: String = node.get_class()
+	types[type_name] = int(types.get(type_name, 0)) + 1
+	if node.get_script() != null:
+		var script: Script = node.get_script()
+		var script_path: String = script.resource_path
+		if not script_path.is_empty():
+			scripts.append({"node": str(root.get_path_to(node)), "script": script_path})
+	for child in node.get_children():
+		_analyze_node_recursive(child, root, types, scripts)
+
+func _tool_analyze_scene_complexity(params: Dictionary) -> Dictionary:
+	var scene_path: String = String(params.get("path", ""))
+	var root: Node = null
+	if scene_path.is_empty():
+		root = _get_user_scene_root()
+		if root == null:
+			return {"error": "No scene is currently open"}
+		scene_path = root.scene_file_path
+	else:
+		if not ResourceLoader.exists(scene_path):
+			return {"error": "Scene '" + scene_path + "' not found"}
+		var packed: PackedScene = load(scene_path)
+		if packed == null:
+			return {"error": "Failed to load scene: " + scene_path}
+		root = packed.instantiate()
+
+	var total_nodes: int = _count_nodes_recursive_analysis(root)
+	var max_depth: int = _get_max_depth_analysis(root, 0)
+	var types: Dictionary = {}
+	var scripts_attached: Array = []
+	_analyze_node_recursive(root, root, types, scripts_attached)
+
+	var issues: Array = []
+	if total_nodes > 1000:
+		issues.append({"severity": "warning", "message": "Scene has %d nodes (>1000). Consider splitting into sub-scenes." % total_nodes})
+	elif total_nodes > 500:
+		issues.append({"severity": "info", "message": "Scene has %d nodes (>500). Monitor performance." % total_nodes})
+	if max_depth > 15:
+		issues.append({"severity": "warning", "message": "Max nesting depth is %d (>15). Deep hierarchies can be hard to maintain." % max_depth})
+	elif max_depth > 10:
+		issues.append({"severity": "info", "message": "Max nesting depth is %d (>10)." % max_depth})
+
+	var editor_interface: EditorInterface = _get_editor_interface()
+	var edited_root: Node = _get_user_scene_root()
+	if scene_path.is_empty() or (edited_root != null and root != edited_root):
+		root.free()
+
+	return {
+		"scene_path": scene_path,
+		"total_nodes": total_nodes,
+		"max_depth": max_depth,
+		"nodes_by_type": types,
+		"scripts_attached": scripts_attached,
+		"issues": issues,
+	}
+
+func _register_detect_circular_dependencies(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"detect_circular_dependencies",
+		"Detect circular scene dependencies (.tscn files referencing each other) using DFS cycle detection.",
+		{
+			"type": "object",
+			"properties": {
+				"path": {"type": "string", "description": "Search root. Default 'res://'."},
+				"include_addons": {"type": "boolean", "description": "Include addons. Default false."}
+			},
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_detect_circular_dependencies"),
+		{
+			"type": "object",
+			"properties": {
+				"scenes_checked": {"type": "integer"},
+				"circular_dependencies": {"type": "array"},
+				"has_circular": {"type": "boolean"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Project-Advanced"
+	)
+
+func _collect_files_by_ext_analysis(path: String, extensions: Array, out: Array, include_addons: bool) -> void:
+	var dir := DirAccess.open(path)
+	if dir == null:
+		return
+	dir.list_dir_begin()
+	var file_name: String = dir.get_next()
+	while not file_name.is_empty():
+		if file_name.begins_with("."):
+			file_name = dir.get_next()
+			continue
+		var full_path: String = path.path_join(file_name)
+		if dir.current_is_dir():
+			if not include_addons and file_name == "addons":
+				file_name = dir.get_next()
+				continue
+			_collect_files_by_ext_analysis(full_path, extensions, out, include_addons)
+		else:
+			if file_name.get_extension().to_lower() in extensions:
+				out.append(full_path)
+		file_name = dir.get_next()
+	dir.list_dir_end()
+
+func _read_file_text_analysis(file_path: String) -> String:
+	var file := FileAccess.open(file_path, FileAccess.READ)
+	if file == null:
+		return ""
+	var content: String = file.get_as_text()
+	file.close()
+	return content
+
+func _dfs_detect_cycle_analysis(node: String, graph: Dictionary, visited: Dictionary, path_stack: Array, cycles: Array) -> void:
+	visited[node] = "visiting"
+	path_stack.append(node)
+	if graph.has(node):
+		var deps: Array = graph[node]
+		for dep: Variant in deps:
+			var d: String = str(dep)
+			if not visited.has(d):
+				continue
+			if visited[d] == "visiting":
+				var cycle_start: int = path_stack.find(d)
+				var cycle: Array = path_stack.slice(cycle_start)
+				cycle.append(d)
+				cycles.append(cycle)
+			elif visited[d] == "unvisited":
+				_dfs_detect_cycle_analysis(d, graph, visited, path_stack, cycles)
+	path_stack.pop_back()
+	visited[node] = "visited"
+
+func _tool_detect_circular_dependencies(params: Dictionary) -> Dictionary:
+	var path: String = String(params.get("path", "res://"))
+	var include_addons: bool = bool(params.get("include_addons", false))
+	var tscn_files: Array = []
+	_collect_files_by_ext_analysis(path, ["tscn"], tscn_files, include_addons)
+
+	var dep_graph: Dictionary = {}
+	for tscn_path: Variant in tscn_files:
+		var tp: String = str(tscn_path)
+		var content: String = _read_file_text_analysis(tp)
+		if content.is_empty():
+			continue
+		var deps: Array = []
+		for line in content.split("\n"):
+			if line.begins_with("[ext_resource") and ".tscn" in line:
+				var path_start: int = line.find('path="')
+				if path_start == -1:
+					continue
+				path_start += 6
+				var path_end: int = line.find('"', path_start)
+				if path_end == -1:
+					continue
+				var ref_path: String = line.substr(path_start, path_end - path_start)
+				if ref_path.ends_with(".tscn"):
+					deps.append(ref_path)
+		dep_graph[tp] = deps
+
+	var cycles: Array = []
+	var visited: Dictionary = {}
+	for scene: Variant in dep_graph:
+		visited[scene] = "unvisited"
+	for scene: Variant in dep_graph:
+		if visited[scene] == "unvisited":
+			var path_stack: Array = []
+			_dfs_detect_cycle_analysis(str(scene), dep_graph, visited, path_stack, cycles)
+
+	return {
+		"scenes_checked": tscn_files.size(),
+		"circular_dependencies": cycles,
+		"has_circular": cycles.size() > 0,
+	}
+
+func _register_find_unused_resources(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"find_unused_resources",
+		"Scan the project for resource files not referenced by any scene, script, or resource file.",
+		{
+			"type": "object",
+			"properties": {
+				"path": {"type": "string", "description": "Search root. Default 'res://'."},
+				"include_addons": {"type": "boolean", "description": "Include addons. Default false."}
+			},
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_find_unused_resources"),
+		{
+			"type": "object",
+			"properties": {
+				"unused": {"type": "array"},
+				"count": {"type": "integer"},
+				"total_scanned": {"type": "integer"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Project-Advanced"
+	)
+
+func _tool_find_unused_resources(params: Dictionary) -> Dictionary:
+	var path: String = String(params.get("path", "res://"))
+	var include_addons: bool = bool(params.get("include_addons", false))
+
+	var resource_extensions: Array = ["tres", "tscn", "png", "jpg", "jpeg", "svg", "wav", "ogg", "mp3", "ttf", "otf", "gdshader", "material", "theme", "stylebox", "font", "anim"]
+	var all_resources: Array = []
+	_collect_files_by_ext_analysis(path, resource_extensions, all_resources, include_addons)
+
+	var ref_extensions: Array = ["tscn", "gd", "tres", "cfg", "godot"]
+	var ref_files: Array = []
+	_collect_files_by_ext_analysis(path, ref_extensions, ref_files, include_addons)
+
+	var referenced: Dictionary = {}
+	for ref_file: Variant in ref_files:
+		var content: String = _read_file_text_analysis(str(ref_file))
+		if content.is_empty():
+			continue
+		for prefix: String in ["res://", "uid://"]:
+			var idx := 0
+			while idx < content.length():
+				var found: int = content.find(prefix, idx)
+				if found == -1:
+					break
+				var end: int = found + prefix.length()
+				while end < content.length():
+					var ch: String = content[end]
+					if ch == '"' or ch == "'" or ch == " " or ch == "\n" or ch == "\r" or ch == ")" or ch == "]" or ch == "}":
+						break
+					end += 1
+				var ref_path: String = content.substr(found, end - found)
+				if ref_path.begins_with("uid://"):
+					var uid: int = ResourceUID.text_to_id(ref_path)
+					if uid != ResourceUID.INVALID_ID and ResourceUID.has_id(uid):
+						var uid_path: String = ResourceUID.get_id_path(uid)
+						if uid_path != str(ref_file):
+							referenced[uid_path] = true
+				else:
+					referenced[ref_path] = true
+				idx = end
+
+	var unused: Array = []
+	for resource_path: Variant in all_resources:
+		var rp: String = str(resource_path)
+		if not referenced.has(rp):
+			unused.append(rp)
+
+	return {"unused": unused, "count": unused.size(), "total_scanned": all_resources.size()}

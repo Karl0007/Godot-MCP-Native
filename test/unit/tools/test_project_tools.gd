@@ -297,3 +297,43 @@ func test_parse_input_map_event_key():
 func test_parse_input_map_event_unknown():
 	var parsed: InputEvent = _project_tools._parse_input_map_event({"type": "gesture"})
 	assert_eq(parsed, null, "Unknown type should return null")
+
+# --- Batch 20: analysis tools ---
+
+func test_analyze_signal_flow_no_scene():
+	var result: Dictionary = _project_tools._tool_analyze_signal_flow({})
+	assert_true(result.has("error"), "No scene should error")
+
+func test_analyze_scene_complexity_no_scene():
+	var result: Dictionary = _project_tools._tool_analyze_scene_complexity({})
+	assert_true(result.has("error"), "No scene should error")
+
+func test_analyze_scene_complexity_missing_file():
+	var result: Dictionary = _project_tools._tool_analyze_scene_complexity({"path": "res://nonexistent.tscn"})
+	assert_true(result.has("error"), "Missing scene should error")
+
+func test_detect_circular_dependencies():
+	var result: Dictionary = _project_tools._tool_detect_circular_dependencies({"path": "res://addons/godot_mcp"})
+	assert_true(result.has("scenes_checked"), "Should report scenes checked")
+	assert_true(result.has("has_circular"), "Should report cycle status")
+
+func test_find_unused_resources():
+	var result: Dictionary = _project_tools._tool_find_unused_resources({"path": "res://addons/godot_mcp"})
+	assert_true(result.has("unused"), "Should return unused list")
+	assert_true(result.has("total_scanned"), "Should report scan count")
+
+func test_count_nodes_recursive_analysis():
+	var node := Node.new()
+	var child := Node.new()
+	node.add_child(child)
+	assert_eq(_project_tools._count_nodes_recursive_analysis(node), 2, "Should count root + child")
+	node.free()
+
+func test_get_max_depth_analysis():
+	var node := Node.new()
+	var child := Node.new()
+	var grandchild := Node.new()
+	node.add_child(child)
+	child.add_child(grandchild)
+	assert_eq(_project_tools._get_max_depth_analysis(node, 0), 2, "Should report depth 2")
+	node.free()

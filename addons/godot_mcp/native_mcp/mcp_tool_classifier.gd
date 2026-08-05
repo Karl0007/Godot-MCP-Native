@@ -275,6 +275,10 @@ func _build_classifications() -> void:
 		{"name": "navigate_to", "category": "supplementary", "group": "Debug-Advanced"},
 		{"name": "move_to", "category": "supplementary", "group": "Debug-Advanced"},
 		{"name": "watch_signals", "category": "supplementary", "group": "Debug-Advanced"},
+		{"name": "analyze_signal_flow", "category": "supplementary", "group": "Project-Advanced"},
+		{"name": "analyze_scene_complexity", "category": "supplementary", "group": "Project-Advanced"},
+		{"name": "detect_circular_dependencies", "category": "supplementary", "group": "Project-Advanced"},
+		{"name": "find_unused_resources", "category": "supplementary", "group": "Project-Advanced"},
 	]
 
 	for item in classifications:
