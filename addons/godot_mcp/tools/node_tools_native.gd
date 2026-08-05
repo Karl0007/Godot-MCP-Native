@@ -658,6 +658,26 @@ func _tool_batch_scene_node_edits(params: Dictionary) -> Dictionary:
 					"node_type": move_target.get_class(),
 					"old_index": move_target.get_index()
 				})
+			"update":
+				var update_node_path: String = str(operation.get("node_path", ""))
+				var update_property: String = str(operation.get("property_name", ""))
+				if update_node_path.is_empty() or update_property.is_empty():
+					return {"error": "Update operations require node_path and property_name"}
+				var update_target: Node = _resolve_node_path(update_node_path)
+				if not update_target:
+					return {"error": "Node not found: " + update_node_path}
+				if not update_property in update_target:
+					return {"error": "Property '" + update_property + "' not found on node " + update_node_path}
+				var update_value: Variant = operation.get("property_value", null)
+				prepared_operations.append({
+					"type": "update",
+					"node_path": update_node_path,
+					"node": update_target,
+					"property_name": update_property,
+					"new_value": update_value,
+					"old_value": update_target.get(update_property),
+					"node_type": update_target.get_class()
+				})
 			_:
 				return {"error": "Unsupported operation type: " + operation_type}
 
@@ -682,6 +702,21 @@ func _tool_batch_scene_node_edits(params: Dictionary) -> Dictionary:
 				"type": "create",
 				"node_path": _append_child_path(_make_friendly_path(created_parent, scene_root), prepared["node_name"]),
 				"node_type": prepared["node_type"]
+			})
+		elif prepared["type"] == "update":
+			var updated_node: Node = prepared["node"]
+			var updated_property: String = prepared["property_name"]
+			var updated_value: Variant = prepared["new_value"]
+			var updated_old: Variant = prepared["old_value"]
+			undo_redo.add_do_property(updated_node, updated_property, updated_value)
+			undo_redo.add_undo_property(updated_node, updated_property, updated_old)
+			result_operations.append({
+				"type": "update",
+				"node_path": prepared["node_path"],
+				"node_type": prepared["node_type"],
+				"property_name": updated_property,
+				"new_value": updated_value,
+				"old_value": updated_old
 			})
 		else:
 			match String(prepared["type"]):

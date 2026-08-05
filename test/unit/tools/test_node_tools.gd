@@ -327,3 +327,21 @@ func test_cross_scene_set_property_requires_value():
 func test_cross_scene_set_property_requires_force():
 	var result: Dictionary = _node_tools._tool_cross_scene_set_property({"type": "Node2D", "property": "position", "value": 0, "dry_run": false})
 	assert_true(result.has("error"), "force=true required without dry_run")
+
+func test_batch_scene_node_edits_requires_operations():
+	var result: Dictionary = _node_tools._tool_batch_scene_node_edits({})
+	assert_true(result.has("error"), "Missing operations should error")
+
+func test_batch_scene_node_edits_unsupported_type():
+	var result: Dictionary = _node_tools._tool_batch_scene_node_edits({"operations": [{"type": "explode"}]})
+	assert_true(result.has("error"), "Unsupported op type should error")
+	assert_true(str(result.get("error", "")).contains("Unsupported"), "Error should mention unsupported")
+
+func test_batch_scene_node_edits_update_requires_props():
+	var result: Dictionary = _node_tools._tool_batch_scene_node_edits({"operations": [{"type": "update"}]})
+	assert_true(result.has("error"), "Update without node_path/property should error")
+
+func test_batch_scene_node_edits_update_requires_node():
+	var result: Dictionary = _node_tools._tool_batch_scene_node_edits({"operations": [{"type": "update", "node_path": "/root/Nope", "property_name": "visible", "property_value": True}]})
+	assert_true(result.has("error"), "Update on missing node should error")
+	assert_true(str(result.get("error", "")).contains("Node not found"), "Error should mention node not found")
