@@ -273,5 +273,8 @@
   "find_nodes_by_type": "Find all nodes of a given class in the current scene.",
   "find_signal_connections": "Find all signal connections in the current scene, optionally filtered by signal or node.",
   "find_node_references": "Search all .tscn/.gd/.tres/.gdshader files for references to a pattern.",
-  "cross_scene_set_property": "Set a property on nodes of a type across multiple scene files. Requires force=true to apply; dry_run previews changes."
+  "cross_scene_set_property": "Set a property on nodes of a type across multiple scene files. Requires force=true to apply; dry_run previews changes.",
+  "godot_status": "Report the MCP server readiness: transport, port, auth, tool counts, and runtime probe state. Call this first to understand server state.",
+  "godot_ensure_ready": "Ensure the MCP server is ready: repair the runtime probe autoload if missing and report server state.",
+  "get_server_info": "Read MCP server infrastructure info: plugin version, transport, port, auth, tool registry counts, and probe status."
 }

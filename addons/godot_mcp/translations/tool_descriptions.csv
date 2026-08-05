@@ -147,10 +147,13 @@ get_scene_file_content,,Read a scene file's raw text content.,读取场景文件
 get_scene_structure,,Get the complete structure of the current scene as a tree. Returns node types, names, and hierarchy.,以树形结构获取当前场景的完整结构。返回节点类型、名称和层级关系。
 get_scene_tree,,Get the complete scene tree hierarchy starting from the scene root. Returns full tree structure with node types.,获取从场景根节点开始的完整场景树层级。返回包含节点类型的完整树结构。
 get_selected_nodes,,Get the list of currently selected nodes in the editor.,获取编辑器中当前选中节点的列表。
+get_server_info,,"Read MCP server infrastructure info: plugin version, transport, port, auth, tool registry counts, and probe status.",读取 MCP 服务器基础设施信息：插件版本、传输、端口、认证、工具注册数量和探针状态。
 get_shader_params,,Read all shader uniforms from a node's ShaderMaterial.,读取节点 ShaderMaterial 的所有着色器 uniform。
 get_signals,,Get all signals and their connections for a node.,获取节点的所有信号及其连接。
 get_test_report,,Collect and format results from accumulated assertions into a test report.,将累积断言的测试结果收集并格式化为测试报告。
 get_theme_info,,"Read a Control node's theme path, type list, and all theme overrides (colors, constants, font sizes, styleboxes).",读取 Control 节点的主题路径、类型列表和所有主题覆盖（颜色、常量、字体大小、样式盒）。
+godot_ensure_ready,,Ensure the MCP server is ready: repair the runtime probe autoload if missing and report server state.,确保 MCP 服务器就绪：修复缺失的运行时探针自动加载并报告服务器状态。
+godot_status,,"Report the MCP server readiness: transport, port, auth, tool counts, and runtime probe state. Call this first to understand server state.",报告 MCP 服务器就绪状态：传输、端口、认证、工具数量和运行时探针状态。首先调用以了解服务器状态。
 inspect_csharp_project_support,,Inspect C# / Mono project support files such as .csproj and .sln, including target frameworks, assembly metadata, and references.,检查 C# / Mono 项目支持文件（如 .csproj 和 .sln），包括目标框架、程序集元数据和引用。
 inspect_export_templates,,Inspect locally installed Godot export templates for the current editor version.,检查本地安装的适用于当前编辑器版本的 Godot 导出模板。
 inspect_runtime_node,,Inspect a node in the running game.,检查运行中游戏中的节点。

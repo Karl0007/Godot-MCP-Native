@@ -13,11 +13,11 @@ func test_classifier_initializes():
 
 func test_all_155_tools_registered():
 	var all_tools: Array = _classifier.get_all_tools()
-	assert_eq(all_tools.size(), 275, "Should have exactly 275 tools registered (155 + 22 World + 39 Media + 14 Editor + 6 Scene + 18 Project + 15 Debug + 6 Node)")
+	assert_eq(all_tools.size(), 278, "Should have exactly 278 tools registered (155 + 22 World + 39 Media + 14 Editor + 6 Scene + 18 Project + 15 Debug + 6 Node + 3 Bootstrap)")
 
 func test_core_tools_count_within_limit():
 	var core_tools: Array = _classifier.get_core_tools()
-	assert_eq(core_tools.size(), 30, "Should have exactly 30 core tools")
+	assert_eq(core_tools.size(), 33, "Should have exactly 33 core tools (30 + 3 Bootstrap)")
 
 func test_supplementary_tools_count():
 	var supp_tools: Array = _classifier.get_supplementary_tools()

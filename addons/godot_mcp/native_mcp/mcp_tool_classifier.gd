@@ -285,6 +285,9 @@ func _build_classifications() -> void:
 		{"name": "find_signal_connections", "category": "supplementary", "group": "Node-Advanced"},
 		{"name": "find_node_references", "category": "supplementary", "group": "Node-Advanced"},
 		{"name": "cross_scene_set_property", "category": "supplementary", "group": "Node-Advanced"},
+		{"name": "godot_status", "category": "core", "group": "Bootstrap"},
+		{"name": "godot_ensure_ready", "category": "core", "group": "Bootstrap"},
+		{"name": "get_server_info", "category": "core", "group": "Bootstrap"},
 	]
 
 	for item in classifications:

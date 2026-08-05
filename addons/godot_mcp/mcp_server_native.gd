@@ -581,6 +581,7 @@ func _register_all_tools() -> void:
 			_log_error("Failed to instantiate tool module: " + str(module_name))
 			continue
 		_register_tool_module(str(module_name), instance)
+	_register_bootstrap_tools()
 	
 	var total_tools: int = _native_server.get_tools_count()
 	_log_info("All MCP tools registered successfully. Total: " + str(total_tools))
@@ -1004,3 +1005,117 @@ func _notification(what: int) -> void:
 		if _native_server and _native_server.is_running():
 			_native_server.stop()
 		_native_server = null
+
+# ============================================================================
+# Batch 22 - Bootstrap & infrastructure tools
+# ============================================================================
+
+func _register_bootstrap_tools() -> void:
+	if not _native_server:
+		return
+	_native_server.register_tool(
+		"godot_status",
+		"Report the MCP server readiness: transport, port, auth, tool counts, and runtime probe state. Call this first to understand server state.",
+		{
+			"type": "object",
+			"properties": {},
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_godot_status"),
+		{
+			"type": "object",
+			"properties": {
+				"ready": {"type": "boolean"},
+				"transport": {"type": "string"},
+				"port": {"type": "integer"},
+				"tool_count": {"type": "integer"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"core", "Bootstrap"
+	)
+	_native_server.register_tool(
+		"godot_ensure_ready",
+		"Ensure the MCP server is ready: repair the runtime probe autoload if missing and report server state.",
+		{
+			"type": "object",
+			"properties": {
+				"repair_probe": {"type": "boolean", "description": "Re-add the MCPRuntimeProbe autoload if missing. Default true."}
+			},
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_godot_ensure_ready"),
+		{
+			"type": "object",
+			"properties": {
+				"ready": {"type": "boolean"},
+				"probe_ok": {"type": "boolean"},
+				"message": {"type": "string"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"core", "Bootstrap"
+	)
+	_native_server.register_tool(
+		"get_server_info",
+		"Read MCP server infrastructure info: plugin version, transport, port, auth, tool registry counts, and probe status.",
+		{
+			"type": "object",
+			"properties": {},
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_get_server_info"),
+		{
+			"type": "object",
+			"properties": {
+				"plugin_version": {"type": "string"},
+				"transport": {"type": "string"},
+				"port": {"type": "integer"},
+				"registered_tools": {"type": "integer"},
+				"enabled_tools": {"type": "integer"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"core", "Bootstrap"
+	)
+
+func _tool_godot_status(params: Dictionary) -> Dictionary:
+	var info: Dictionary = _collect_server_state()
+	return info
+
+func _tool_godot_ensure_ready(params: Dictionary) -> Dictionary:
+	var repair_probe: bool = bool(params.get("repair_probe", true))
+	var probe_ok: bool = ProjectSettings.has_setting(RUNTIME_PROBE_AUTOLOAD_KEY)
+	if not probe_ok and repair_probe:
+		ProjectSettings.set_setting(RUNTIME_PROBE_AUTOLOAD_KEY, "*" + RUNTIME_PROBE_SCRIPT_PATH)
+		ProjectSettings.save()
+		probe_ok = ProjectSettings.has_setting(RUNTIME_PROBE_AUTOLOAD_KEY)
+	var info: Dictionary = _collect_server_state()
+	info["probe_ok"] = probe_ok
+	info["message"] = "MCP server is ready." if probe_ok else "Runtime probe autoload is missing. Pass repair_probe=true or restart the editor."
+	return info
+
+func _collect_server_state() -> Dictionary:
+	var transport_name: String = transport_mode
+	var port: int = http_port
+	var registered: int = _native_server.get_tools_count() if _native_server else 0
+	var enabled: int = 0
+	if _native_server:
+		var tools: Array = _native_server.get_registered_tools()
+		for tool_info: Dictionary in tools:
+			if tool_info.get("enabled", false):
+				enabled += 1
+	return {
+		"ready": true,
+		"transport": transport_name,
+		"port": port,
+		"auth_enabled": auth_enabled,
+		"plugin_version": "1.0.8",
+		"registered_tools": registered,
+		"enabled_tools": enabled,
+		"tool_count": registered,
+		"probe_ok": ProjectSettings.has_setting(RUNTIME_PROBE_AUTOLOAD_KEY),
+	}
+
+func _tool_get_server_info(params: Dictionary) -> Dictionary:
+	return _collect_server_state()

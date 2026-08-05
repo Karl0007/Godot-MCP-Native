@@ -102,3 +102,20 @@ func test_deploy_to_android_no_preset():
 func test_find_export_preset_missing_file():
 	var preset: Dictionary = _editor_tools._find_export_preset("", 0)
 	assert_true(preset.is_empty(), "Missing export_presets.cfg should return empty")
+
+# --- Batch 22: bootstrap ---
+
+func test_godot_status_via_plugin():
+	# The plugin registers these; test the collector through a plugin instance
+	var plugin: RefCounted = load("res://addons/godot_mcp/mcp_server_native.gd").new()
+	var info: Dictionary = plugin._collect_server_state()
+	assert_true(info.has("ready"), "Should report ready")
+	assert_true(info.has("transport"), "Should report transport")
+	assert_true(info.has("registered_tools"), "Should report tool count")
+	assert_true(info.has("probe_ok"), "Should report probe status")
+
+func test_collect_server_state_fields():
+	var plugin: RefCounted = load("res://addons/godot_mcp/mcp_server_native.gd").new()
+	var info: Dictionary = plugin._collect_server_state()
+	assert_true(info.get("transport", "") in ["http", "stdio"], "Transport should be http or stdio")
+	assert_true(info.get("ready", false), "Should be ready by default")

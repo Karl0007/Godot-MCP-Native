@@ -5198,6 +5198,36 @@ UID → 路径。
 
 **注解**：`readOnlyHint=false`, `destructiveHint=true`, `idempotentHint=false`, `openWorldHint=false`
 
+### 276. godot_status
+
+报告 MCP 服务器就绪状态。
+
+**参数**：无
+
+**返回值**：`ready`、`transport`、`port`、`auth_enabled`、`plugin_version`、`registered_tools`、`enabled_tools`、`probe_ok`
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 277. godot_ensure_ready
+
+确保服务器就绪（修复 probe autoload）。
+
+**参数**：`repair_probe`（否，默认 true）
+
+**返回值**：`ready`、`probe_ok`、`message` + 服务器状态
+
+**注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 278. get_server_info
+
+读取服务器基础设施信息。
+
+**参数**：无
+
+**返回值**：`plugin_version`、`transport`、`port`、`auth_enabled`、`registered_tools`、`enabled_tools`、`probe_ok`
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
 ## 通用数据类型
 
 ### Vector2
@@ -5297,7 +5327,7 @@ UID → 路径。
 
 ## 总结
 
-本手册详细说明了 Godot MCP Native 项目的所有核心工具及部分补充工具。项目共 **275 个工具**（30 核心 + 245 补充），所有工具均可通过 MCP 工具管理面板按分组动态启用/禁用。补充工具（`*-Advanced` 分组）默认不启用，需在工具管理面板中手动开启。
+本手册详细说明了 Godot MCP Native 项目的所有核心工具及部分补充工具。项目共 **278 个工具**（33 核心 + 245 补充），所有工具均可通过 MCP 工具管理面板按分组动态启用/禁用。补充工具（`*-Advanced` 分组）默认不启用，需在工具管理面板中手动开启。
 
 **提示**：
 - 使用 `tools/list` 方法获取所有工具的实时列表和完整 JSON Schema
