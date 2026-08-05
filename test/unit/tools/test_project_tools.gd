@@ -259,3 +259,41 @@ func test_resource_property_serialize_color():
 	var serialized: Variant = _project_tools._resource_property_serialize(Color.RED)
 	assert_true(serialized is Dictionary, "Color should serialize to dict")
 	assert_eq(serialized["html"], "#ff0000ff", "HTML should match")
+
+# --- Batch 15: input map tools ---
+
+func test_get_input_actions():
+	var result: Dictionary = _project_tools._tool_get_input_actions({})
+	assert_true(result.has("actions"), "Should return actions")
+	assert_true(result.has("count"), "Should return count")
+
+func test_get_input_actions_filter():
+	var result: Dictionary = _project_tools._tool_get_input_actions({"filter": "nonexistent_xyz"})
+	assert_eq(result.get("count", -1), 0, "Unknown filter should return 0 actions")
+
+func test_set_input_action_requires_action():
+	var result: Dictionary = _project_tools._tool_set_input_action({})
+	assert_true(result.has("error"), "Missing action should error")
+
+func test_set_input_action_requires_events():
+	var result: Dictionary = _project_tools._tool_set_input_action({"action": "jump"})
+	assert_true(result.has("error"), "Missing events should error")
+
+func test_serialize_input_map_event_key():
+	var event := InputEventKey.new()
+	event.keycode = KEY_W
+	event.ctrl_pressed = true
+	var serialized: Dictionary = _project_tools._serialize_input_map_event(event)
+	assert_eq(serialized["type"], "key", "Type should be key")
+	assert_eq(serialized["keycode"], "W", "Keycode should be W")
+	assert_true(serialized.get("ctrl", false), "Ctrl flag should serialize")
+
+func test_parse_input_map_event_key():
+	var parsed: InputEvent = _project_tools._parse_input_map_event({"type": "key", "keycode": "W", "ctrl": true})
+	assert_true(parsed is InputEventKey, "Should parse to InputEventKey")
+	assert_eq((parsed as InputEventKey).keycode, KEY_W, "Keycode should round-trip")
+	assert_true((parsed as InputEventKey).ctrl_pressed, "Ctrl should round-trip")
+
+func test_parse_input_map_event_unknown():
+	var parsed: InputEvent = _project_tools._parse_input_map_event({"type": "gesture"})
+	assert_eq(parsed, null, "Unknown type should return null")

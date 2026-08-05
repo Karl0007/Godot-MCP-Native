@@ -241,5 +241,7 @@
   "get_autoload": "Read a project autoload singleton's properties and script path.",
   "read_resource": "Read a resource file (.tres/.res) and return its editor-visible properties.",
   "edit_resource": "Modify properties of a resource file and save it.",
-  "get_resource_preview": "Generate a PNG preview (base64) of a resource: images, textures, or any resource with a visual representation."
+  "get_resource_preview": "Generate a PNG preview (base64) of a resource: images, textures, or any resource with a visual representation.",
+  "get_input_actions": "List project InputMap actions with their bound input events and deadzones.",
+  "set_input_action": "Create or update an InputMap action with bound events, saving to ProjectSettings and updating the runtime InputMap."
 }

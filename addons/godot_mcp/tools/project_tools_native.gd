@@ -61,6 +61,8 @@ func register_tools(server_core: RefCounted) -> void:
 	_register_read_resource(server_core)
 	_register_edit_resource(server_core)
 	_register_get_resource_preview(server_core)
+	_register_get_input_actions(server_core)
+	_register_set_input_action(server_core)
 
 # ============================================================================
 # get_project_info - 获取项目信息
@@ -3869,3 +3871,171 @@ func _tool_get_resource_preview(params: Dictionary) -> Dictionary:
 		"format": "png",
 		"path": path,
 	}
+
+# ============================================================================
+# Batch 15 - InputMap tools
+# ============================================================================
+
+func _serialize_input_map_event(event: InputEvent) -> Dictionary:
+	if event is InputEventKey:
+		var key_event: InputEventKey = event
+		var info: Dictionary = {
+			"type": "key",
+			"keycode": OS.get_keycode_string(key_event.keycode) if key_event.keycode != KEY_NONE else "",
+			"physical_keycode": OS.get_keycode_string(key_event.physical_keycode) if key_event.physical_keycode != KEY_NONE else "",
+		}
+		if key_event.ctrl_pressed: info["ctrl"] = true
+		if key_event.shift_pressed: info["shift"] = true
+		if key_event.alt_pressed: info["alt"] = true
+		if key_event.meta_pressed: info["meta"] = true
+		return info
+	elif event is InputEventMouseButton:
+		var mb_event: InputEventMouseButton = event
+		return {"type": "mouse_button", "button_index": mb_event.button_index}
+	elif event is InputEventJoypadButton:
+		var jb_event: InputEventJoypadButton = event
+		return {"type": "joypad_button", "button_index": jb_event.button_index}
+	elif event is InputEventJoypadMotion:
+		var jm_event: InputEventJoypadMotion = event
+		return {"type": "joypad_motion", "axis": jm_event.axis, "axis_value": jm_event.axis_value}
+	return {"type": event.get_class()}
+
+func _parse_input_map_event(def: Dictionary) -> InputEvent:
+	var type: String = str(def.get("type", ""))
+	match type:
+		"key":
+			var event := InputEventKey.new()
+			var keycode_str: String = str(def.get("keycode", ""))
+			if not keycode_str.is_empty():
+				event.keycode = OS.find_keycode_from_string(keycode_str)
+			var phys_str: String = str(def.get("physical_keycode", ""))
+			if not phys_str.is_empty():
+				event.physical_keycode = OS.find_keycode_from_string(phys_str)
+			event.ctrl_pressed = bool(def.get("ctrl", false))
+			event.shift_pressed = bool(def.get("shift", false))
+			event.alt_pressed = bool(def.get("alt", false))
+			event.meta_pressed = bool(def.get("meta", false))
+			return event
+		"mouse_button":
+			var event := InputEventMouseButton.new()
+			event.button_index = int(def.get("button_index", 1))
+			return event
+		"joypad_button":
+			var event := InputEventJoypadButton.new()
+			event.button_index = int(def.get("button_index", 0))
+			return event
+		"joypad_motion":
+			var event := InputEventJoypadMotion.new()
+			event.axis = int(def.get("axis", 0))
+			event.axis_value = float(def.get("axis_value", 1.0))
+			return event
+	return null
+
+func _register_get_input_actions(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"get_input_actions",
+		"List project InputMap actions with their bound input events and deadzones.",
+		{
+			"type": "object",
+			"properties": {
+				"filter": {"type": "string", "description": "Action name substring filter."},
+				"include_builtin": {"type": "boolean", "description": "Include built-in ui_* actions. Default false."}
+			},
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_get_input_actions"),
+		{
+			"type": "object",
+			"properties": {
+				"actions": {"type": "object"},
+				"count": {"type": "integer"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Project-Advanced"
+	)
+
+func _tool_get_input_actions(params: Dictionary) -> Dictionary:
+	var filter_text: String = String(params.get("filter", ""))
+	var include_builtin: bool = bool(params.get("include_builtin", false))
+	var actions: Dictionary = {}
+	for action_name: StringName in InputMap.get_actions():
+		var action_str: String = str(action_name)
+		if not include_builtin:
+			if action_str.begins_with("ui_"):
+				continue
+			if not ProjectSettings.has_setting("input/" + action_str):
+				continue
+		if not filter_text.is_empty() and not action_str.contains(filter_text):
+			continue
+		var events: Array = []
+		for event: InputEvent in InputMap.action_get_events(action_name):
+			events.append(_serialize_input_map_event(event))
+		actions[action_str] = {
+			"deadzone": InputMap.action_get_deadzone(action_name),
+			"events": events,
+		}
+	return {"actions": actions, "count": actions.size()}
+
+func _register_set_input_action(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"set_input_action",
+		"Create or update an InputMap action with bound events, saving to ProjectSettings and updating the runtime InputMap.",
+		{
+			"type": "object",
+			"properties": {
+				"action": {"type": "string"},
+				"events": {"type": "array", "description": "Array of event dicts: {type: key/mouse_button/joypad_button/joypad_motion, ...}."},
+				"deadzone": {"type": "number", "description": "Action deadzone. Default 0.5."}
+			},
+			"required": ["action", "events"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_set_input_action"),
+		{
+			"type": "object",
+			"properties": {
+				"action": {"type": "string"},
+				"deadzone": {"type": "number"},
+				"events_count": {"type": "integer"},
+				"saved": {"type": "boolean"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Project-Advanced"
+	)
+
+func _tool_set_input_action(params: Dictionary) -> Dictionary:
+	var action_name: String = String(params.get("action", ""))
+	if action_name.is_empty():
+		return {"error": "Missing required parameter: action"}
+	if not params.has("events") or not params["events"] is Array:
+		return {"error": "'events' array is required"}
+	var event_defs: Array = params["events"]
+	var deadzone: float = float(params.get("deadzone", 0.5))
+
+	var events: Array = []
+	for event_def: Variant in event_defs:
+		if event_def is Dictionary:
+			var event: InputEvent = _parse_input_map_event(event_def)
+			if event != null:
+				events.append(event)
+
+	var setting_value: Dictionary = {
+		"deadzone": deadzone,
+		"events": events,
+	}
+	ProjectSettings.set_setting("input/" + action_name, setting_value)
+	var err: Error = ProjectSettings.save()
+	if err != OK:
+		return {"error": "Failed to save project settings: " + error_string(err)}
+
+	if not InputMap.has_action(action_name):
+		InputMap.add_action(action_name, deadzone)
+	else:
+		InputMap.action_set_deadzone(action_name, deadzone)
+		InputMap.action_erase_events(action_name)
+	for event: InputEvent in events:
+		InputMap.action_add_event(action_name, event)
+
+	return {"action": action_name, "deadzone": deadzone, "events_count": events.size(), "saved": true}

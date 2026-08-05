@@ -253,6 +253,8 @@ func _build_classifications() -> void:
 		{"name": "read_resource", "category": "supplementary", "group": "Project-Advanced"},
 		{"name": "edit_resource", "category": "supplementary", "group": "Project-Advanced"},
 		{"name": "get_resource_preview", "category": "supplementary", "group": "Project-Advanced"},
+		{"name": "get_input_actions", "category": "supplementary", "group": "Project-Advanced"},
+		{"name": "set_input_action", "category": "supplementary", "group": "Project-Advanced"},
 	]
 
 	for item in classifications:

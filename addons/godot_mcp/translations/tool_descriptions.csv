@@ -95,6 +95,7 @@ get_editor_selection,,Read the current editor selection (top-level or all select
 get_editor_state,,Get the current state of the Godot editor, including active scene and selection info.,获取 Godot 编辑器的当前状态，包括活动场景和选择信息。
 get_filesystem_tree,,"Return the project filesystem tree, optionally filtered by glob and depth-limited.",返回项目文件系统树，可选 glob 过滤和深度限制。
 get_import_metadata,,Get resource import metadata.,获取资源导入元数据。
+get_input_actions,,List project InputMap actions with their bound input events and deadzones.,列出项目 InputMap 动作及其绑定的输入事件和死区。
 get_inspector_properties,,Inspect a node or resource and return property metadata and serialized values similar to the Inspector.,检查节点或资源并返回与检查器类似的属性元数据和序列化值。
 get_navigation_info,,"List navigation regions and agents under a node, including their properties and named layers.",列出节点下的导航区域和代理，包括其属性和命名层。
 get_node_groups,,Get groups that a node belongs to.,获取节点所属的组。
@@ -196,6 +197,7 @@ set_blend_tree_node,,"Add or replace a node inside an AnimationNodeBlendTree. Ty
 set_debugger_breakpoint,,Enable or disable a breakpoint in active Godot debugger sessions.,在活动的 Godot 调试器会话中启用或禁用断点。
 set_editor_camera,,"Move or rotate the 3D editor viewport camera, optionally look at a target, and set FOV.",移动或旋转 3D 编辑器视口相机，可选择注视目标和设置 FOV。
 set_editor_setting,,Set an editor setting value. Requires editor restart for some settings to take effect.,设置编辑器设置值。某些设置需要重启编辑器才能生效。
+set_input_action,,"Create or update an InputMap action with bound events, saving to ProjectSettings and updating the runtime InputMap.",创建或更新 InputMap 动作及其绑定事件，保存到 ProjectSettings 并更新运行时 InputMap。
 set_material_3d,,"Create or update a StandardMaterial3D on a MeshInstance3D surface with PBR parameters (albedo, metallic, roughness, emission, transparency, cull mode).",在 MeshInstance3D 表面创建或更新 StandardMaterial3D，支持 PBR 参数（albedo/metallic/roughness/emission/transparency/cull mode）。
 set_navigation_layers,,"Set navigation_layers on a navigation region or agent. Accepts a bitmask, an array of layer numbers, or named layers from ProjectSettings.",设置导航区域或代理的 navigation_layers。接受位掩码、层号数组或 ProjectSettings 中的命名层。
 set_node_groups,,Set groups for a node.,设置节点所属的组。

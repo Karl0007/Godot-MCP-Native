@@ -4880,6 +4880,26 @@ UID → 路径。
 
 **注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
 
+### 244. get_input_actions
+
+列出项目 InputMap 动作。
+
+**参数**：`filter`（否）、`include_builtin`（否，默认 false）
+
+**返回值**：`actions`（含 deadzone/events）、`count`
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 245. set_input_action
+
+创建/更新 InputMap 动作。
+
+**参数**：`action`（是）、`events`（是，事件字典数组）、`deadzone`（否，默认 0.5）
+
+**返回值**：`action`、`deadzone`、`events_count`、`saved`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
 ## 通用数据类型
 
 ### Vector2
@@ -4979,7 +4999,7 @@ UID → 路径。
 
 ## 总结
 
-本手册详细说明了 Godot MCP Native 项目的所有核心工具及部分补充工具。项目共 **243 个工具**（30 核心 + 213 补充），所有工具均可通过 MCP 工具管理面板按分组动态启用/禁用。补充工具（`*-Advanced` 分组）默认不启用，需在工具管理面板中手动开启。
+本手册详细说明了 Godot MCP Native 项目的所有核心工具及部分补充工具。项目共 **245 个工具**（30 核心 + 215 补充），所有工具均可通过 MCP 工具管理面板按分组动态启用/禁用。补充工具（`*-Advanced` 分组）默认不启用，需在工具管理面板中手动开启。
 
 **提示**：
 - 使用 `tools/list` 方法获取所有工具的实时列表和完整 JSON Schema
