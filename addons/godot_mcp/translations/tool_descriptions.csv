@@ -25,6 +25,7 @@ bake_navigation_mesh,,Bake a NavigationRegion3D navigation mesh or build a Navig
 batch_scene_node_edits,,Apply multiple create/delete scene node edits inside one editor UndoRedo action so the full structure change undoes in a single step.,在单个编辑器 UndoRedo 操作中应用多个创建/删除场景节点编辑，使整个结构变更可在单步中撤销。
 batch_update_node_properties,,Update multiple node properties inside one editor UndoRedo action. Useful for transaction-style scene edits that should undo in a single step.,在一个编辑器 UndoRedo 操作中更新多个节点属性。适用于需要在单步中撤销的事务式场景编辑。
 call_runtime_node_method,,Call a method on a node in the running game.,调用运行中游戏中节点的方法。
+clear_editor_selection,,Clear the current editor node selection.,清除当前编辑器节点选区。
 clear_output,,Clear the editor output panel.,清除编辑器输出面板。
 clear_runtime_theme_override,,Clear a theme override in the running game.,在运行中的游戏中清除主题覆盖。
 close_scene_tab,,Close the active scene tab, or activate a specified scene tab and close it.,关闭当前活动的场景标签页，或激活指定的场景标签页然后关闭它。
@@ -81,14 +82,18 @@ get_debug_threads,,Return DAP-style debugger threads visible from the active God
 get_debug_variables,,Resolve a DAP-style variablesReference into child variables, with optional pagination for large arrays and dictionaries.,将 DAP 风格的 variablesReference 解析为子变量，可选择对大数组和字典进行分页。
 get_debugger_messages,,Read custom messages captured by the Godot debugger bridge.,读取由 Godot 调试器桥捕获的自定义消息。
 get_debugger_sessions,,List Godot editor debugger sessions and their active/break state.,列出 Godot 编辑器调试器会话及其活动/断点状态。
+get_editor_camera,,"Read the 3D editor viewport camera position, rotation, FOV, and clip planes.",读取 3D 编辑器视口相机的位置、旋转、FOV 和裁剪面。
+get_editor_errors,,"Collect editor errors and warnings from the Output panel, script editor analyzer panels, debugger Errors tab, and the log file.",从输出面板、脚本编辑器分析面板、调试器错误标签页和日志文件收集编辑器错误和警告。
 get_editor_logs,,Get recent log messages from the editor or runtime. Supports filtering by source, type, and pagination.,获取编辑器或运行时的最近日志消息。支持按来源、类型和分页过滤。
 get_editor_screenshot,,Capture a screenshot of the editor viewport and save it to a file.,截取编辑器视口的屏幕截图并保存到文件。
+get_editor_selection,,Read the current editor selection (top-level or all selected nodes).,读取当前编辑器选区（顶层或所有选中节点）。
 get_editor_state,,Get the current state of the Godot editor, including active scene and selection info.,获取 Godot 编辑器的当前状态，包括活动场景和选择信息。
 get_import_metadata,,Get resource import metadata.,获取资源导入元数据。
 get_inspector_properties,,Inspect a node or resource and return property metadata and serialized values similar to the Inspector.,检查节点或资源并返回与检查器类似的属性元数据和序列化值。
 get_navigation_info,,"List navigation regions and agents under a node, including their properties and named layers.",列出节点下的导航区域和代理，包括其属性和命名层。
 get_node_groups,,Get groups that a node belongs to.,获取节点所属的组。
 get_node_properties,,Get all properties of a specific node in the scene tree.,获取场景树中特定节点的所有属性。
+get_output_log,,"Read the editor Output panel or log file, optionally filtered.",读取编辑器输出面板或日志文件，可选过滤。
 get_particle_info,,"Read GPUParticles node state: amount, lifetime, one_shot, explosiveness, randomness, emitting, and material properties.",读取 GPUParticles 节点状态：数量、寿命、one_shot、爆发力、随机性、发射状态和材质属性。
 get_performance_metrics,,Get performance metrics from the editor or running game.,从编辑器或运行中的游戏获取性能指标。
 get_physics_layers,,"Read collision_layer and collision_mask from a physics node, including resolved layer names.",读取物理节点的 collision_layer 和 collision_mask，包括解析后的层名称。
@@ -144,6 +149,7 @@ play_runtime_animation,,Play an animation in the running game.,播放运行中�
 read_script,,Read the content of a GDScript file (.gd). Returns the complete script source code.,读取 GDScript 文件（.gd）的内容。返回完整的脚本源代码。
 read_shader,,Read a shader file's content.,读取着色器文件内容。
 reimport_resources,,Reimport project resources.,重新导入项目资源。
+reload_plugin,,Reload the Godot MCP plugin by disabling and re-enabling it. The MCP connection will briefly drop and reconnect.,通过禁用再启用重新加载 Godot MCP 插件。MCP 连接会短暂断开后重连。
 reload_project,,Rescan the project filesystem and reload scripts. Useful after external file changes.,重新扫描项目文件系统并重新加载脚本。适用于外部文件更改后。
 remove_animation,,Remove an animation from an AnimationPlayer node (undoable).,从 AnimationPlayer 节点移除动画（可撤销）。
 remove_project_input_action,,Remove a project InputMap action from ProjectSettings and save project.godot.,从 ProjectSettings 中移除项目 InputMap 动作并保存 project.godot。
@@ -164,13 +170,16 @@ scan_missing_resource_dependencies,,Scan for missing resource dependencies.,扫�
 search_in_files,,Search for text in project files.,在项目文件中搜索文本。
 select_file,,Select a project file in the Godot FileSystem dock.,在 Godot 文件系统面板中选择一个项目文件。
 select_node,,Select a node in the current edited scene and focus it in the Inspector.,在当前编辑的场景中选择一个节点并在检查器中聚焦它。
+select_nodes,,"Select one or more nodes in the scene tree. Modes: replace, add, remove. Optionally focus/inspect a single node.",在场景树中选择一个或多个节点。模式：replace、add、remove。可选聚焦/检查单个节点。
 send_debug_command,,Send a command to the debugger.,向调试器发送命令。
 send_debugger_message,,Send a custom debugger message to active Godot debugger sessions.,向活动的 Godot 调试器会话发送自定义调试器消息。
 set_anchor_preset,,Set anchor preset for a Control node.,为 Control 节点设置锚点预设。
 set_animation_keyframe,,Insert or update a keyframe at a given time on an animation track.,在动画轨道的指定时间插入或更新关键帧。
 set_audio_bus,,"Update audio bus properties: volume_db, solo, mute, bypass_effects, send, or rename.",更新音频总线属性：volume_db、solo、mute、bypass_effects、send 或重命名。
+set_auto_dismiss,,Enable or disable auto-dismissal of blocking editor dialogs.,启用或禁用阻塞编辑器对话框的自动关闭。
 set_blend_tree_node,,"Add or replace a node inside an AnimationNodeBlendTree. Types: Animation, Add2, Blend2, Add3, Blend3, TimeScale, TimeSeek, Transition, OneShot, Sub2.",在 AnimationNodeBlendTree 中添加或替换节点。类型：Animation、Add2、Blend2、Add3、Blend3、TimeScale、TimeSeek、Transition、OneShot、Sub2。
 set_debugger_breakpoint,,Enable or disable a breakpoint in active Godot debugger sessions.,在活动的 Godot 调试器会话中启用或禁用断点。
+set_editor_camera,,"Move or rotate the 3D editor viewport camera, optionally look at a target, and set FOV.",移动或旋转 3D 编辑器视口相机，可选择注视目标和设置 FOV。
 set_editor_setting,,Set an editor setting value. Requires editor restart for some settings to take effect.,设置编辑器设置值。某些设置需要重启编辑器才能生效。
 set_material_3d,,"Create or update a StandardMaterial3D on a MeshInstance3D surface with PBR parameters (albedo, metallic, roughness, emission, transparency, cull mode).",在 MeshInstance3D 表面创建或更新 StandardMaterial3D，支持 PBR 参数（albedo/metallic/roughness/emission/transparency/cull mode）。
 set_navigation_layers,,"Set navigation_layers on a navigation region or agent. Accepts a bitmask, an array of layer numbers, or named layers from ProjectSettings.",设置导航区域或代理的 navigation_layers。接受位掩码、层号数组或 ProjectSettings 中的命名层。

@@ -117,6 +117,15 @@ func register_tools(server_core: RefCounted) -> void:
 	_register_inspect_export_templates(server_core)
 	_register_validate_export_preset(server_core)
 	_register_run_export(server_core)
+	_register_get_editor_errors(server_core)
+	_register_get_output_log(server_core)
+	_register_set_auto_dismiss(server_core)
+	_register_get_editor_camera(server_core)
+	_register_set_editor_camera(server_core)
+	_register_get_editor_selection(server_core)
+	_register_select_nodes(server_core)
+	_register_clear_editor_selection(server_core)
+	_register_reload_plugin(server_core)
 
 # ============================================================================
 # get_editor_state - 获取编辑器状态
@@ -1517,3 +1526,542 @@ func _tool_reload_project(params: Dictionary) -> Dictionary:
 	else:
 		fs.scan_sources()
 		return {"status": "success", "scan_type": "sources_only"}
+
+# ============================================================================
+# Batch 11 - Editor operations (errors/output/dismiss/camera/selection/reload)
+# ============================================================================
+
+func _register_get_editor_errors(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"get_editor_errors",
+		"Collect editor errors and warnings from the Output panel, script editor analyzer panels, debugger Errors tab, and the log file.",
+		{
+			"type": "object",
+			"properties": {
+				"max_lines": {"type": "integer", "description": "Max lines to collect. Default 50."}
+			},
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_get_editor_errors"),
+		{
+			"type": "object",
+			"properties": {
+				"errors": {"type": "array"},
+				"count": {"type": "integer"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Editor-Advanced"
+	)
+
+func _find_rtl(node: Node, depth: int = 0) -> RichTextLabel:
+	if depth > 6:
+		return null
+	if node is RichTextLabel:
+		return node as RichTextLabel
+	for child in node.get_children():
+		var found: RichTextLabel = _find_rtl(child, depth + 1)
+		if found:
+			return found
+	return null
+
+func _find_code_edit(node: Node, depth: int = 0) -> CodeEdit:
+	if depth > 8:
+		return null
+	if node is CodeEdit:
+		return node as CodeEdit
+	for child in node.get_children():
+		var found: CodeEdit = _find_code_edit(child, depth + 1)
+		if found:
+			return found
+	return null
+
+func _tool_get_editor_errors(params: Dictionary) -> Dictionary:
+	var errors: Array = []
+	var max_lines: int = int(params.get("max_lines", 50))
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if not editor_interface:
+		return {"error": "Editor interface not available"}
+	var base: Control = editor_interface.get_base_control()
+
+	var editor_log: Node = base.find_child("Output", true, false)
+	if editor_log:
+		var rtl: RichTextLabel = _find_rtl(editor_log)
+		if rtl:
+			var content: String = rtl.get_parsed_text()
+			var lines: PackedStringArray = content.split("\n")
+			var start: int = maxi(0, lines.size() - max_lines)
+			for i in range(start, lines.size()):
+				var line: String = lines[i]
+				if line.contains("ERROR") or line.contains("SCRIPT ERROR") or line.contains("Parse Error") or line.contains("WARNING"):
+					errors.append(line.strip_edges())
+
+	var script_errors: Array = []
+	var script_editor: ScriptEditor = editor_interface.get_script_editor()
+	if script_editor:
+		var current_script: Script = script_editor.get_current_script()
+		var ce: CodeEdit = _find_code_edit(script_editor)
+		if ce and current_script:
+			var script_path: String = current_script.resource_path
+			for i in range(ce.get_line_count()):
+				var bg: Color = ce.get_line_background_color(i)
+				if bg.r > 0.8 and bg.a > 0:
+					var line_text: String = ce.get_line(i).strip_edges()
+					script_errors.append("COMPILE ERROR: %s:%d - %s" % [script_path, i + 1, line_text])
+
+	var analyzer_errors: Array = []
+	if script_editor:
+		var open_editors: Array = script_editor.get_open_script_editors()
+		var open_scripts: Array = script_editor.get_open_scripts()
+		for ei in range(open_editors.size()):
+			var editor_node: Node = open_editors[ei]
+			var script_path: String = ""
+			if ei < open_scripts.size() and open_scripts[ei] != null:
+				script_path = (open_scripts[ei] as Resource).resource_path
+			var vsplit: VSplitContainer = null
+			for child in editor_node.get_children():
+				if child is VSplitContainer:
+					vsplit = child as VSplitContainer
+					break
+			if vsplit == null:
+				continue
+			var children: Array = vsplit.get_children()
+			if children.size() > 1 and children[1] is RichTextLabel:
+				var text: String = (children[1] as RichTextLabel).get_parsed_text().strip_edges()
+				if not text.is_empty():
+					for line in text.split("\n"):
+						var stripped: String = line.strip_edges()
+						if stripped.is_empty() or stripped == "[Ignore]":
+							continue
+						stripped = stripped.trim_prefix("[Ignore]")
+						var prefix: String = "WARNING: %s:" % script_path if not script_path.is_empty() else "WARNING: "
+						analyzer_errors.append(prefix + stripped)
+			if children.size() > 2 and children[2] is RichTextLabel:
+				var text: String = (children[2] as RichTextLabel).get_parsed_text().strip_edges()
+				if not text.is_empty():
+					for line in text.split("\n"):
+						var stripped: String = line.strip_edges()
+						if stripped.is_empty():
+							continue
+						var prefix: String = "SCRIPT ERROR: %s:" % script_path if not script_path.is_empty() else "SCRIPT ERROR: "
+						analyzer_errors.append(prefix + stripped)
+
+	if errors.size() == 0 and script_errors.size() == 0 and analyzer_errors.size() == 0:
+		var log_path := "user://logs/godot.log"
+		if FileAccess.file_exists(log_path):
+			var file := FileAccess.open(log_path, FileAccess.READ)
+			if file:
+				var content: String = file.get_as_text()
+				file.close()
+				var lines: PackedStringArray = content.split("\n")
+				var start: int = maxi(0, lines.size() - max_lines)
+				for i in range(start, lines.size()):
+					var line: String = lines[i]
+					if line.contains("ERROR") or line.contains("SCRIPT ERROR"):
+						errors.append(line.strip_edges())
+
+	errors.append_array(script_errors)
+	errors.append_array(analyzer_errors)
+	return {"errors": errors, "count": errors.size()}
+
+func _register_get_output_log(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"get_output_log",
+		"Read the editor Output panel or log file, optionally filtered.",
+		{
+			"type": "object",
+			"properties": {
+				"max_lines": {"type": "integer", "description": "Max lines. Default 100."},
+				"filter": {"type": "string", "description": "Line filter substring."}
+			},
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_get_output_log"),
+		{
+			"type": "object",
+			"properties": {
+				"lines": {"type": "array"},
+				"count": {"type": "integer"},
+				"source": {"type": "string"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Editor-Advanced"
+	)
+
+func _tool_get_output_log(params: Dictionary) -> Dictionary:
+	var max_lines: int = int(params.get("max_lines", 100))
+	var filter_text: String = String(params.get("filter", ""))
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if not editor_interface:
+		return {"error": "Editor interface not available"}
+	var base: Control = editor_interface.get_base_control()
+
+	var editor_log: Node = base.find_child("Output", true, false)
+	if editor_log == null:
+		var log_path := "user://logs/godot.log"
+		if not FileAccess.file_exists(log_path):
+			return {"error": "Output panel not found and no log file available"}
+		var file := FileAccess.open(log_path, FileAccess.READ)
+		if file == null:
+			return {"error": "Cannot read log file"}
+		var content: String = file.get_as_text()
+		file.close()
+		var lines: PackedStringArray = content.split("\n")
+		var start: int = maxi(0, lines.size() - max_lines)
+		var output_lines: Array = []
+		for i in range(start, lines.size()):
+			var line: String = lines[i]
+			if filter_text.is_empty() or line.contains(filter_text):
+				output_lines.append(line)
+		return {"lines": output_lines, "count": output_lines.size(), "source": "log_file"}
+
+	var rtl: RichTextLabel = _find_rtl(editor_log)
+	if rtl == null:
+		return {"error": "Could not find RichTextLabel in Output panel"}
+	var content: String = rtl.get_parsed_text()
+	var all_lines: PackedStringArray = content.split("\n")
+	var start: int = maxi(0, all_lines.size() - max_lines)
+	var output_lines: Array = []
+	for i in range(start, all_lines.size()):
+		var line: String = all_lines[i]
+		if filter_text.is_empty() or line.contains(filter_text):
+			output_lines.append(line)
+	return {"lines": output_lines, "count": output_lines.size(), "source": "output_panel"}
+
+func _register_set_auto_dismiss(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"set_auto_dismiss",
+		"Enable or disable auto-dismissal of blocking editor dialogs.",
+		{
+			"type": "object",
+			"properties": {
+				"enabled": {"type": "boolean", "description": "Enable auto-dismiss. Default true."}
+			},
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_set_auto_dismiss"),
+		{
+			"type": "object",
+			"properties": {
+				"auto_dismiss": {"type": "boolean"},
+				"message": {"type": "string"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Editor-Advanced"
+	)
+
+func _tool_set_auto_dismiss(params: Dictionary) -> Dictionary:
+	var enabled: bool = bool(params.get("enabled", true))
+	if Engine.has_meta("GodotMCPPlugin"):
+		var plugin = Engine.get_meta("GodotMCPPlugin")
+		if plugin and "auto_dismiss_dialogs" in plugin:
+			plugin.auto_dismiss_dialogs = enabled
+	return {
+		"auto_dismiss": enabled,
+		"message": "Auto-dismiss dialogs " + ("enabled" if enabled else "disabled")
+	}
+
+func _register_get_editor_camera(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"get_editor_camera",
+		"Read the 3D editor viewport camera position, rotation, FOV, and clip planes.",
+		{
+			"type": "object",
+			"properties": {},
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_get_editor_camera"),
+		{
+			"type": "object",
+			"properties": {
+				"position": {"type": "object"},
+				"rotation_degrees": {"type": "object"},
+				"fov": {"type": "number"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Editor-Advanced"
+	)
+
+func _tool_get_editor_camera(params: Dictionary) -> Dictionary:
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if not editor_interface:
+		return {"error": "Editor interface not available"}
+	var vp3d: EditorNode3DGizmo = null
+	var viewport := editor_interface.get_editor_viewport_3d()
+	var cam: Camera3D = viewport.get_camera_3d() if viewport else null
+	if not cam:
+		return {"error": "No 3D editor camera found", "suggestion": "Make sure a 3D scene is open in the editor"}
+	var pos: Vector3 = cam.global_position
+	var rot: Vector3 = cam.rotation_degrees
+	return {
+		"position": {"x": pos.x, "y": pos.y, "z": pos.z},
+		"rotation_degrees": {"x": rot.x, "y": rot.y, "z": rot.z},
+		"fov": cam.fov,
+		"near": cam.near,
+		"far": cam.far,
+	}
+
+func _register_set_editor_camera(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"set_editor_camera",
+		"Move or rotate the 3D editor viewport camera, optionally look at a target, and set FOV.",
+		{
+			"type": "object",
+			"properties": {
+				"position": {"type": "object", "description": "{x,y,z} camera position."},
+				"rotation_degrees": {"type": "object", "description": "{x,y,z} camera rotation."},
+				"look_at": {"type": "object", "description": "{x,y,z} target to look at (overrides rotation)."},
+				"fov": {"type": "number", "description": "Field of view in degrees."}
+			},
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_set_editor_camera"),
+		{
+			"type": "object",
+			"properties": {
+				"position": {"type": "object"},
+				"rotation_degrees": {"type": "object"},
+				"fov": {"type": "number"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Editor-Advanced"
+	)
+
+func _tool_set_editor_camera(params: Dictionary) -> Dictionary:
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if not editor_interface:
+		return {"error": "Editor interface not available"}
+	var viewport := editor_interface.get_editor_viewport_3d()
+	var cam: Camera3D = viewport.get_camera_3d() if viewport else null
+	if not cam:
+		return {"error": "No 3D editor camera found", "suggestion": "Make sure a 3D scene is open in the editor"}
+
+	if params.has("position"):
+		var p: Dictionary = params["position"]
+		cam.global_position = Vector3(
+			float(p.get("x", cam.global_position.x)),
+			float(p.get("y", cam.global_position.y)),
+			float(p.get("z", cam.global_position.z)),
+		)
+	if params.has("rotation_degrees"):
+		var r: Dictionary = params["rotation_degrees"]
+		cam.rotation_degrees = Vector3(
+			float(r.get("x", cam.rotation_degrees.x)),
+			float(r.get("y", cam.rotation_degrees.y)),
+			float(r.get("z", cam.rotation_degrees.z)),
+		)
+	if params.has("look_at"):
+		var t: Dictionary = params["look_at"]
+		cam.look_at(Vector3(float(t.get("x", 0)), float(t.get("y", 0)), float(t.get("z", 0))))
+	if params.has("fov"):
+		cam.fov = float(params["fov"])
+
+	var pos: Vector3 = cam.global_position
+	var rot: Vector3 = cam.rotation_degrees
+	return {
+		"position": {"x": pos.x, "y": pos.y, "z": pos.z},
+		"rotation_degrees": {"x": rot.x, "y": rot.y, "z": rot.z},
+		"fov": cam.fov,
+	}
+
+func _register_get_editor_selection(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"get_editor_selection",
+		"Read the current editor selection (top-level or all selected nodes).",
+		{
+			"type": "object",
+			"properties": {
+				"top_only": {"type": "boolean", "description": "Only top-level selected nodes. Default false."}
+			},
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_get_editor_selection"),
+		{
+			"type": "object",
+			"properties": {
+				"nodes": {"type": "array"},
+				"count": {"type": "integer"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Editor-Advanced"
+	)
+
+func _serialize_selection_nodes(root: Node, nodes: Array) -> Array:
+	var result: Array = []
+	for node: Node in nodes:
+		result.append({
+			"name": node.name,
+			"path": str(root.get_path_to(node)) if root else str(node.get_path()),
+			"type": node.get_class(),
+		})
+	return result
+
+func _tool_get_editor_selection(params: Dictionary) -> Dictionary:
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if not editor_interface:
+		return {"error": "Editor interface not available"}
+	var scene_root: Node = _get_user_scene_root()
+	if not scene_root:
+		return {"error": "No scene is currently open"}
+	var include_top_only: bool = bool(params.get("top_only", false))
+	var selection := editor_interface.get_selection()
+	var selected_nodes: Array = selection.get_top_selected_nodes() if include_top_only else selection.get_selected_nodes()
+	return {
+		"nodes": _serialize_selection_nodes(scene_root, selected_nodes),
+		"count": selected_nodes.size(),
+		"top_only": include_top_only,
+	}
+
+func _register_select_nodes(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"select_nodes",
+		"Select one or more nodes in the scene tree. Modes: replace, add, remove. Optionally focus/inspect a single node.",
+		{
+			"type": "object",
+			"properties": {
+				"node_paths": {"type": "array", "description": "Array of node paths to select."},
+				"mode": {"type": "string", "description": "replace, add, or remove. Default 'replace'."},
+				"inspect": {"type": "boolean", "description": "Open the Inspector for a single selected node. Default true."},
+				"focus": {"type": "boolean", "description": "Focus the node in the editor. Default equals inspect."},
+				"allow_ui_focus": {"type": "boolean", "description": "Bypass vibe coding mode. Default false."}
+			},
+			"required": ["node_paths"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_select_nodes"),
+		{
+			"type": "object",
+			"properties": {
+				"mode": {"type": "string"},
+				"selected": {"type": "array"},
+				"count": {"type": "integer"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Editor-Advanced"
+	)
+
+func _tool_select_nodes(params: Dictionary) -> Dictionary:
+	var policy_result: Dictionary = VIBE_CODING_POLICY.evaluate_editor_focus(_is_vibe_coding_mode(), params)
+	if policy_result.get("blocked", false):
+		return policy_result
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if not editor_interface:
+		return {"error": "Editor interface not available"}
+	var scene_root: Node = _get_user_scene_root()
+	if not scene_root:
+		return {"error": "No scene is currently open"}
+
+	var node_paths: Array = params.get("node_paths", [])
+	if node_paths.is_empty():
+		return {"error": "Missing required parameter: node_paths"}
+	var mode: String = String(params.get("mode", "replace"))
+	if mode != "replace" and mode != "add" and mode != "remove":
+		return {"error": "mode must be one of: replace, add, remove"}
+
+	var resolved_nodes: Array = []
+	for node_path_variant: Variant in node_paths:
+		var node_path: String = str(node_path_variant)
+		if node_path.is_empty():
+			return {"error": "node_paths cannot contain empty values"}
+		var node: Node = _resolve_node_path(editor_interface, node_path)
+		if not node:
+			return {"error": "Node '" + node_path + "' not found"}
+		resolved_nodes.append(node)
+
+	var selection := editor_interface.get_selection()
+	if mode == "replace":
+		selection.clear()
+	for node: Node in resolved_nodes:
+		if mode == "remove":
+			selection.remove_node(node)
+		else:
+			selection.add_node(node)
+
+	var inspect: bool = bool(params.get("inspect", true))
+	var focus: bool = bool(params.get("focus", inspect))
+	if mode != "remove" and resolved_nodes.size() == 1:
+		var edited_node: Node = resolved_nodes[0]
+		if focus:
+			editor_interface.edit_node(edited_node)
+		if inspect:
+			editor_interface.inspect_object(edited_node)
+
+	var selected_nodes: Array = selection.get_selected_nodes()
+	return {
+		"mode": mode,
+		"selected": _serialize_selection_nodes(scene_root, selected_nodes),
+		"count": selected_nodes.size(),
+	}
+
+func _register_clear_editor_selection(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"clear_editor_selection",
+		"Clear the current editor node selection.",
+		{
+			"type": "object",
+			"properties": {},
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_clear_editor_selection"),
+		{
+			"type": "object",
+			"properties": {
+				"cleared": {"type": "integer"},
+				"count": {"type": "integer"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Editor-Advanced"
+	)
+
+func _tool_clear_editor_selection(params: Dictionary) -> Dictionary:
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if not editor_interface:
+		return {"error": "Editor interface not available"}
+	var scene_root: Node = _get_user_scene_root()
+	if not scene_root:
+		return {"error": "No scene is currently open"}
+	var selection := editor_interface.get_selection()
+	var before_count: int = selection.get_selected_nodes().size()
+	selection.clear()
+	return {"cleared": before_count, "selected": [], "count": 0}
+
+func _register_reload_plugin(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"reload_plugin",
+		"Reload the Godot MCP plugin by disabling and re-enabling it. The MCP connection will briefly drop and reconnect.",
+		{
+			"type": "object",
+			"properties": {},
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_reload_plugin"),
+		{
+			"type": "object",
+			"properties": {
+				"reloading": {"type": "boolean"},
+				"message": {"type": "string"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false},
+		"supplementary", "Editor-Advanced"
+	)
+
+func _deferred_reload_plugin(ei: EditorInterface, plugin_name: String) -> void:
+	ei.set_plugin_enabled(plugin_name, false)
+	ei.set_plugin_enabled(plugin_name, true)
+	print("[MCP] Plugin reloaded")
+
+func _tool_reload_plugin(params: Dictionary) -> Dictionary:
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if not editor_interface:
+		return {"error": "Editor interface not available"}
+	var plugin_name := "godot_mcp"
+	_deferred_reload_plugin.call_deferred(editor_interface, plugin_name)
+	return {"reloading": true, "message": "Plugin will reload momentarily. Connection will briefly drop and auto-reconnect."}

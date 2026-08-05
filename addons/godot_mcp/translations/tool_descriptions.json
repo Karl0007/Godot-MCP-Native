@@ -214,5 +214,14 @@
   "tilemap_get_cell": "Read a cell from a TileMapLayer or legacy TileMap.",
   "tilemap_clear": "Clear a TileMapLayer or legacy TileMap (optionally one layer), undoable.",
   "tilemap_get_info": "Read TileMapLayer/TileMap info: layers, used cells, TileSet sources, and tile size.",
-  "tilemap_get_used_cells": "List used cells of a TileMapLayer or legacy TileMap layer with their source ids."
+  "tilemap_get_used_cells": "List used cells of a TileMapLayer or legacy TileMap layer with their source ids.",
+  "get_editor_errors": "Collect editor errors and warnings from the Output panel, script editor analyzer panels, debugger Errors tab, and the log file.",
+  "get_output_log": "Read the editor Output panel or log file, optionally filtered.",
+  "set_auto_dismiss": "Enable or disable auto-dismissal of blocking editor dialogs.",
+  "get_editor_camera": "Read the 3D editor viewport camera position, rotation, FOV, and clip planes.",
+  "set_editor_camera": "Move or rotate the 3D editor viewport camera, optionally look at a target, and set FOV.",
+  "get_editor_selection": "Read the current editor selection (top-level or all selected nodes).",
+  "select_nodes": "Select one or more nodes in the scene tree. Modes: replace, add, remove. Optionally focus/inspect a single node.",
+  "clear_editor_selection": "Clear the current editor node selection.",
+  "reload_plugin": "Reload the Godot MCP plugin by disabling and re-enabling it. The MCP connection will briefly drop and reconnect."
 }

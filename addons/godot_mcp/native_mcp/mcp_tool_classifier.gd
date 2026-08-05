@@ -226,6 +226,15 @@ func _build_classifications() -> void:
 		{"name": "tilemap_clear", "category": "supplementary", "group": "Media-TileMap"},
 		{"name": "tilemap_get_info", "category": "supplementary", "group": "Media-TileMap"},
 		{"name": "tilemap_get_used_cells", "category": "supplementary", "group": "Media-TileMap"},
+		{"name": "get_editor_errors", "category": "supplementary", "group": "Editor-Advanced"},
+		{"name": "get_output_log", "category": "supplementary", "group": "Editor-Advanced"},
+		{"name": "set_auto_dismiss", "category": "supplementary", "group": "Editor-Advanced"},
+		{"name": "get_editor_camera", "category": "supplementary", "group": "Editor-Advanced"},
+		{"name": "set_editor_camera", "category": "supplementary", "group": "Editor-Advanced"},
+		{"name": "get_editor_selection", "category": "supplementary", "group": "Editor-Advanced"},
+		{"name": "select_nodes", "category": "supplementary", "group": "Editor-Advanced"},
+		{"name": "clear_editor_selection", "category": "supplementary", "group": "Editor-Advanced"},
+		{"name": "reload_plugin", "category": "supplementary", "group": "Editor-Advanced"},
 	]
 
 	for item in classifications:

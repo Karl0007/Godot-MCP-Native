@@ -27,7 +27,7 @@ Godot MCP Native 实现了 **161 个工具**，分为 7 大类（含核心和补
 | [Node Tools](#node-tools) | 9 | 11 | 20 | `node_tools_native.gd` | 节点管理（创建、删除、修改属性、复制、移动、重命名、信号、组） |
 | [Script Tools](#script-tools) | 7 | 7 | 14 | `script_tools_native.gd` | 脚本管理（读取、创建、修改、分析、附加、验证、搜索、符号索引） |
 | [Scene Tools](#scene-tools) | 4 | 4 | 8 | `scene_tools_native.gd` | 场景管理（创建、保存、打开、列出） |
-| [Editor Tools](#editor-tools) | 4 | 12 | 16 | `editor_tools_native.gd` | 编辑器操作（运行、停止、状态、截图、信号、导出、选择） |
+| [Editor Tools](#editor-tools) | 4 | 21 | 25 | `editor_tools_native.gd` | 编辑器操作（运行、停止、状态、截图、信号、导出、选择） |
 | [Debug Tools](#debug-tools) | 3 | 68 | 71 | `debug_tools_native.gd` | 调试和运行时（日志、断点、栈帧、Profiler、运行时探针、动画、音频、着色器、瓦片地图） |
 | [Project Tools](#project-tools) | 3 | 23 | 26 | `project_tools_native.gd` | 项目配置（信息、设置、测试、输入映射、自动加载、全局类、资源诊断） |
 | [World Tools](#world-tools) | 0 | 22 | 22 | `world_tools_native.gd` | 3D 场景构建、物理、导航与粒子（网格、光照、材质、环境、相机、GridMap、碰撞、物理层、射线、导航区域、寻路代理、GPU 粒子） |
@@ -4614,6 +4614,96 @@ Continue：恢复执行。
 
 **注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
 
+### 217. get_editor_errors
+
+收集编辑器错误与警告（4 路抓取）。
+
+**参数**：`max_lines`（否，默认 50）
+
+**返回值**：`errors`、`count`
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 218. get_output_log
+
+读取输出面板或日志文件。
+
+**参数**：`max_lines`（否，默认 100）、`filter`（否）
+
+**返回值**：`lines`、`count`、`source`（output_panel/log_file）
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 219. set_auto_dismiss
+
+启用/禁用编辑器对话框自动关闭。
+
+**参数**：`enabled`（否，默认 true）
+
+**返回值**：`auto_dismiss`、`message`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 220. get_editor_camera
+
+读取 3D 编辑器相机。
+
+**参数**：无
+
+**返回值**：`position`、`rotation_degrees`、`fov`、`near`、`far`
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 221. set_editor_camera
+
+设置 3D 编辑器相机。
+
+**参数**：`position`（否）、`rotation_degrees`（否）、`look_at`（否）、`fov`（否）
+
+**返回值**：`position`、`rotation_degrees`、`fov`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 222. get_editor_selection
+
+读取当前选区。
+
+**参数**：`top_only`（否，默认 false）
+
+**返回值**：`nodes`、`count`、`top_only`
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 223. select_nodes
+
+选择节点（replace/add/remove + 聚焦/检查）。
+
+**参数**：`node_paths`（是）、`mode`（否）、`inspect`（否）、`focus`（否）、`allow_ui_focus`（否）
+
+**返回值**：`mode`、`selected`、`count`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 224. clear_editor_selection
+
+清除选区。
+
+**参数**：无
+
+**返回值**：`cleared`、`count`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 225. reload_plugin
+
+重载插件（连接短暂断开）。
+
+**参数**：无
+
+**返回值**：`reloading`、`message`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=false`, `openWorldHint=false`
+
 ## 通用数据类型
 
 ### Vector2
@@ -4713,7 +4803,7 @@ Continue：恢复执行。
 
 ## 总结
 
-本手册详细说明了 Godot MCP Native 项目的所有核心工具及部分补充工具。项目共 **216 个工具**（30 核心 + 186 补充），所有工具均可通过 MCP 工具管理面板按分组动态启用/禁用。补充工具（`*-Advanced` 分组）默认不启用，需在工具管理面板中手动开启。
+本手册详细说明了 Godot MCP Native 项目的所有核心工具及部分补充工具。项目共 **225 个工具**（30 核心 + 195 补充），所有工具均可通过 MCP 工具管理面板按分组动态启用/禁用。补充工具（`*-Advanced` 分组）默认不启用，需在工具管理面板中手动开启。
 
 **提示**：
 - 使用 `tools/list` 方法获取所有工具的实时列表和完整 JSON Schema
