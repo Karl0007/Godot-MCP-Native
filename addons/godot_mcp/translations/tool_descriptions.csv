@@ -55,6 +55,7 @@ debug_step_over_and_wait,,Step over and wait for the debugger to pause.,步过�
 delete_node,,Delete a node from the Godot scene tree. This operation is destructive and cannot be undone.,从 Godot 场景树中删除节点。此操作是破坏性的，无法撤销。
 delete_runtime_node,,Delete a node in the running game.,在运行中的游戏中删除节点。
 delete_scene,,Delete a scene file (.tscn) and its .import sidecar from the project.,删除项目的场景文件（.tscn）及其 .import 附加文件。
+deploy_to_android,,Export an Android preset and install the APK on a connected device via adb.,导出 Android 预设并通过 adb 将 APK 安装到连接的设备。
 detect_broken_scripts,,Detect broken scripts in the project.,检测项目中的损坏脚本。
 disconnect_signal,,Disconnect a signal from one node to another.,断开一个节点到另一个节点的信号连接。
 duplicate_node,,Duplicate a node and its children in the scene tree. Returns the new node path.,在场景树中复制节点及其子节点。返回新节点的路径。
@@ -65,10 +66,12 @@ evaluate_runtime_expression,,Evaluate an expression in the running game context.
 execute_editor_script,,Execute a script in the editor with access to editor APIs.,在编辑器中执行脚本，可访问编辑器 API。
 execute_script,,Execute a script in the editor context.,在编辑器上下文中执行脚本。
 expand_debug_variable,,Expand a captured debug variable or evaluated expression value by scope and path, with pagination for arrays and dictionaries.,按作用域和路径展开捕获的调试变量或求值的表达式值，支持数组和字典的分页。
+export_project,,Generate the Godot CLI export command for a preset (debug or release). Direct export from the editor plugin is not supported in Godot 4.,为预设生成 Godot CLI 导出命令（debug 或 release）。Godot 4 不支持从编辑器插件直接导出。
 find_nodes_in_group,,Find all nodes in a specific group.,查找特定组中的所有节点。
 find_script_symbol_definition,,Find definition locations for a script symbol across GDScript and C# project files.,在 GDScript 和 C# 项目文件中查找脚本符号的定义位置。
 find_script_symbol_references,,Find textual project references to a script symbol across GDScript, C#, and scene files.,在 GDScript、C# 和场景文件中查找脚本符号的文本引用。
 fix_resource_uid,,Fix resource UID issues.,修复资源 UID 问题。
+get_android_preset_info,,Read an Android export preset's configuration from export_presets.cfg.,从 export_presets.cfg 读取 Android 导出预设的配置。
 get_animation_info,,"Read animation details: length, loop mode, step, and per-track keyframes.",读取动画详情：长度、循环模式、步长和每个轨道的关键帧。
 get_animation_tree_structure,,"Read an AnimationTree structure: root node type, state machine states/transitions, or blend tree nodes.",读取 AnimationTree 结构：根节点类型、状态机状态/过渡或混合树节点。
 get_audio_bus_layout,,"Read the full AudioServer bus layout: names, volume, solo/mute, send, and per-bus effects with parameters.",读取完整的 AudioServer 总线布局：名称、音量、solo/mute、send 和每条总线的效果及参数。
@@ -93,6 +96,7 @@ get_editor_logs,,Get recent log messages from the editor or runtime. Supports fi
 get_editor_screenshot,,Capture a screenshot of the editor viewport and save it to a file.,截取编辑器视口的屏幕截图并保存到文件。
 get_editor_selection,,Read the current editor selection (top-level or all selected nodes).,读取当前编辑器选区（顶层或所有选中节点）。
 get_editor_state,,Get the current state of the Godot editor, including active scene and selection info.,获取 Godot 编辑器的当前状态，包括活动场景和选择信息。
+get_export_info,,"Read export configuration: export presets presence, Godot executable path, and templates installation.",读取导出配置：导出预设是否存在、Godot 可执行文件路径和模板安装情况。
 get_filesystem_tree,,"Return the project filesystem tree, optionally filtered by glob and depth-limited.",返回项目文件系统树，可选 glob 过滤和深度限制。
 get_import_metadata,,Get resource import metadata.,获取资源导入元数据。
 get_input_actions,,List project InputMap actions with their bound input events and deadzones.,列出项目 InputMap 动作及其绑定的输入事件和死区。
@@ -136,6 +140,7 @@ inspect_export_templates,,Inspect locally installed Godot export templates for t
 inspect_runtime_node,,Inspect a node in the running game.,检查运行中游戏中的节点。
 inspect_tileset_resource,,Inspect a TileSet resource and summarize its sources, atlas tiles, and scene tiles.,检查 TileSet 资源并汇总其来源、图集瓦片和场景瓦片。
 install_runtime_probe,,Install a runtime probe for debugging.,安装用于调试的运行时探针。
+list_android_devices,,List Android devices visible to adb (from Editor Settings or PATH).,列出 adb 可见的 Android 设备（从编辑器设置或 PATH）。
 list_animations,,"List all animations on an AnimationPlayer node with length, loop mode, and track count.",列出 AnimationPlayer 节点上的所有动画，包括长度、循环模式和轨道数。
 list_export_presets,,List export presets from export_presets.cfg.,列出 export_presets.cfg 中的导出预设。
 list_nodes,,List all nodes in the current scene or under a specific parent node.,列出当前场景或特定父节点下的所有节点。

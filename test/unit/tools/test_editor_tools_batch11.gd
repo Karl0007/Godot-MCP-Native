@@ -66,3 +66,39 @@ func test_register_tools_includes_batch11():
 	for name in ["get_editor_errors", "get_output_log", "set_auto_dismiss", "get_editor_camera", "set_editor_camera",
 			"get_editor_selection", "select_nodes", "clear_editor_selection", "reload_plugin"]:
 		assert_true(name in registered, name + " should be registered")
+
+# --- Batch 16: export/android ---
+
+func test_export_project_no_editor():
+	var result: Dictionary = _editor_tools._tool_export_project({})
+	# Without export_presets.cfg it errors; with presets it returns a command
+	if result.has("error"):
+		pass_test("No preset configured: expected error")
+	else:
+		assert_true(result.has("command"), "Should generate export command")
+
+func test_get_export_info():
+	var result: Dictionary = _editor_tools._tool_get_export_info({})
+	assert_true(result.has("has_export_presets"), "Should report preset presence")
+	assert_true(result.has("godot_executable"), "Should report Godot path")
+	assert_true(result.has("templates_installed"), "Should report templates status")
+
+func test_list_android_devices_requires_adb():
+	# adb may not exist; tool should return error dict or devices
+	var result: Dictionary = _editor_tools._tool_list_android_devices({})
+	if result.has("error"):
+		assert_true(result["error"].contains("adb"), "Error should mention adb")
+	else:
+		assert_true(result.has("devices"), "Should return devices array")
+
+func test_get_android_preset_info_no_preset():
+	var result: Dictionary = _editor_tools._tool_get_android_preset_info({})
+	assert_true(result.has("error"), "No preset configured should error")
+
+func test_deploy_to_android_no_preset():
+	var result: Dictionary = _editor_tools._tool_deploy_to_android({})
+	assert_true(result.has("error"), "No preset configured should error")
+
+func test_find_export_preset_missing_file():
+	var preset: Dictionary = _editor_tools._find_export_preset("", 0)
+	assert_true(preset.is_empty(), "Missing export_presets.cfg should return empty")

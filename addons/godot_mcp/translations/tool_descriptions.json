@@ -243,5 +243,10 @@
   "edit_resource": "Modify properties of a resource file and save it.",
   "get_resource_preview": "Generate a PNG preview (base64) of a resource: images, textures, or any resource with a visual representation.",
   "get_input_actions": "List project InputMap actions with their bound input events and deadzones.",
-  "set_input_action": "Create or update an InputMap action with bound events, saving to ProjectSettings and updating the runtime InputMap."
+  "set_input_action": "Create or update an InputMap action with bound events, saving to ProjectSettings and updating the runtime InputMap.",
+  "export_project": "Generate the Godot CLI export command for a preset (debug or release). Direct export from the editor plugin is not supported in Godot 4.",
+  "get_export_info": "Read export configuration: export presets presence, Godot executable path, and templates installation.",
+  "list_android_devices": "List Android devices visible to adb (from Editor Settings or PATH).",
+  "get_android_preset_info": "Read an Android export preset's configuration from export_presets.cfg.",
+  "deploy_to_android": "Export an Android preset and install the APK on a connected device via adb."
 }

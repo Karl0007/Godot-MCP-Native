@@ -255,6 +255,11 @@ func _build_classifications() -> void:
 		{"name": "get_resource_preview", "category": "supplementary", "group": "Project-Advanced"},
 		{"name": "get_input_actions", "category": "supplementary", "group": "Project-Advanced"},
 		{"name": "set_input_action", "category": "supplementary", "group": "Project-Advanced"},
+		{"name": "export_project", "category": "supplementary", "group": "Editor-Advanced"},
+		{"name": "get_export_info", "category": "supplementary", "group": "Editor-Advanced"},
+		{"name": "list_android_devices", "category": "supplementary", "group": "Editor-Advanced"},
+		{"name": "get_android_preset_info", "category": "supplementary", "group": "Editor-Advanced"},
+		{"name": "deploy_to_android", "category": "supplementary", "group": "Editor-Advanced"},
 	]
 
 	for item in classifications:

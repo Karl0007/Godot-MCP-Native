@@ -27,7 +27,7 @@ Godot MCP Native 实现了 **161 个工具**，分为 7 大类（含核心和补
 | [Node Tools](#node-tools) | 9 | 11 | 20 | `node_tools_native.gd` | 节点管理（创建、删除、修改属性、复制、移动、重命名、信号、组） |
 | [Script Tools](#script-tools) | 7 | 7 | 14 | `script_tools_native.gd` | 脚本管理（读取、创建、修改、分析、附加、验证、搜索、符号索引） |
 | [Scene Tools](#scene-tools) | 4 | 10 | 14 | `scene_tools_native.gd` | 场景管理（创建、保存、打开、列出） |
-| [Editor Tools](#editor-tools) | 4 | 21 | 25 | `editor_tools_native.gd` | 编辑器操作（运行、停止、状态、截图、信号、导出、选择） |
+| [Editor Tools](#editor-tools) | 4 | 26 | 30 | `editor_tools_native.gd` | 编辑器操作（运行、停止、状态、截图、信号、导出、选择） |
 | [Debug Tools](#debug-tools) | 3 | 68 | 71 | `debug_tools_native.gd` | 调试和运行时（日志、断点、栈帧、Profiler、运行时探针、动画、音频、着色器、瓦片地图） |
 | [Project Tools](#project-tools) | 3 | 35 | 38 | `project_tools_native.gd` | 项目配置（信息、设置、测试、输入映射、自动加载、全局类、资源诊断） |
 | [World Tools](#world-tools) | 0 | 22 | 22 | `world_tools_native.gd` | 3D 场景构建、物理、导航与粒子（网格、光照、材质、环境、相机、GridMap、碰撞、物理层、射线、导航区域、寻路代理、GPU 粒子） |
@@ -4900,6 +4900,56 @@ UID → 路径。
 
 **注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
 
+### 246. export_project
+
+生成导出命令。
+
+**参数**：`preset_index`/`preset_name`（二选一）、`debug`（否，默认 true）
+
+**返回值**：`preset`、`export_path`、`command`、`message`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 247. get_export_info
+
+读取导出配置。
+
+**参数**：无
+
+**返回值**：`has_export_presets`、`godot_executable`、`project_path`、`templates_dir`、`templates_installed`
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 248. list_android_devices
+
+列出 adb 设备。
+
+**参数**：无
+
+**返回值**：`devices`、`count`、`adb_path`
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 249. get_android_preset_info
+
+读取 Android 导出预设。
+
+**参数**：`preset_name`/`preset_index`（二选一）
+
+**返回值**：`index`、`name`、`platform`、`export_path`、`runnable`
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 250. deploy_to_android
+
+导出并安装 APK。
+
+**参数**：`preset_name`/`preset_index`（二选一）、`debug`（否）、`device_serial`（否）
+
+**返回值**：`steps`、`success`、`export_path`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=false`, `openWorldHint=false`
+
 ## 通用数据类型
 
 ### Vector2
@@ -4999,7 +5049,7 @@ UID → 路径。
 
 ## 总结
 
-本手册详细说明了 Godot MCP Native 项目的所有核心工具及部分补充工具。项目共 **245 个工具**（30 核心 + 215 补充），所有工具均可通过 MCP 工具管理面板按分组动态启用/禁用。补充工具（`*-Advanced` 分组）默认不启用，需在工具管理面板中手动开启。
+本手册详细说明了 Godot MCP Native 项目的所有核心工具及部分补充工具。项目共 **250 个工具**（30 核心 + 220 补充），所有工具均可通过 MCP 工具管理面板按分组动态启用/禁用。补充工具（`*-Advanced` 分组）默认不启用，需在工具管理面板中手动开启。
 
 **提示**：
 - 使用 `tools/list` 方法获取所有工具的实时列表和完整 JSON Schema

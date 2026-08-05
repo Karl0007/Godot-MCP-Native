@@ -126,6 +126,11 @@ func register_tools(server_core: RefCounted) -> void:
 	_register_select_nodes(server_core)
 	_register_clear_editor_selection(server_core)
 	_register_reload_plugin(server_core)
+	_register_export_project(server_core)
+	_register_get_export_info(server_core)
+	_register_list_android_devices(server_core)
+	_register_get_android_preset_info(server_core)
+	_register_deploy_to_android(server_core)
 
 # ============================================================================
 # get_editor_state - 获取编辑器状态
@@ -2065,3 +2070,285 @@ func _tool_reload_plugin(params: Dictionary) -> Dictionary:
 	var plugin_name := "godot_mcp"
 	_deferred_reload_plugin.call_deferred(editor_interface, plugin_name)
 	return {"reloading": true, "message": "Plugin will reload momentarily. Connection will briefly drop and auto-reconnect."}
+
+# ============================================================================
+# Batch 16 - Export & Android tools
+# ============================================================================
+
+func _find_export_preset_any(preset_name: String, preset_index: int) -> Dictionary:
+	var presets_path := "res://export_presets.cfg"
+	if not FileAccess.file_exists(presets_path):
+		return {}
+	var cfg := ConfigFile.new()
+	if cfg.load(presets_path) != OK:
+		return {}
+	var idx := 0
+	while cfg.has_section("preset.%d" % idx):
+		var section := "preset.%d" % idx
+		var platform := str(cfg.get_value(section, "platform", ""))
+		var name := str(cfg.get_value(section, "name", ""))
+		var matches := false
+		if not preset_name.is_empty():
+			matches = name == preset_name
+		elif preset_index >= 0:
+			matches = idx == preset_index
+		if matches:
+			return {
+				"index": idx,
+				"name": name,
+				"platform": platform,
+				"section": section,
+				"export_path": str(cfg.get_value(section, "export_path", "")),
+				"runnable": bool(cfg.get_value(section, "runnable", false)),
+			}
+		idx += 1
+	return {}
+
+func _register_export_project(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"export_project",
+		"Generate the Godot CLI export command for a preset (debug or release). Direct export from the editor plugin is not supported in Godot 4.",
+		{
+			"type": "object",
+			"properties": {
+				"preset_index": {"type": "integer", "description": "Preset index in export_presets.cfg."},
+				"preset_name": {"type": "string", "description": "Preset name."},
+				"debug": {"type": "boolean", "description": "Use --export-debug. Default true."}
+			},
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_export_project"),
+		{
+			"type": "object",
+			"properties": {
+				"preset": {"type": "string"},
+				"export_path": {"type": "string"},
+				"command": {"type": "string"},
+				"message": {"type": "string"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Editor-Advanced"
+	)
+
+func _tool_export_project(params: Dictionary) -> Dictionary:
+	var preset_index: int = int(params.get("preset_index", -1))
+	var preset_name: String = String(params.get("preset_name", ""))
+	var debug: bool = bool(params.get("debug", true))
+	var preset: Dictionary = _find_export_preset_any(preset_name, preset_index)
+	if preset.is_empty():
+		return {"error": "Export preset not found"}
+
+	var target_path: String = preset["export_path"]
+	if target_path.is_empty():
+		return {"error": "Export path not configured for preset '" + preset["name"] + "'"}
+
+	var godot_path: String = OS.get_executable_path()
+	var project_path: String = ProjectSettings.globalize_path("res://")
+	var export_path: String = ProjectSettings.globalize_path(target_path) if target_path.begins_with("res://") else target_path
+	var flag := "--export-debug" if debug else "--export-release"
+	var command: String = '"%s" --headless --path "%s" %s "%s"' % [godot_path, project_path, flag, preset["name"]]
+
+	return {
+		"preset": preset["name"],
+		"export_path": export_path,
+		"debug": debug,
+		"command": command,
+		"message": "Run the command above to export. Direct export from editor plugin is not supported in Godot 4.",
+	}
+
+func _register_get_export_info(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"get_export_info",
+		"Read export configuration: export presets presence, Godot executable path, and templates installation.",
+		{
+			"type": "object",
+			"properties": {},
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_get_export_info"),
+		{
+			"type": "object",
+			"properties": {
+				"has_export_presets": {"type": "boolean"},
+				"godot_executable": {"type": "string"},
+				"templates_installed": {"type": "boolean"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Editor-Advanced"
+	)
+
+func _tool_get_export_info(params: Dictionary) -> Dictionary:
+	var info: Dictionary = {}
+	info["has_export_presets"] = FileAccess.file_exists("res://export_presets.cfg")
+	info["godot_executable"] = OS.get_executable_path()
+	info["project_path"] = ProjectSettings.globalize_path("res://")
+	var templates_path: String = OS.get_data_dir().path_join("export_templates")
+	info["templates_dir"] = templates_path
+	info["templates_installed"] = DirAccess.dir_exists_absolute(templates_path)
+	return info
+
+func _resolve_adb_path() -> String:
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if editor_interface:
+		var editor_settings: EditorSettings = editor_interface.get_editor_settings()
+		if editor_settings.has_setting("export/android/adb"):
+			var configured: String = str(editor_settings.get_setting("export/android/adb"))
+			if not configured.is_empty() and FileAccess.file_exists(configured):
+				return configured
+	return "adb"
+
+func _run_process(cmd: String, args: PackedStringArray) -> Dictionary:
+	var output: Array = []
+	var exit_code: int = OS.execute(cmd, args, output, true)
+	var stdout: String = ""
+	if not output.is_empty():
+		stdout = str(output[0])
+	return {"exit_code": exit_code, "stdout": stdout}
+
+func _register_list_android_devices(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"list_android_devices",
+		"List Android devices visible to adb (from Editor Settings or PATH).",
+		{
+			"type": "object",
+			"properties": {},
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_list_android_devices"),
+		{
+			"type": "object",
+			"properties": {
+				"devices": {"type": "array"},
+				"count": {"type": "integer"},
+				"adb_path": {"type": "string"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Editor-Advanced"
+	)
+
+func _tool_list_android_devices(params: Dictionary) -> Dictionary:
+	var adb: String = _resolve_adb_path()
+	var result: Dictionary = _run_process(adb, PackedStringArray(["devices", "-l"]))
+	if result["exit_code"] != 0:
+		return {"error": "adb failed (exit %d). Install Android platform-tools or set Editor Settings > Export > Android > Adb." % result["exit_code"], "adb_path": adb, "output": result["stdout"]}
+	var devices: Array = []
+	var lines: PackedStringArray = str(result["stdout"]).split("\n")
+	for raw_line: String in lines:
+		var line: String = raw_line.strip_edges()
+		if line.is_empty() or line.begins_with("List of devices") or line.begins_with("* daemon"):
+			continue
+		var parts: PackedStringArray = line.split(" ", false)
+		if parts.size() < 2:
+			continue
+		var dev: Dictionary = {"serial": parts[0], "state": parts[1]}
+		for i in range(2, parts.size()):
+			var kv: String = parts[i]
+			var eq: int = kv.find(":")
+			if eq > 0:
+				dev[kv.substr(0, eq)] = kv.substr(eq + 1)
+		devices.append(dev)
+	return {"devices": devices, "count": devices.size(), "adb_path": adb}
+
+func _register_get_android_preset_info(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"get_android_preset_info",
+		"Read an Android export preset's configuration from export_presets.cfg.",
+		{
+			"type": "object",
+			"properties": {
+				"preset_name": {"type": "string", "description": "Preset name."},
+				"preset_index": {"type": "integer", "description": "Preset index."}
+			},
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_get_android_preset_info"),
+		{
+			"type": "object",
+			"properties": {
+				"index": {"type": "integer"},
+				"name": {"type": "string"},
+				"platform": {"type": "string"},
+				"export_path": {"type": "string"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Editor-Advanced"
+	)
+
+func _tool_get_android_preset_info(params: Dictionary) -> Dictionary:
+	var preset_name: String = String(params.get("preset_name", ""))
+	var preset_index: int = int(params.get("preset_index", -1))
+	var preset: Dictionary = _find_export_preset_any(preset_name, preset_index)
+	if preset.is_empty():
+		return {"error": "Android export preset not found. Configure an Android preset in Project > Export first."}
+	if preset["platform"] != "Android":
+		return {"error": "Preset '" + preset["name"] + "' is not an Android preset (platform=" + preset["platform"] + ")"}
+	return preset
+
+func _register_deploy_to_android(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"deploy_to_android",
+		"Export an Android preset and install the APK on a connected device via adb.",
+		{
+			"type": "object",
+			"properties": {
+				"preset_name": {"type": "string"},
+				"preset_index": {"type": "integer"},
+				"debug": {"type": "boolean", "description": "Debug build. Default true."},
+				"device_serial": {"type": "string", "description": "Target device serial. Defaults to the single connected device."}
+			},
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_deploy_to_android"),
+		{
+			"type": "object",
+			"properties": {
+				"steps": {"type": "array"},
+				"success": {"type": "boolean"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false},
+		"supplementary", "Editor-Advanced"
+	)
+
+func _tool_deploy_to_android(params: Dictionary) -> Dictionary:
+	var preset_name: String = String(params.get("preset_name", ""))
+	var preset_index: int = int(params.get("preset_index", -1))
+	var debug: bool = bool(params.get("debug", true))
+	var preset: Dictionary = _find_export_preset_any(preset_name, preset_index)
+	if preset.is_empty():
+		return {"error": "Android export preset not found. Configure an Android preset in Project > Export first."}
+	if preset["platform"] != "Android":
+		return {"error": "Preset '" + preset["name"] + "' is not an Android preset"}
+	var export_path: String = preset["export_path"]
+	if export_path.is_empty():
+		return {"error": "Export path not configured for preset '" + preset["name"] + "'"}
+
+	var steps: Array = []
+	var godot_path: String = OS.get_executable_path()
+	var project_path: String = ProjectSettings.globalize_path("res://")
+	var export_path_abs: String = ProjectSettings.globalize_path(export_path) if export_path.begins_with("res://") else export_path
+	var flag := "--export-debug" if debug else "--export-release"
+
+	var export_result: Dictionary = _run_process(godot_path, PackedStringArray(["--headless", "--path", project_path, flag, preset["name"]]))
+	steps.append({"step": "export", "command": flag + " " + preset["name"], "exit_code": export_result["exit_code"]})
+	if export_result["exit_code"] != 0:
+		return {"error": "Godot export failed (exit %d). See stdout." % export_result["exit_code"], "steps": steps, "stdout": export_result["stdout"]}
+
+	if not FileAccess.file_exists(export_path_abs):
+		return {"error": "APK not found at " + export_path_abs + " after export", "steps": steps}
+
+	var adb: String = _resolve_adb_path()
+	var device_serial: String = String(params.get("device_serial", ""))
+	var install_args: PackedStringArray = PackedStringArray(["install", "-r", export_path_abs])
+	if not device_serial.is_empty():
+		install_args = PackedStringArray(["-s", device_serial, "install", "-r", export_path_abs])
+	var install_result: Dictionary = _run_process(adb, install_args)
+	steps.append({"step": "adb_install", "command": "adb install -r", "exit_code": install_result["exit_code"]})
+	if install_result["exit_code"] != 0:
+		return {"error": "adb install failed (exit %d)" % install_result["exit_code"], "steps": steps, "stdout": install_result["stdout"]}
+
+	return {"steps": steps, "success": true, "export_path": export_path_abs}
