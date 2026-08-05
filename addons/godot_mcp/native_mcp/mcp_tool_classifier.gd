@@ -279,6 +279,12 @@ func _build_classifications() -> void:
 		{"name": "analyze_scene_complexity", "category": "supplementary", "group": "Project-Advanced"},
 		{"name": "detect_circular_dependencies", "category": "supplementary", "group": "Project-Advanced"},
 		{"name": "find_unused_resources", "category": "supplementary", "group": "Project-Advanced"},
+		{"name": "batch_add_nodes", "category": "supplementary", "group": "Node-Advanced"},
+		{"name": "batch_set_property", "category": "supplementary", "group": "Node-Advanced"},
+		{"name": "find_nodes_by_type", "category": "supplementary", "group": "Node-Advanced"},
+		{"name": "find_signal_connections", "category": "supplementary", "group": "Node-Advanced"},
+		{"name": "find_node_references", "category": "supplementary", "group": "Node-Advanced"},
+		{"name": "cross_scene_set_property", "category": "supplementary", "group": "Node-Advanced"},
 	]
 
 	for item in classifications:

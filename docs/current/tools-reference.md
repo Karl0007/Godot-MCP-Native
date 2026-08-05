@@ -24,7 +24,7 @@ Godot MCP Native 实现了 **161 个工具**，分为 7 大类（含核心和补
 
 | 类别 | 核心工具 | 补充工具 | 总计 | 源文件 | 用途 |
 |------|----------|----------|------|--------|------|
-| [Node Tools](#node-tools) | 9 | 11 | 20 | `node_tools_native.gd` | 节点管理（创建、删除、修改属性、复制、移动、重命名、信号、组） |
+| [Node Tools](#node-tools) | 9 | 17 | 26 | `node_tools_native.gd` | 节点管理（创建、删除、修改属性、复制、移动、重命名、信号、组） |
 | [Script Tools](#script-tools) | 7 | 7 | 14 | `script_tools_native.gd` | 脚本管理（读取、创建、修改、分析、附加、验证、搜索、符号索引） |
 | [Scene Tools](#scene-tools) | 4 | 10 | 14 | `scene_tools_native.gd` | 场景管理（创建、保存、打开、列出） |
 | [Editor Tools](#editor-tools) | 4 | 26 | 30 | `editor_tools_native.gd` | 编辑器操作（运行、停止、状态、截图、信号、导出、选择） |
@@ -5140,6 +5140,64 @@ UID → 路径。
 
 **注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
 
+### 270. batch_add_nodes
+
+批量创建节点（单 UndoRedo）。
+
+**参数**：`nodes`（是，{type, name, parent_path, properties} 数组）
+
+**返回值**：`created`、`count`、`errors`
+
+### 271. batch_set_property
+
+按类型批量设置属性（单 UndoRedo）。
+
+**参数**：`type`（是）、`property`（是）、`value`（是）
+
+**返回值**：`property`、`affected`、`count`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 272. find_nodes_by_type
+
+按类查找节点。
+
+**参数**：`type`（是）、`recursive`（否，默认 true）
+
+**返回值**：`type`、`matches`、`count`
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 273. find_signal_connections
+
+查找信号连接。
+
+**参数**：`signal_name`（否）、`node_path`（否）
+
+**返回值**：`connections`、`count`
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 274. find_node_references
+
+跨文件引用搜索。
+
+**参数**：`pattern`（是）、`max_results`（否，默认 100）
+
+**返回值**：`pattern`、`matches`（含 file/lines）、`count`
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 275. cross_scene_set_property
+
+跨场景设置属性。
+
+**参数**：`type`（是）、`property`（是）、`value`（是）、`path_filter`（否）、`exclude_addons`（否）、`dry_run`（否，默认 true）、`force`（否）
+
+**返回值**：`type`、`property`、`dry_run`、`scenes_affected`、`total_nodes`、`message`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=true`, `idempotentHint=false`, `openWorldHint=false`
+
 ## 通用数据类型
 
 ### Vector2
@@ -5239,7 +5297,7 @@ UID → 路径。
 
 ## 总结
 
-本手册详细说明了 Godot MCP Native 项目的所有核心工具及部分补充工具。项目共 **269 个工具**（30 核心 + 239 补充），所有工具均可通过 MCP 工具管理面板按分组动态启用/禁用。补充工具（`*-Advanced` 分组）默认不启用，需在工具管理面板中手动开启。
+本手册详细说明了 Godot MCP Native 项目的所有核心工具及部分补充工具。项目共 **275 个工具**（30 核心 + 245 补充），所有工具均可通过 MCP 工具管理面板按分组动态启用/禁用。补充工具（`*-Advanced` 分组）默认不启用，需在工具管理面板中手动开启。
 
 **提示**：
 - 使用 `tools/list` 方法获取所有工具的实时列表和完整 JSON Schema

@@ -1,5 +1,15 @@
 extends "res://addons/gut/test.gd"
 
+var _node_tools: RefCounted = null
+
+func before_each() -> void:
+	_node_tools = load("res://addons/godot_mcp/tools/node_tools_native.gd").new()
+
+func after_each() -> void:
+	_node_tools = null
+	if Engine.has_meta("GodotMCPPlugin"):
+		Engine.remove_meta("GodotMCPPlugin")
+
 func test_create_node_schema():
 	var tool: MCPTypes.MCPTool = MCPTypes.MCPTool.new()
 	tool.name = "create_node"
@@ -267,3 +277,53 @@ func test_get_type_name_fallback():
 	var tool = load("res://addons/godot_mcp/tools/node_tools_native.gd").new()
 	var type_name: String = tool._get_type_name(9999)
 	assert_eq(type_name, "type_9999", "Unknown type should use type_N fallback")
+
+# --- Batch 21: batch & cross-scene ---
+
+func test_batch_add_nodes_requires_nodes():
+	var result: Dictionary = _node_tools._tool_batch_add_nodes({})
+	assert_true(result.has("error"), "Missing nodes should error")
+
+func test_batch_add_nodes_empty():
+	var result: Dictionary = _node_tools._tool_batch_add_nodes({"nodes": []})
+	assert_true(result.has("error"), "Empty nodes should error")
+
+func test_batch_add_nodes_no_scene():
+	var result: Dictionary = _node_tools._tool_batch_add_nodes({"nodes": [{"type": "Node2D"}]})
+	assert_true(result.has("error"), "No scene should error")
+
+func test_batch_set_property_requires_params():
+	var result: Dictionary = _node_tools._tool_batch_set_property({})
+	assert_true(result.has("error"), "Missing params should error")
+
+func test_batch_set_property_requires_value():
+	var result: Dictionary = _node_tools._tool_batch_set_property({"type": "Node2D", "property": "position"})
+	assert_true(result.has("error"), "Missing value should error")
+
+func test_find_nodes_by_type_requires_type():
+	var result: Dictionary = _node_tools._tool_find_nodes_by_type({})
+	assert_true(result.has("error"), "Missing type should error")
+
+func test_find_signal_connections_no_scene():
+	var result: Dictionary = _node_tools._tool_find_signal_connections({})
+	assert_true(result.has("error"), "No scene should error")
+
+func test_find_node_references_requires_pattern():
+	var result: Dictionary = _node_tools._tool_find_node_references({})
+	assert_true(result.has("error"), "Missing pattern should error")
+
+func test_find_node_references_finds_own():
+	var result: Dictionary = _node_tools._tool_find_node_references({"pattern": "node_tools_native", "max_results": 5})
+	assert_true(result.get("count", 0) >= 1, "Should find node_tools_native references")
+
+func test_cross_scene_set_property_requires_params():
+	var result: Dictionary = _node_tools._tool_cross_scene_set_property({})
+	assert_true(result.has("error"), "Missing params should error")
+
+func test_cross_scene_set_property_requires_value():
+	var result: Dictionary = _node_tools._tool_cross_scene_set_property({"type": "Node2D", "property": "position"})
+	assert_true(result.has("error"), "Missing value should error")
+
+func test_cross_scene_set_property_requires_force():
+	var result: Dictionary = _node_tools._tool_cross_scene_set_property({"type": "Node2D", "property": "position", "value": 0, "dry_run": false})
+	assert_true(result.has("error"), "force=true required without dry_run")

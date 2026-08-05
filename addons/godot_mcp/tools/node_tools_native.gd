@@ -30,6 +30,12 @@ func register_tools(server_core: RefCounted) -> void:
 	_register_find_nodes_in_group(server_core)
 	_register_audit_scene_node_persistence(server_core)
 	_register_audit_scene_inheritance(server_core)
+	_register_batch_add_nodes(server_core)
+	_register_batch_set_property(server_core)
+	_register_find_nodes_by_type(server_core)
+	_register_find_signal_connections(server_core)
+	_register_find_node_references(server_core)
+	_register_cross_scene_set_property(server_core)
 
 func _register_create_node(server_core: RefCounted) -> void:
 	server_core.register_tool(
@@ -2186,4 +2192,496 @@ func _tool_find_nodes_in_group(params: Dictionary) -> Dictionary:
 		"group": group,
 		"nodes": result_nodes,
 		"node_count": result_nodes.size()
+	}
+
+# ============================================================================
+# Batch 21 - Batch & cross-scene operations
+# ============================================================================
+
+func _register_batch_add_nodes(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"batch_add_nodes",
+		"Create multiple nodes in one UndoRedo action. Each entry: {type, name, parent_path, properties}.",
+		{
+			"type": "object",
+			"properties": {
+				"nodes": {"type": "array", "description": "Array of {type, name, parent_path, properties}."}
+			},
+			"required": ["nodes"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_batch_add_nodes"),
+		{
+			"type": "object",
+			"properties": {
+				"created": {"type": "array"},
+				"count": {"type": "integer"},
+				"errors": {"type": "array"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false},
+		"supplementary", "Node-Advanced"
+	)
+
+func _parse_property_value_for_type(value: Variant, target_type: int) -> Variant:
+	if typeof(value) == target_type:
+		return value
+	if value is String:
+		var s: String = String(value)
+		var expr := Expression.new()
+		if expr.parse(s) == OK:
+			var parsed: Variant = expr.execute()
+			if parsed != null and typeof(parsed) == target_type:
+				return parsed
+		if target_type == TYPE_INT and s.is_valid_int():
+			return s.to_int()
+		if target_type == TYPE_FLOAT and s.is_valid_float():
+			return s.to_float()
+		if target_type == TYPE_BOOL:
+			if s == "true":
+				return true
+			if s == "false":
+				return false
+	return value
+
+func _tool_batch_add_nodes(params: Dictionary) -> Dictionary:
+	if not params.has("nodes") or not params["nodes"] is Array:
+		return {"error": "Missing required parameter: nodes (Array)"}
+	var nodes_data: Array = params["nodes"]
+	if nodes_data.is_empty():
+		return {"error": "nodes array is empty"}
+	var scene_root: Node = _get_user_scene_root()
+	if not scene_root:
+		return {"error": "No scene is currently open"}
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if not editor_interface:
+		return {"error": "Editor interface not available"}
+
+	var created: Array = []
+	var errors: Array = []
+	var undo_redo: EditorUndoRedoManager = editor_interface.get_editor_undo_redo()
+	undo_redo.create_action("MCP: Batch add nodes")
+
+	for i: int in nodes_data.size():
+		var entry: Dictionary = nodes_data[i]
+		if not entry.has("type") or not entry["type"] is String:
+			errors.append({"index": i, "error": "Missing or invalid 'type'"})
+			continue
+		var type: String = String(entry["type"])
+		if not ClassDB.class_exists(type):
+			errors.append({"index": i, "error": "Unknown node type: " + type})
+			continue
+		var parent_path: String = String(entry.get("parent_path", ".")) if entry.has("parent_path") and entry["parent_path"] is String else "."
+		var node_name: String = String(entry.get("name", "")) if entry.has("name") and entry["name"] is String else ""
+		var properties: Dictionary = entry.get("properties", {}) if entry.has("properties") and entry["properties"] is Dictionary else {}
+
+		var parent: Node = _resolve_node_path(parent_path)
+		if parent == null:
+			errors.append({"index": i, "error": "Parent node '" + parent_path + "' not found"})
+			continue
+
+		var node: Node = ClassDB.instantiate(type)
+		if not node_name.is_empty():
+			node.name = node_name
+		for prop_name: String in properties:
+			var prop_exists := false
+			for prop: Dictionary in node.get_property_list():
+				if prop["name"] == prop_name:
+					prop_exists = true
+					break
+			if prop_exists:
+				var current: Variant = node.get(prop_name)
+				node.set(prop_name, _parse_property_value_for_type(properties[prop_name], typeof(current)))
+
+		undo_redo.add_do_method(parent, "add_child", node)
+		undo_redo.add_do_method(node, "set_owner", scene_root)
+		undo_redo.add_do_reference(node)
+		undo_redo.add_undo_method(parent, "remove_child", node)
+		# Apply immediately so paths are resolvable for the response
+		parent.add_child(node)
+		node.owner = scene_root
+		created.append({"index": i, "type": type, "name": str(node.name), "parent": parent_path, "node_path": str(scene_root.get_path_to(node))})
+
+	undo_redo.commit_action()
+	editor_interface.mark_scene_as_unsaved()
+
+	var result: Dictionary = {"created": created, "count": created.size()}
+	if not errors.is_empty():
+		result["errors"] = errors
+	return result
+
+func _register_batch_set_property(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"batch_set_property",
+		"Set a property on all nodes of a given type in the current scene (one UndoRedo action).",
+		{
+			"type": "object",
+			"properties": {
+				"type": {"type": "string", "description": "Node class name to match."},
+				"property": {"type": "string"},
+				"value": {"type": "object", "description": "Property value (auto-parsed from strings)."}
+			},
+			"required": ["type", "property", "value"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_batch_set_property"),
+		{
+			"type": "object",
+			"properties": {
+				"property": {"type": "string"},
+				"affected": {"type": "array"},
+				"count": {"type": "integer"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Node-Advanced"
+	)
+
+func _batch_collect_property_changes(node: Node, root: Node, type_name: String, property: String, value: Variant, affected: Array, changes: Array) -> void:
+	if node.is_class(type_name) or node.get_class() == type_name:
+		if property in node:
+			affected.append(str(root.get_path_to(node)))
+			changes.append({"node": node, "old_value": node.get(property), "new_value": value})
+	for child in node.get_children():
+		_batch_collect_property_changes(child, root, type_name, property, value, affected, changes)
+
+func _apply_property_changes_with_undo(changes: Array, property: String, action_name: String) -> void:
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if not editor_interface:
+		for change: Dictionary in changes:
+			change["node"].set(property, change["new_value"])
+		return
+	var undo_redo: EditorUndoRedoManager = editor_interface.get_editor_undo_redo()
+	undo_redo.create_action(action_name)
+	for change: Dictionary in changes:
+		var node: Node = change["node"]
+		undo_redo.add_do_property(node, property, change["new_value"])
+		undo_redo.add_undo_property(node, property, change["old_value"])
+	undo_redo.commit_action()
+	editor_interface.mark_scene_as_unsaved()
+
+func _tool_batch_set_property(params: Dictionary) -> Dictionary:
+	var type_name: String = String(params.get("type", ""))
+	if type_name.is_empty():
+		return {"error": "Missing required parameter: type"}
+	var property: String = String(params.get("property", ""))
+	if property.is_empty():
+		return {"error": "Missing required parameter: property"}
+	if not params.has("value"):
+		return {"error": "Missing required parameter: value"}
+	var value: Variant = params["value"]
+	if value is String:
+		var expr := Expression.new()
+		if expr.parse(String(value)) == OK:
+			var parsed: Variant = expr.execute()
+			if parsed != null:
+				value = parsed
+
+	var scene_root: Node = _get_user_scene_root()
+	if not scene_root:
+		return {"error": "No scene is currently open"}
+	var affected: Array = []
+	var changes: Array = []
+	_batch_collect_property_changes(scene_root, scene_root, type_name, property, value, affected, changes)
+	if not changes.is_empty():
+		_apply_property_changes_with_undo(changes, property, "MCP: Batch set " + property)
+	return {"property": property, "affected": affected, "count": affected.size()}
+
+func _register_find_nodes_by_type(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"find_nodes_by_type",
+		"Find all nodes of a given class in the current scene.",
+		{
+			"type": "object",
+			"properties": {
+				"type": {"type": "string"},
+				"recursive": {"type": "boolean", "description": "Search recursively. Default true."}
+			},
+			"required": ["type"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_find_nodes_by_type"),
+		{
+			"type": "object",
+			"properties": {
+				"type": {"type": "string"},
+				"matches": {"type": "array"},
+				"count": {"type": "integer"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Node-Advanced"
+	)
+
+func _search_by_type(node: Node, type_name: String, recursive: bool, matches: Array) -> void:
+	if node.is_class(type_name) or node.get_class() == type_name:
+		var scene_root: Node = _get_user_scene_root()
+		matches.append({
+			"name": node.name,
+			"path": str(scene_root.get_path_to(node)) if scene_root else str(node.get_path()),
+			"type": node.get_class(),
+		})
+	if recursive:
+		for child in node.get_children():
+			_search_by_type(child, type_name, recursive, matches)
+
+func _tool_find_nodes_by_type(params: Dictionary) -> Dictionary:
+	var type_name: String = String(params.get("type", ""))
+	if type_name.is_empty():
+		return {"error": "Missing required parameter: type"}
+	var scene_root: Node = _get_user_scene_root()
+	if not scene_root:
+		return {"error": "No scene is currently open"}
+	var recursive: bool = bool(params.get("recursive", true))
+	var matches: Array = []
+	_search_by_type(scene_root, type_name, recursive, matches)
+	return {"type": type_name, "matches": matches, "count": matches.size()}
+
+func _register_find_signal_connections(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"find_signal_connections",
+		"Find all signal connections in the current scene, optionally filtered by signal or node.",
+		{
+			"type": "object",
+			"properties": {
+				"signal_name": {"type": "string"},
+				"node_path": {"type": "string"}
+			},
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_find_signal_connections"),
+		{
+			"type": "object",
+			"properties": {
+				"connections": {"type": "array"},
+				"count": {"type": "integer"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Node-Advanced"
+	)
+
+func _tool_find_signal_connections(params: Dictionary) -> Dictionary:
+	var scene_root: Node = _get_user_scene_root()
+	if not scene_root:
+		return {"error": "No scene is currently open"}
+	var signal_filter: String = String(params.get("signal_name", ""))
+	var node_filter: String = String(params.get("node_path", ""))
+	var connections: Array = []
+	_collect_signals_connections(scene_root, scene_root, signal_filter, node_filter, connections)
+	return {"connections": connections, "count": connections.size()}
+
+func _collect_signals_connections(node: Node, root: Node, signal_filter: String, node_filter: String, connections: Array) -> void:
+	var node_path: String = str(root.get_path_to(node))
+	if node_filter.is_empty() or node_path.contains(node_filter):
+		for sig_info: Dictionary in node.get_signal_list():
+			var sig_name: String = sig_info["name"]
+			if not signal_filter.is_empty() and not sig_name.contains(signal_filter):
+				continue
+			for conn: Dictionary in node.get_signal_connection_list(sig_name):
+				connections.append({
+					"source": node_path,
+					"signal": sig_name,
+					"target": str(root.get_path_to(conn["callable"].get_object())),
+					"method": conn["callable"].get_method(),
+				})
+	for child in node.get_children():
+		_collect_signals_connections(child, root, signal_filter, node_filter, connections)
+
+func _register_find_node_references(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"find_node_references",
+		"Search all .tscn/.gd/.tres/.gdshader files for references to a pattern.",
+		{
+			"type": "object",
+			"properties": {
+				"pattern": {"type": "string"},
+				"max_results": {"type": "integer", "description": "Default 100."}
+			},
+			"required": ["pattern"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_find_node_references"),
+		{
+			"type": "object",
+			"properties": {
+				"pattern": {"type": "string"},
+				"matches": {"type": "array"},
+				"count": {"type": "integer"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Node-Advanced"
+	)
+
+func _search_files_for_pattern(path: String, pattern: String, matches: Array, max_results: int) -> void:
+	if matches.size() >= max_results:
+		return
+	var dir := DirAccess.open(path)
+	if dir == null:
+		return
+	dir.list_dir_begin()
+	var file_name: String = dir.get_next()
+	while not file_name.is_empty() and matches.size() < max_results:
+		if file_name.begins_with("."):
+			file_name = dir.get_next()
+			continue
+		var full_path: String = path.path_join(file_name)
+		if dir.current_is_dir():
+			_search_files_for_pattern(full_path, pattern, matches, max_results)
+		elif file_name.get_extension() in ["tscn", "gd", "tres", "gdshader"]:
+			var file := FileAccess.open(full_path, FileAccess.READ)
+			if file:
+				var content: String = file.get_as_text()
+				file.close()
+				if content.contains(pattern):
+					var lines: PackedStringArray = content.split("\n")
+					var line_matches: Array = []
+					for i in lines.size():
+						if lines[i].contains(pattern):
+							line_matches.append(i + 1)
+							if line_matches.size() >= 5:
+								break
+					matches.append({"file": full_path, "lines": line_matches})
+		file_name = dir.get_next()
+	dir.list_dir_end()
+
+func _tool_find_node_references(params: Dictionary) -> Dictionary:
+	var pattern: String = String(params.get("pattern", ""))
+	if pattern.is_empty():
+		return {"error": "Missing required parameter: pattern"}
+	var max_results: int = int(params.get("max_results", 100))
+	var matches: Array = []
+	_search_files_for_pattern("res://", pattern, matches, max_results)
+	return {"pattern": pattern, "matches": matches, "count": matches.size()}
+
+func _register_cross_scene_set_property(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"cross_scene_set_property",
+		"Set a property on nodes of a type across multiple scene files. Requires force=true to apply; dry_run previews changes.",
+		{
+			"type": "object",
+			"properties": {
+				"type": {"type": "string"},
+				"property": {"type": "string"},
+				"value": {"type": "object"},
+				"path_filter": {"type": "string", "description": "Scene search root. Default 'res://'."},
+				"exclude_addons": {"type": "boolean", "description": "Default true."},
+				"dry_run": {"type": "boolean", "description": "Preview only. Default true."},
+				"force": {"type": "boolean", "description": "Apply changes. Required for non-dry-run."}
+			},
+			"required": ["type", "property", "value"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_cross_scene_set_property"),
+		{
+			"type": "object",
+			"properties": {
+				"type": {"type": "string"},
+				"property": {"type": "string"},
+				"dry_run": {"type": "boolean"},
+				"scenes_affected": {"type": "array"},
+				"total_nodes": {"type": "integer"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": true, "idempotentHint": false, "openWorldHint": false},
+		"supplementary", "Node-Advanced"
+	)
+
+func _cross_scene_collect_changes(node: Node, root: Node, type_name: String, property: String, value: Variant, affected: Array, changes: Array) -> void:
+	if node.is_class(type_name) or node.get_class() == type_name:
+		if property in node:
+			affected.append(str(root.get_path_to(node)))
+			changes.append({"node": node, "old_value": node.get(property), "new_value": value})
+	for child in node.get_children():
+		_cross_scene_collect_changes(child, root, type_name, property, value, affected, changes)
+
+func _collect_scene_files(path: String, files: Array, exclude_addons: bool) -> void:
+	var dir := DirAccess.open(path)
+	if dir == null:
+		return
+	dir.list_dir_begin()
+	var file_name: String = dir.get_next()
+	while not file_name.is_empty():
+		if file_name.begins_with("."):
+			file_name = dir.get_next()
+			continue
+		var full_path: String = path.path_join(file_name)
+		if dir.current_is_dir():
+			if exclude_addons and file_name == "addons":
+				file_name = dir.get_next()
+				continue
+			_collect_scene_files(full_path, files, exclude_addons)
+		elif file_name.get_extension() == "tscn":
+			files.append(full_path)
+		file_name = dir.get_next()
+	dir.list_dir_end()
+
+func _tool_cross_scene_set_property(params: Dictionary) -> Dictionary:
+	var type_name: String = String(params.get("type", ""))
+	if type_name.is_empty():
+		return {"error": "Missing required parameter: type"}
+	var property: String = String(params.get("property", ""))
+	if property.is_empty():
+		return {"error": "Missing required parameter: property"}
+	if not params.has("value"):
+		return {"error": "Missing required parameter: value"}
+	var value: Variant = params["value"]
+	if value is String:
+		var expr := Expression.new()
+		if expr.parse(String(value)) == OK:
+			var parsed: Variant = expr.execute()
+			if parsed != null:
+				value = parsed
+
+	var path_filter: String = String(params.get("path_filter", "res://"))
+	var exclude_addons: bool = bool(params.get("exclude_addons", true))
+	var force: bool = bool(params.get("force", false))
+	var dry_run: bool = bool(params.get("dry_run", not force))
+	if not dry_run and not force:
+		return {"error": "cross_scene_set_property requires force=true when dry_run=false"}
+
+	var scenes_affected: Array = []
+	var total_nodes: int = 0
+	var scene_files: Array = []
+	_collect_scene_files(path_filter, scene_files, exclude_addons)
+
+	for scene_path: Variant in scene_files:
+		var sp: String = str(scene_path)
+		var packed: PackedScene = ResourceLoader.load(sp) as PackedScene
+		if packed == null:
+			continue
+		var instance: Node = packed.instantiate()
+		if instance == null:
+			continue
+		var affected_nodes: Array = []
+		var changes: Array = []
+		_cross_scene_collect_changes(instance, instance, type_name, property, value, affected_nodes, changes)
+		if not changes.is_empty():
+			if not dry_run:
+				for change: Dictionary in changes:
+					(change["node"] as Node).set(property, value)
+				var new_packed := PackedScene.new()
+				var pack_err: Error = new_packed.pack(instance)
+				if pack_err == OK:
+					var save_err: Error = ResourceSaver.save(new_packed, sp)
+					if save_err == OK:
+						scenes_affected.append({"scene": sp, "nodes": affected_nodes, "count": affected_nodes.size(), "mode": "saved"})
+						total_nodes += affected_nodes.size()
+			else:
+				scenes_affected.append({"scene": sp, "nodes": affected_nodes, "count": affected_nodes.size(), "mode": "dry_run"})
+				total_nodes += affected_nodes.size()
+		instance.free()
+
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if editor_interface and not scenes_affected.is_empty():
+		editor_interface.get_resource_filesystem().scan()
+
+	return {
+		"type": type_name,
+		"property": property,
+		"dry_run": dry_run,
+		"scenes_affected": scenes_affected,
+		"total_nodes": total_nodes,
+		"message": "Dry run only. Re-run with force=true and dry_run=false to write changes." if dry_run else "Changes applied.",
 	}

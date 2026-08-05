@@ -28,7 +28,9 @@ await_debugger_state,,Wait for a specific debugger state.,等待特定的调试�
 await_runtime_condition,,Wait for a condition to be true in the running game.,在运行中游戏中等待条件为真。
 await_scene_ready,,Poll the runtime until the specified scene is loaded and ready.,轮询运行时直到指定场景加载就绪。
 bake_navigation_mesh,,Bake a NavigationRegion3D navigation mesh or build a NavigationRegion2D polygon from an outline or source geometry.,烘焙 NavigationRegion3D 导航网格，或从轮廓/源几何构建 NavigationRegion2D 多边形。
+batch_add_nodes,,"Create multiple nodes in one UndoRedo action. Each entry: {type, name, parent_path, properties}.","在一个 UndoRedo 操作中创建多个节点。每个条目：{type, name, parent_path, properties}。"
 batch_scene_node_edits,,Apply multiple create/delete scene node edits inside one editor UndoRedo action so the full structure change undoes in a single step.,在单个编辑器 UndoRedo 操作中应用多个创建/删除场景节点编辑，使整个结构变更可在单步中撤销。
+batch_set_property,,Set a property on all nodes of a given type in the current scene (one UndoRedo action).,在当前场景中为所有指定类型的节点设置属性（一个 UndoRedo 操作）。
 batch_update_node_properties,,Update multiple node properties inside one editor UndoRedo action. Useful for transaction-style scene edits that should undo in a single step.,在一个编辑器 UndoRedo 操作中更新多个节点属性。适用于需要在单步中撤销的事务式场景编辑。
 call_runtime_node_method,,Call a method on a node in the running game.,调用运行中游戏中节点的方法。
 clear_editor_selection,,Clear the current editor node selection.,清除当前编辑器节点选区。
@@ -48,6 +50,7 @@ create_scene,,Create a new Godot scene with a root node. The scene is saved to t
 create_script,,Create a new GDScript file with optional template. GDScript files are complete programs, not resource files.,创建新的 GDScript 文件，可选模板。GDScript 文件是完整程序，不是资源文件。
 create_shader,,"Create a shader file (.gdshader) with a template for spatial, canvas_item, particles, or sky, or with provided content.",创建着色器文件（.gdshader），支持 spatial、canvas_item、particles、sky 模板或自定义内容。
 create_theme,,Create a new Theme resource (.tres) with an optional default font size.,创建新的 Theme 资源（.tres），可设置默认字体大小。
+cross_scene_set_property,,Set a property on nodes of a type across multiple scene files. Requires force=true to apply; dry_run previews changes.,在多个场景文件中为指定类型的节点设置属性。需要 force=true 才能应用；dry_run 预览更改。
 debug_continue,,Continue execution in the debugger.,在调试器中继续执行。
 debug_continue_and_wait,,Continue and wait for the debugger to pause or complete.,继续执行并等待调试器暂停或完成。
 debug_print,,Print debug messages to the editor console.,向编辑器控制台输出调试消息。
@@ -74,9 +77,12 @@ execute_script,,Execute a script in the editor context.,在编辑器上下文中
 expand_debug_variable,,Expand a captured debug variable or evaluated expression value by scope and path, with pagination for arrays and dictionaries.,按作用域和路径展开捕获的调试变量或求值的表达式值，支持数组和字典的分页。
 export_project,,Generate the Godot CLI export command for a preset (debug or release). Direct export from the editor plugin is not supported in Godot 4.,为预设生成 Godot CLI 导出命令（debug 或 release）。Godot 4 不支持从编辑器插件直接导出。
 find_nearby_nodes,,Find nodes within a radius of a position in the running game (2D/3D).,查找运行中游戏某个位置半径内的节点（2D/3D）。
+find_node_references,,Search all .tscn/.gd/.tres/.gdshader files for references to a pattern.,在所有 .tscn/.gd/.tres/.gdshader 文件中搜索对模式的引用。
+find_nodes_by_type,,Find all nodes of a given class in the current scene.,查找当前场景中所有指定类的节点。
 find_nodes_in_group,,Find all nodes in a specific group.,查找特定组中的所有节点。
 find_script_symbol_definition,,Find definition locations for a script symbol across GDScript and C# project files.,在 GDScript 和 C# 项目文件中查找脚本符号的定义位置。
 find_script_symbol_references,,Find textual project references to a script symbol across GDScript, C#, and scene files.,在 GDScript、C# 和场景文件中查找脚本符号的文本引用。
+find_signal_connections,,"Find all signal connections in the current scene, optionally filtered by signal or node.",查找当前场景中的所有信号连接，可按信号或节点过滤。
 find_ui_elements,,"List visible UI elements (Button, Label, LineEdit, TextEdit, OptionButton, CheckBox) in the running game.",列出运行中游戏的可见 UI 元素（Button、Label、LineEdit、TextEdit、OptionButton、CheckBox）。
 find_unused_resources,,"Scan the project for resource files not referenced by any scene, script, or resource file.",扫描项目中未被任何场景、脚本或资源文件引用的资源文件。
 fix_resource_uid,,Fix resource UID issues.,修复资源 UID 问题。
