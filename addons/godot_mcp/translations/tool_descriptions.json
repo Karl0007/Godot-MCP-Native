@@ -229,5 +229,14 @@
   "play_scene": "Play the main scene, current scene, or a specific scene path.",
   "stop_scene": "Stop the running game scene.",
   "get_scene_file_content": "Read a scene file's raw text content.",
-  "get_scene_exports": "List all @export properties of every scripted node in a scene file."
+  "get_scene_exports": "List all @export properties of every scripted node in a scene file.",
+  "get_filesystem_tree": "Return the project filesystem tree, optionally filtered by glob and depth-limited.",
+  "search_files": "Search for files by name (fuzzy or glob) under a path.",
+  "set_project_setting": "Set a ProjectSettings value and save project.godot. Strings are type-inferred.",
+  "uid_to_project_path": "Convert a resource UID string to its project path.",
+  "project_path_to_uid": "Convert a project path to its resource UID string.",
+  "add_autoload": "Add an autoload singleton to ProjectSettings.",
+  "remove_autoload": "Remove an autoload singleton from ProjectSettings.",
+  "get_project_statistics": "Collect project statistics: script, scene, resource, and image file counts by extension.",
+  "get_autoload": "Read a project autoload singleton's properties and script path."
 }

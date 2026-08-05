@@ -29,7 +29,7 @@ Godot MCP Native 实现了 **161 个工具**，分为 7 大类（含核心和补
 | [Scene Tools](#scene-tools) | 4 | 10 | 14 | `scene_tools_native.gd` | 场景管理（创建、保存、打开、列出） |
 | [Editor Tools](#editor-tools) | 4 | 21 | 25 | `editor_tools_native.gd` | 编辑器操作（运行、停止、状态、截图、信号、导出、选择） |
 | [Debug Tools](#debug-tools) | 3 | 68 | 71 | `debug_tools_native.gd` | 调试和运行时（日志、断点、栈帧、Profiler、运行时探针、动画、音频、着色器、瓦片地图） |
-| [Project Tools](#project-tools) | 3 | 23 | 26 | `project_tools_native.gd` | 项目配置（信息、设置、测试、输入映射、自动加载、全局类、资源诊断） |
+| [Project Tools](#project-tools) | 3 | 32 | 35 | `project_tools_native.gd` | 项目配置（信息、设置、测试、输入映射、自动加载、全局类、资源诊断） |
 | [World Tools](#world-tools) | 0 | 22 | 22 | `world_tools_native.gd` | 3D 场景构建、物理、导航与粒子（网格、光照、材质、环境、相机、GridMap、碰撞、物理层、射线、导航区域、寻路代理、GPU 粒子） |
 | [Media Tools](#media-tools) | 0 | 39 | 39 | `media_tools_native.gd` | 动画、音频、主题、着色器与 TileMap 编辑（创建/轨道/关键帧/状态机/音频总线/主题覆盖/着色器/瓦片地图） |
 
@@ -4762,6 +4762,94 @@ Continue：恢复执行。
 
 **注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
 
+### 232. get_filesystem_tree
+
+返回项目文件系统树。
+
+**参数**：`path`（否，默认 res://）、`filter`（否，glob）、`max_depth`（否，默认 10）
+
+**返回值**：`tree`（递归目录结构）
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 233. search_files
+
+按名称搜索文件。
+
+**参数**：`query`（是）、`path`（否）、`file_type`（否）、`max_results`（否，默认 50）
+
+**返回值**：`matches`、`count`
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 234. set_project_setting
+
+设置项目设置并保存。
+
+**参数**：`key`（是）、`value`（是，字符串自动推断类型）
+
+**返回值**：`key`、`value`、`saved`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 235. uid_to_project_path
+
+UID → 路径。
+
+**参数**：`uid`（是）
+
+**返回值**：`uid`、`path`
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 236. project_path_to_uid
+
+路径 → UID。
+
+**参数**：`path`（是）
+
+**返回值**：`path`、`uid`
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 237. add_autoload
+
+添加自动加载单例。
+
+**参数**：`name`（是）、`path`（是）
+
+**返回值**：`name`、`path`、`added`
+
+### 238. remove_autoload
+
+移除自动加载单例。
+
+**参数**：`name`（是）
+
+**返回值**：`name`、`removed`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=true`, `idempotentHint=false`, `openWorldHint=false`
+
+### 239. get_project_statistics
+
+收集项目统计。
+
+**参数**：`include_addons`（否，默认 false）
+
+**返回值**：`totals`（scripts/scenes/resources/images/other/total_files）、`breakdown`（按扩展名）
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 240. get_autoload
+
+读取自动加载单例。
+
+**参数**：`name`（是）
+
+**返回值**：`name`、`path`、`type`、`script`（运行时）/`from_settings`（设置回退）
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
 ## 通用数据类型
 
 ### Vector2
@@ -4861,7 +4949,7 @@ Continue：恢复执行。
 
 ## 总结
 
-本手册详细说明了 Godot MCP Native 项目的所有核心工具及部分补充工具。项目共 **231 个工具**（30 核心 + 201 补充），所有工具均可通过 MCP 工具管理面板按分组动态启用/禁用。补充工具（`*-Advanced` 分组）默认不启用，需在工具管理面板中手动开启。
+本手册详细说明了 Godot MCP Native 项目的所有核心工具及部分补充工具。项目共 **240 个工具**（30 核心 + 210 补充），所有工具均可通过 MCP 工具管理面板按分组动态启用/禁用。补充工具（`*-Advanced` 分组）默认不启用，需在工具管理面板中手动开启。
 
 **提示**：
 - 使用 `tools/list` 方法获取所有工具的实时列表和完整 JSON Schema

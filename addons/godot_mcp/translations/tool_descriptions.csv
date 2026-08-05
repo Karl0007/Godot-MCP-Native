@@ -3,6 +3,7 @@ add_animation_track,,"Add a track to an animation. Track types: value, position_
 add_audio_bus,,"Add a new audio bus to the AudioServer with volume, send, solo, and mute settings.",向 AudioServer 添加新音频总线，支持音量、send、solo 和 mute 设置。
 add_audio_bus_effect,,"Add an audio effect to a bus. Types: reverb, chorus, delay, compressor, limiter, phaser, distortion, lowpassfilter, highpassfilter, bandpassfilter, amplify, eq.",向总线添加音频效果。类型：reverb、chorus、delay、compressor、limiter、phaser、distortion、lowpassfilter、highpassfilter、bandpassfilter、amplify、eq。
 add_audio_player,,"Add an AudioStreamPlayer, AudioStreamPlayer2D, or AudioStreamPlayer3D with stream, volume, bus, and spatial settings.",添加 AudioStreamPlayer、AudioStreamPlayer2D 或 AudioStreamPlayer3D，支持流、音量、总线和空间设置。
+add_autoload,,Add an autoload singleton to ProjectSettings.,向 ProjectSettings 添加自动加载单例。
 add_debugger_capture_prefix,,Allow the debugger bridge to capture custom EngineDebugger messages with the given prefix.,允许调试器桥捕获具有给定前缀的自定义 EngineDebugger 消息。
 add_gridmap,,"Create a GridMap node, optionally assign a MeshLibrary resource and set cell size.",创建 GridMap 节点，可指定 MeshLibrary 资源并设置单元格大小。
 add_mesh_instance,,"Create a MeshInstance3D with a primitive mesh (box, sphere, cylinder, capsule, plane, quad, prism, torus) or load a mesh from a .glb/.gltf/.obj file.",创建 MeshInstance3D，支持基本体网格（box/sphere/cylinder/capsule/plane/quad/prism/torus）或从 .glb/.gltf/.obj 文件加载网格。
@@ -71,6 +72,7 @@ get_animation_info,,"Read animation details: length, loop mode, step, and per-tr
 get_animation_tree_structure,,"Read an AnimationTree structure: root node type, state machine states/transitions, or blend tree nodes.",读取 AnimationTree 结构：根节点类型、状态机状态/过渡或混合树节点。
 get_audio_bus_layout,,"Read the full AudioServer bus layout: names, volume, solo/mute, send, and per-bus effects with parameters.",读取完整的 AudioServer 总线布局：名称、音量、solo/mute、send 和每条总线的效果及参数。
 get_audio_info,,"List audio players under a node with stream, volume, bus, autoplay, and spatial properties.",列出节点下的音频播放器，包括流、音量、总线、自动播放和空间属性。
+get_autoload,,Read a project autoload singleton's properties and script path.,读取项目自动加载单例的属性和脚本路径。
 get_class_api_metadata,,Get typed API metadata for an engine ClassDB class or a project global script class.,获取引擎 ClassDB 类或项目全局脚本类的类型化 API 元数据。
 get_collision_info,,"Read collision shapes, raycasts, layers, and body settings from a physics node (including children).",读取物理节点的碰撞形状、射线、层和物理体设置（含子节点）。
 get_current_scene,,Get information about the currently open scene, including name, path, and root node type.,获取当前打开场景的信息，包括名称、路径和根节点类型。
@@ -90,6 +92,7 @@ get_editor_logs,,Get recent log messages from the editor or runtime. Supports fi
 get_editor_screenshot,,Capture a screenshot of the editor viewport and save it to a file.,截取编辑器视口的屏幕截图并保存到文件。
 get_editor_selection,,Read the current editor selection (top-level or all selected nodes).,读取当前编辑器选区（顶层或所有选中节点）。
 get_editor_state,,Get the current state of the Godot editor, including active scene and selection info.,获取 Godot 编辑器的当前状态，包括活动场景和选择信息。
+get_filesystem_tree,,"Return the project filesystem tree, optionally filtered by glob and depth-limited.",返回项目文件系统树，可选 glob 过滤和深度限制。
 get_import_metadata,,Get resource import metadata.,获取资源导入元数据。
 get_inspector_properties,,Inspect a node or resource and return property metadata and serialized values similar to the Inspector.,检查节点或资源并返回与检查器类似的属性元数据和序列化值。
 get_navigation_info,,"List navigation regions and agents under a node, including their properties and named layers.",列出节点下的导航区域和代理，包括其属性和命名层。
@@ -101,6 +104,7 @@ get_performance_metrics,,Get performance metrics from the editor or running game
 get_physics_layers,,"Read collision_layer and collision_mask from a physics node, including resolved layer names.",读取物理节点的 collision_layer 和 collision_mask，包括解析后的层名称。
 get_project_info,,Get general information about the Godot project, including name, version, and description.,获取 Godot 项目的总体信息，包括名称、版本和描述。
 get_project_settings,,Get project settings. Optionally filter by a prefix.,获取项目设置。可选择按前缀过滤。
+get_project_statistics,,"Collect project statistics: script, scene, resource, and image file counts by extension.",收集项目统计：按扩展名统计脚本、场景、资源和图像文件数量。
 get_project_structure,,Get project structure and file organization.,获取项目结构和文件组织。
 get_resource_dependencies,,Get resource dependencies.,获取资源依赖关系。
 get_resource_uid_info,,Get resource UID information.,获取资源 UID 信息。
@@ -151,12 +155,14 @@ open_scene,,Open a scene file from the project. Closes the current scene if one 
 open_script_at_line,,Open a script file at a specific line number in the Godot editor.,在 Godot 编辑器中的指定行号打开脚本文件。
 play_runtime_animation,,Play an animation in the running game.,播放运行中游戏中的动画。
 play_scene,,"Play the main scene, current scene, or a specific scene path.",播放主场景、当前场景或指定场景路径。
+project_path_to_uid,,Convert a project path to its resource UID string.,将项目路径转换为资源 UID 字符串。
 read_script,,Read the content of a GDScript file (.gd). Returns the complete script source code.,读取 GDScript 文件（.gd）的内容。返回完整的脚本源代码。
 read_shader,,Read a shader file's content.,读取着色器文件内容。
 reimport_resources,,Reimport project resources.,重新导入项目资源。
 reload_plugin,,Reload the Godot MCP plugin by disabling and re-enabling it. The MCP connection will briefly drop and reconnect.,通过禁用再启用重新加载 Godot MCP 插件。MCP 连接会短暂断开后重连。
 reload_project,,Rescan the project filesystem and reload scripts. Useful after external file changes.,重新扫描项目文件系统并重新加载脚本。适用于外部文件更改后。
 remove_animation,,Remove an animation from an AnimationPlayer node (undoable).,从 AnimationPlayer 节点移除动画（可撤销）。
+remove_autoload,,Remove an autoload singleton from ProjectSettings.,从 ProjectSettings 移除自动加载单例。
 remove_project_input_action,,Remove a project InputMap action from ProjectSettings and save project.godot.,从 ProjectSettings 中移除项目 InputMap 动作并保存 project.godot。
 remove_runtime_input_action,,Remove an input action from the running game.,从运行中的游戏中移除输入动作。
 remove_runtime_probe,,Remove a runtime probe.,移除运行时探针。
@@ -172,6 +178,7 @@ run_project_tests,,Discover and run multiple project tests from a directory. Reu
 save_scene,,Save the current scene to disk. If no path is provided, saves to the current scene's path.,将当前场景保存到磁盘。如果未提供路径，则保存到当前场景的路径。
 scan_cyclic_resource_dependencies,,Scan for cyclic resource dependencies.,扫描循环资源依赖。
 scan_missing_resource_dependencies,,Scan for missing resource dependencies.,扫描缺失的资源依赖。
+search_files,,Search for files by name (fuzzy or glob) under a path.,按名称（模糊或 glob）搜索路径下的文件。
 search_in_files,,Search for text in project files.,在项目文件中搜索文本。
 select_file,,Select a project file in the Godot FileSystem dock.,在 Godot 文件系统面板中选择一个项目文件。
 select_node,,Select a node in the current edited scene and focus it in the Inspector.,在当前编辑的场景中选择一个节点并在检查器中聚焦它。
@@ -192,6 +199,7 @@ set_node_groups,,Set groups for a node.,设置节点所属的组。
 set_particle_color_gradient,,"Set a color gradient on a GPUParticles node's material from an array of {offset, color} stops.","从 {offset, color} 停止点数组设置 GPUParticles 节点材质的颜色渐变。"
 set_particle_material,,"Configure the ParticleProcessMaterial of a GPUParticles node: direction, spread, velocity, gravity, scale, color, emission shape, damping.",配置 GPUParticles 节点的 ParticleProcessMaterial：方向、扩散、速度、重力、缩放、颜色、发射形状、阻尼。
 set_physics_layers,,Set collision_layer and/or collision_mask on a physics node. Accepts an integer bitmask or an array of layer numbers (1-32).,设置物理节点的 collision_layer 和/或 collision_mask。接受整数位掩码或层号数组（1-32）。
+set_project_setting,,Set a ProjectSettings value and save project.godot. Strings are type-inferred.,设置 ProjectSettings 值并保存 project.godot。字符串自动推断类型。
 set_runtime_animation_tree_active,,Set an animation tree active/inactive in the running game.,设置运行中游戏中动画树的活动/非活动状态。
 set_runtime_shader_parameter,,Set a shader parameter in the running game.,设置运行中游戏中的着色器参数。
 set_runtime_theme_override,,Set a theme override in the running game.,在运行中的游戏中设置主题覆盖。
@@ -223,6 +231,7 @@ tilemap_get_used_cells,,List used cells of a TileMapLayer or legacy TileMap laye
 tilemap_set_cell,,Set a cell on a TileMapLayer or legacy TileMap node (undoable).,在 TileMapLayer 或旧版 TileMap 节点上设置单元格（可撤销）。
 toggle_debugger_profiler,,Toggle an EngineProfiler in active Godot debugger sessions.,在活动的 Godot 调试器会话中切换引擎性能分析器。
 travel_runtime_animation_tree,,Travel to a new state in an animation tree in the running game.,在运行中游戏中导航到动画树的新状态。
+uid_to_project_path,,Convert a resource UID string to its project path.,将资源 UID 字符串转换为项目路径。
 update_node_property,,Update a property of a specific node. Supports common property types with automatic type conversion.,更新特定节点的属性。支持常见属性类型并自动进行类型转换。
 update_runtime_audio_bus,,Update an audio bus in the running game.,更新运行中游戏中的音频总线。
 update_runtime_node_property,,Update a node property in the running game.,更新运行中游戏中的节点属性。

@@ -49,6 +49,15 @@ func register_tools(server_core: RefCounted) -> void:
 	_register_scan_cyclic_resource_dependencies(server_core)
 	_register_detect_broken_scripts(server_core)
 	_register_audit_project_health(server_core)
+	_register_get_filesystem_tree(server_core)
+	_register_search_files(server_core)
+	_register_set_project_setting(server_core)
+	_register_uid_to_project_path(server_core)
+	_register_project_path_to_uid(server_core)
+	_register_add_autoload(server_core)
+	_register_remove_autoload(server_core)
+	_register_get_project_statistics(server_core)
+	_register_get_autoload(server_core)
 
 # ============================================================================
 # get_project_info - 获取项目信息
@@ -3172,3 +3181,454 @@ func _compare_named_entries(left: Dictionary, right: Dictionary) -> bool:
 
 func _sort_project_input_actions(left: Dictionary, right: Dictionary) -> bool:
 	return str(left.get("action_name", "")) < str(right.get("action_name", ""))
+
+# ============================================================================
+# Batch 13 - Project ops (filesystem tree/search/settings/uid/autoload/stats)
+# ============================================================================
+
+func _register_get_filesystem_tree(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"get_filesystem_tree",
+		"Return the project filesystem tree, optionally filtered by glob and depth-limited.",
+		{
+			"type": "object",
+			"properties": {
+				"path": {"type": "string", "description": "Root path. Default 'res://'."},
+				"filter": {"type": "string", "description": "Glob filter, e.g. '*.gd'."},
+				"max_depth": {"type": "integer", "description": "Max depth. Default 10."}
+			},
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_get_filesystem_tree"),
+		{
+			"type": "object",
+			"properties": {
+				"tree": {"type": "object"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Project-Advanced"
+	)
+
+func _scan_directory_tree(path: String, filter_text: String, max_depth: int, depth: int) -> Dictionary:
+	var result: Dictionary = {"name": path.get_file(), "path": path, "type": "directory"}
+	if depth >= max_depth:
+		return result
+	var dir := DirAccess.open(path)
+	if dir == null:
+		return result
+	var children: Array = []
+	dir.list_dir_begin()
+	var file_name: String = dir.get_next()
+	while not file_name.is_empty():
+		if file_name.begins_with("."):
+			file_name = dir.get_next()
+			continue
+		var full_path: String = path.path_join(file_name)
+		if dir.current_is_dir():
+			children.append(_scan_directory_tree(full_path, filter_text, max_depth, depth + 1))
+		else:
+			if filter_text.is_empty() or file_name.match(filter_text):
+				children.append({"name": file_name, "path": full_path, "type": "file"})
+		file_name = dir.get_next()
+	dir.list_dir_end()
+	if not children.is_empty():
+		result["children"] = children
+	return result
+
+func _tool_get_filesystem_tree(params: Dictionary) -> Dictionary:
+	var path: String = String(params.get("path", "res://"))
+	var filter_text: String = String(params.get("filter", ""))
+	var max_depth: int = int(params.get("max_depth", 10))
+	var tree: Dictionary = _scan_directory_tree(path, filter_text, max_depth, 0)
+	return {"tree": tree}
+
+func _register_search_files(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"search_files",
+		"Search for files by name (fuzzy or glob) under a path.",
+		{
+			"type": "object",
+			"properties": {
+				"query": {"type": "string"},
+				"path": {"type": "string", "description": "Search root. Default 'res://'."},
+				"file_type": {"type": "string", "description": "Extension filter, e.g. 'gd'."},
+				"max_results": {"type": "integer", "description": "Default 50."}
+			},
+			"required": ["query"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_search_files"),
+		{
+			"type": "object",
+			"properties": {
+				"matches": {"type": "array"},
+				"count": {"type": "integer"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Project-Advanced"
+	)
+
+func _search_files_recursive(path: String, query: String, file_type: String, matches: Array, max_results: int) -> void:
+	if matches.size() >= max_results:
+		return
+	var dir := DirAccess.open(path)
+	if dir == null:
+		return
+	dir.list_dir_begin()
+	var file_name: String = dir.get_next()
+	while not file_name.is_empty() and matches.size() < max_results:
+		if file_name.begins_with("."):
+			file_name = dir.get_next()
+			continue
+		var full_path: String = path.path_join(file_name)
+		if dir.current_is_dir():
+			_search_files_recursive(full_path, query, file_type, matches, max_results)
+		else:
+			if not file_type.is_empty() and file_name.get_extension() != file_type:
+				file_name = dir.get_next()
+				continue
+			if file_name.to_lower().contains(query.to_lower()) or file_name.match(query):
+				matches.append(full_path)
+		file_name = dir.get_next()
+	dir.list_dir_end()
+
+func _tool_search_files(params: Dictionary) -> Dictionary:
+	var query: String = String(params.get("query", ""))
+	if query.is_empty():
+		return {"error": "Missing required parameter: query"}
+	var path: String = String(params.get("path", "res://"))
+	var file_type: String = String(params.get("file_type", ""))
+	var max_results: int = int(params.get("max_results", 50))
+	var matches: Array = []
+	_search_files_recursive(path, query, file_type, matches, max_results)
+	return {"matches": matches, "count": matches.size()}
+
+func _register_set_project_setting(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"set_project_setting",
+		"Set a ProjectSettings value and save project.godot. Strings are type-inferred.",
+		{
+			"type": "object",
+			"properties": {
+				"key": {"type": "string"},
+				"value": {"type": "object", "description": "Value (auto type-inferred from strings)."}
+			},
+			"required": ["key", "value"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_set_project_setting"),
+		{
+			"type": "object",
+			"properties": {
+				"key": {"type": "string"},
+				"value": {"type": "string"},
+				"saved": {"type": "boolean"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Project-Advanced"
+	)
+
+func _tool_set_project_setting(params: Dictionary) -> Dictionary:
+	var key: String = String(params.get("key", ""))
+	if key.is_empty():
+		return {"error": "Missing required parameter: key"}
+	if not params.has("value"):
+		return {"error": "Missing required parameter: value"}
+	var value: Variant = params["value"]
+	if value is String:
+		var s: String = String(value)
+		if s.begins_with("Vector2("):
+			var expr := Expression.new()
+			if expr.parse(s) == OK:
+				var parsed: Variant = expr.execute()
+				if parsed is Vector2:
+					value = parsed
+		elif s == "true":
+			value = true
+		elif s == "false":
+			value = false
+		elif s.is_valid_int():
+			value = s.to_int()
+		elif s.is_valid_float():
+			value = s.to_float()
+
+	ProjectSettings.set_setting(key, value)
+	var err: Error = ProjectSettings.save()
+	if err != OK:
+		return {"error": "Failed to save project settings: " + error_string(err)}
+	return {"key": key, "value": str(ProjectSettings.get_setting(key)), "saved": true}
+
+func _register_uid_to_project_path(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"uid_to_project_path",
+		"Convert a resource UID string to its project path.",
+		{
+			"type": "object",
+			"properties": {
+				"uid": {"type": "string"}
+			},
+			"required": ["uid"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_uid_to_project_path"),
+		{
+			"type": "object",
+			"properties": {
+				"uid": {"type": "string"},
+				"path": {"type": "string"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Project-Advanced"
+	)
+
+func _tool_uid_to_project_path(params: Dictionary) -> Dictionary:
+	var uid_str: String = String(params.get("uid", ""))
+	if uid_str.is_empty():
+		return {"error": "Missing required parameter: uid"}
+	var uid: int = ResourceUID.text_to_id(uid_str)
+	if uid == ResourceUID.INVALID_ID:
+		return {"error": "Invalid UID format: " + uid_str}
+	if not ResourceUID.has_id(uid):
+		return {"error": "UID '" + uid_str + "' not found"}
+	var path: String = ResourceUID.get_id_path(uid)
+	return {"uid": uid_str, "path": path}
+
+func _register_project_path_to_uid(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"project_path_to_uid",
+		"Convert a project path to its resource UID string.",
+		{
+			"type": "object",
+			"properties": {
+				"path": {"type": "string"}
+			},
+			"required": ["path"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_project_path_to_uid"),
+		{
+			"type": "object",
+			"properties": {
+				"path": {"type": "string"},
+				"uid": {"type": "string"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Project-Advanced"
+	)
+
+func _tool_project_path_to_uid(params: Dictionary) -> Dictionary:
+	var path: String = String(params.get("path", ""))
+	if path.is_empty():
+		return {"error": "Missing required parameter: path"}
+	if not ResourceLoader.exists(path):
+		return {"error": "Resource at '" + path + "' not found"}
+	var uid: int = ResourceLoader.get_resource_uid(path)
+	if uid == ResourceUID.INVALID_ID:
+		return {"error": "No UID assigned to '" + path + "'"}
+	var uid_str: String = ResourceUID.id_to_text(uid)
+	return {"path": path, "uid": uid_str}
+
+func _register_add_autoload(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"add_autoload",
+		"Add an autoload singleton to ProjectSettings.",
+		{
+			"type": "object",
+			"properties": {
+				"name": {"type": "string"},
+				"path": {"type": "string", "description": "Script path (res://...)."}
+			},
+			"required": ["name", "path"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_add_autoload"),
+		{
+			"type": "object",
+			"properties": {
+				"name": {"type": "string"},
+				"path": {"type": "string"},
+				"added": {"type": "boolean"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false},
+		"supplementary", "Project-Advanced"
+	)
+
+func _tool_add_autoload(params: Dictionary) -> Dictionary:
+	var autoload_name: String = String(params.get("name", ""))
+	if autoload_name.is_empty():
+		return {"error": "Missing required parameter: name"}
+	var autoload_path: String = String(params.get("path", ""))
+	if autoload_path.is_empty():
+		return {"error": "Missing required parameter: path"}
+	if not FileAccess.file_exists(autoload_path):
+		return {"error": "File '" + autoload_path + "' not found"}
+	var setting_key: String = "autoload/" + autoload_name
+	if ProjectSettings.has_setting(setting_key):
+		return {"error": "Autoload '" + autoload_name + "' already exists", "current_value": str(ProjectSettings.get_setting(setting_key))}
+	ProjectSettings.set_setting(setting_key, "*" + autoload_path)
+	var err: Error = ProjectSettings.save()
+	if err != OK:
+		return {"error": "Failed to save project settings: " + error_string(err)}
+	return {"name": autoload_name, "path": autoload_path, "added": true}
+
+func _register_remove_autoload(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"remove_autoload",
+		"Remove an autoload singleton from ProjectSettings.",
+		{
+			"type": "object",
+			"properties": {
+				"name": {"type": "string"}
+			},
+			"required": ["name"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_remove_autoload"),
+		{
+			"type": "object",
+			"properties": {
+				"name": {"type": "string"},
+				"removed": {"type": "boolean"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": true, "idempotentHint": false, "openWorldHint": false},
+		"supplementary", "Project-Advanced"
+	)
+
+func _tool_remove_autoload(params: Dictionary) -> Dictionary:
+	var autoload_name: String = String(params.get("name", ""))
+	if autoload_name.is_empty():
+		return {"error": "Missing required parameter: name"}
+	var setting_key: String = "autoload/" + autoload_name
+	if not ProjectSettings.has_setting(setting_key):
+		return {"error": "Autoload '" + autoload_name + "' not found"}
+	ProjectSettings.set_setting(setting_key, null)
+	var err: Error = ProjectSettings.save()
+	if err != OK:
+		return {"error": "Failed to save project settings: " + error_string(err)}
+	return {"name": autoload_name, "removed": true}
+
+func _register_get_project_statistics(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"get_project_statistics",
+		"Collect project statistics: script, scene, resource, and image file counts by extension.",
+		{
+			"type": "object",
+			"properties": {
+				"include_addons": {"type": "boolean", "description": "Include addons directory. Default false."}
+			},
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_get_project_statistics"),
+		{
+			"type": "object",
+			"properties": {
+				"totals": {"type": "object"},
+				"breakdown": {"type": "object"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Project-Advanced"
+	)
+
+func _collect_statistics(path: String, include_addons: bool, totals: Dictionary, breakdown: Dictionary) -> void:
+	var dir := DirAccess.open(path)
+	if dir == null:
+		return
+	dir.list_dir_begin()
+	var file_name: String = dir.get_next()
+	while not file_name.is_empty():
+		if file_name.begins_with("."):
+			file_name = dir.get_next()
+			continue
+		var full_path: String = path.path_join(file_name)
+		if dir.current_is_dir():
+			if not include_addons and file_name == "addons":
+				file_name = dir.get_next()
+				continue
+			_collect_statistics(full_path, include_addons, totals, breakdown)
+		else:
+			var ext: String = file_name.get_extension().to_lower()
+			if ext.is_empty():
+				file_name = dir.get_next()
+				continue
+			totals["total_files"] = int(totals.get("total_files", 0)) + 1
+			# Categorize
+			var category: String = "other"
+			if ext in ["gd", "cs"]:
+				category = "scripts"
+			elif ext in ["tscn", "scn"]:
+				category = "scenes"
+			elif ext in ["tres", "res"]:
+				category = "resources"
+			elif ext in ["png", "jpg", "jpeg", "webp", "svg", "bmp"]:
+				category = "images"
+			totals[category] = int(totals.get(category, 0)) + 1
+			if not breakdown.has(ext):
+				breakdown[ext] = 0
+			breakdown[ext] = int(breakdown[ext]) + 1
+		file_name = dir.get_next()
+	dir.list_dir_end()
+
+func _tool_get_project_statistics(params: Dictionary) -> Dictionary:
+	var include_addons: bool = bool(params.get("include_addons", false))
+	var totals: Dictionary = {}
+	var breakdown: Dictionary = {}
+	_collect_statistics("res://", include_addons, totals, breakdown)
+	return {"totals": totals, "breakdown": breakdown}
+
+func _register_get_autoload(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"get_autoload",
+		"Read a project autoload singleton's properties and script path.",
+		{
+			"type": "object",
+			"properties": {
+				"name": {"type": "string"}
+			},
+			"required": ["name"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_get_autoload"),
+		{
+			"type": "object",
+			"properties": {
+				"name": {"type": "string"},
+				"path": {"type": "string"},
+				"type": {"type": "string"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Project-Advanced"
+	)
+
+func _tool_get_autoload(params: Dictionary) -> Dictionary:
+	var autoload_name: String = String(params.get("name", ""))
+	if autoload_name.is_empty():
+		return {"error": "Missing required parameter: name"}
+	var node: Node = null
+	if Engine.get_main_loop() is SceneTree:
+		var tree: SceneTree = Engine.get_main_loop() as SceneTree
+		node = tree.root.get_node_or_null(NodePath("/root/" + autoload_name))
+	if node == null:
+		# Fall back to ProjectSettings inspection
+		var setting_key: String = "autoload/" + autoload_name
+		if not ProjectSettings.has_setting(setting_key):
+			return {"error": "Autoload not found: " + autoload_name}
+		var setting: String = str(ProjectSettings.get_setting(setting_key))
+		return {"name": autoload_name, "path": setting.trim_prefix("*"), "type": "unknown", "from_settings": true}
+	var result: Dictionary = {
+		"name": autoload_name,
+		"path": str(node.get_path()),
+		"type": node.get_class(),
+	}
+	var script: Script = node.get_script()
+	if script:
+		result["script"] = script.resource_path
+	return result

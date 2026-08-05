@@ -241,6 +241,15 @@ func _build_classifications() -> void:
 		{"name": "stop_scene", "category": "supplementary", "group": "Scene-Advanced"},
 		{"name": "get_scene_file_content", "category": "supplementary", "group": "Scene-Advanced"},
 		{"name": "get_scene_exports", "category": "supplementary", "group": "Scene-Advanced"},
+		{"name": "get_filesystem_tree", "category": "supplementary", "group": "Project-Advanced"},
+		{"name": "search_files", "category": "supplementary", "group": "Project-Advanced"},
+		{"name": "set_project_setting", "category": "supplementary", "group": "Project-Advanced"},
+		{"name": "uid_to_project_path", "category": "supplementary", "group": "Project-Advanced"},
+		{"name": "project_path_to_uid", "category": "supplementary", "group": "Project-Advanced"},
+		{"name": "add_autoload", "category": "supplementary", "group": "Project-Advanced"},
+		{"name": "remove_autoload", "category": "supplementary", "group": "Project-Advanced"},
+		{"name": "get_project_statistics", "category": "supplementary", "group": "Project-Advanced"},
+		{"name": "get_autoload", "category": "supplementary", "group": "Project-Advanced"},
 	]
 
 	for item in classifications:

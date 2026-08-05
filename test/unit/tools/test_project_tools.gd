@@ -1,5 +1,15 @@
 extends "res://addons/gut/test.gd"
 
+var _project_tools: RefCounted = null
+
+func before_each() -> void:
+	_project_tools = load("res://addons/godot_mcp/tools/project_tools_native.gd").new()
+
+func after_each() -> void:
+	_project_tools = null
+	if Engine.has_meta("GodotMCPPlugin"):
+		Engine.remove_meta("GodotMCPPlugin")
+
 func test_project_info_format():
 	var result: Dictionary = {
 		"project_name": "Godot MCP Native",
@@ -140,3 +150,64 @@ func test_get_class_api_metadata_reports_missing_class():
 	var project_tools: RefCounted = load("res://addons/godot_mcp/tools/project_tools_native.gd").new()
 	var result: Dictionary = project_tools._tool_get_class_api_metadata({"class_name": "DefinitelyMissingClass123"})
 	assert_has(result, "error", "Missing classes should return an error payload")
+
+# --- Batch 13: project operations ---
+
+func test_get_filesystem_tree():
+	var result: Dictionary = _project_tools._tool_get_filesystem_tree({})
+	assert_true(result.has("tree"), "Should return tree")
+	assert_true(result["tree"].has("path"), "Tree root should have path")
+
+func test_search_files_requires_query():
+	var result: Dictionary = _project_tools._tool_search_files({})
+	assert_true(result.has("error"), "Missing query should error")
+
+func test_search_files_finds_own_file():
+	var result: Dictionary = _project_tools._tool_search_files({"query": "project_tools_native", "max_results": 5})
+	assert_true(result.get("count", 0) >= 1, "Should find project_tools_native.gd")
+
+func test_set_project_setting_requires_key():
+	var result: Dictionary = _project_tools._tool_set_project_setting({})
+	assert_true(result.has("error"), "Missing key should error")
+
+func test_set_project_setting_requires_value():
+	var result: Dictionary = _project_tools._tool_set_project_setting({"key": "test/key"})
+	assert_true(result.has("error"), "Missing value should error")
+
+func test_uid_to_project_path_requires_uid():
+	var result: Dictionary = _project_tools._tool_uid_to_project_path({})
+	assert_true(result.has("error"), "Missing uid should error")
+
+func test_uid_to_project_path_invalid():
+	var result: Dictionary = _project_tools._tool_uid_to_project_path({"uid": "uid://not_a_uid"})
+	assert_true(result.has("error"), "Invalid uid should error")
+
+func test_project_path_to_uid_requires_path():
+	var result: Dictionary = _project_tools._tool_project_path_to_uid({})
+	assert_true(result.has("error"), "Missing path should error")
+
+func test_add_autoload_requires_params():
+	var result: Dictionary = _project_tools._tool_add_autoload({})
+	assert_true(result.has("error"), "Missing params should error")
+
+func test_add_autoload_missing_file():
+	var result: Dictionary = _project_tools._tool_add_autoload({"name": "Test", "path": "res://nonexistent.gd"})
+	assert_true(result.has("error"), "Missing file should error")
+
+func test_remove_autoload_requires_name():
+	var result: Dictionary = _project_tools._tool_remove_autoload({})
+	assert_true(result.has("error"), "Missing name should error")
+
+func test_get_project_statistics():
+	var result: Dictionary = _project_tools._tool_get_project_statistics({})
+	assert_true(result.has("totals"), "Should return totals")
+	assert_true(result.has("breakdown"), "Should return breakdown")
+	assert_true(int(result["totals"].get("total_files", 0)) >= 1, "Should count files")
+
+func test_get_autoload_requires_name():
+	var result: Dictionary = _project_tools._tool_get_autoload({})
+	assert_true(result.has("error"), "Missing name should error")
+
+func test_get_autoload_unknown():
+	var result: Dictionary = _project_tools._tool_get_autoload({"name": "NonExistentAutoload"})
+	assert_true(result.has("error"), "Unknown autoload should error")
