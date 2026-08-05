@@ -170,5 +170,10 @@
   "bake_navigation_mesh": "Bake a NavigationRegion3D navigation mesh or build a NavigationRegion2D polygon from an outline or source geometry.",
   "setup_navigation_agent": "Create a NavigationAgent2D or NavigationAgent3D with pathfinding and avoidance settings.",
   "set_navigation_layers": "Set navigation_layers on a navigation region or agent. Accepts a bitmask, an array of layer numbers, or named layers from ProjectSettings.",
-  "get_navigation_info": "List navigation regions and agents under a node, including their properties and named layers."
+  "get_navigation_info": "List navigation regions and agents under a node, including their properties and named layers.",
+  "create_particles": "Create a GPUParticles2D or GPUParticles3D node with amount, lifetime, one_shot, explosiveness, and randomness settings.",
+  "set_particle_material": "Configure the ParticleProcessMaterial of a GPUParticles node: direction, spread, velocity, gravity, scale, color, emission shape, damping.",
+  "set_particle_color_gradient": "Set a color gradient on a GPUParticles node's material from an array of {offset, color} stops.",
+  "apply_particle_preset": "Apply a predefined particle preset: explosion, fire, smoke, sparks, rain, snow, magic, or dust.",
+  "get_particle_info": "Read GPUParticles node state: amount, lifetime, one_shot, explosiveness, randomness, emitting, and material properties."
 }

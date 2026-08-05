@@ -182,6 +182,11 @@ func _build_classifications() -> void:
 		{"name": "setup_navigation_agent", "category": "supplementary", "group": "World"},
 		{"name": "set_navigation_layers", "category": "supplementary", "group": "World"},
 		{"name": "get_navigation_info", "category": "supplementary", "group": "World"},
+		{"name": "create_particles", "category": "supplementary", "group": "World"},
+		{"name": "set_particle_material", "category": "supplementary", "group": "World"},
+		{"name": "set_particle_color_gradient", "category": "supplementary", "group": "World"},
+		{"name": "apply_particle_preset", "category": "supplementary", "group": "World"},
+		{"name": "get_particle_info", "category": "supplementary", "group": "World"},
 	]
 
 	for item in classifications:

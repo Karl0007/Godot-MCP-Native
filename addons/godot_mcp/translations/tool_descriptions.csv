@@ -5,6 +5,7 @@ add_mesh_instance,,"Create a MeshInstance3D with a primitive mesh (box, sphere, 
 add_raycast,,"Add a RayCast2D or RayCast3D to a node with configurable target position, collision mask, and hit settings.",向节点添加 RayCast2D 或 RayCast3D，支持目标位置、碰撞掩码和命中设置。
 add_resource,,Add a resource child node to a target node.,向目标节点添加资源子节点。
 analyze_script,,Analyze a GDScript file and report code quality issues.,分析 GDScript 文件并报告代码质量问题。
+apply_particle_preset,,"Apply a predefined particle preset: explosion, fire, smoke, sparks, rain, snow, magic, or dust.",应用预定义粒子预设：explosion、fire、smoke、sparks、rain、snow、magic 或 dust。
 assert_runtime_condition,,Assert a condition in the running game.,在运行中游戏中断言一个条件。
 attach_script,,Attach a script to a node.,将脚本附加到节点。
 audit_project_health,,Audit project health and integrity.,审计项目健康和完整性。
@@ -23,6 +24,7 @@ close_scene_tab,,Close the active scene tab, or activate a specified scene tab a
 compare_render_screenshots,,Compare two screenshot images and report pixel differences, RMSE, and threshold-based match status.,比较两张截图图像并报告像素差异、RMSE 和基于阈值的匹配状态。
 connect_signal,,Connect a signal from one node to another.,将一个节点的信号连接到另一个节点。
 create_node,,Create a new node in the Godot scene tree. Returns the node path and type.,在 Godot 场景树中创建新节点。返回节点路径和类型。
+create_particles,,"Create a GPUParticles2D or GPUParticles3D node with amount, lifetime, one_shot, explosiveness, and randomness settings.",创建 GPUParticles2D 或 GPUParticles3D 节点，支持数量、寿命、one_shot、爆发力和随机性设置。
 create_resource,,Create a new Godot resource file (.tres). Supports common resource types.,创建新的 Godot 资源文件（.tres）。支持常见的资源类型。
 create_runtime_node,,Create a node in the running game.,在运行中的游戏中创建节点。
 create_scene,,Create a new Godot scene with a root node. The scene is saved to the specified path.,创建一个新的 Godot 场景并包含根节点。场景保存到指定路径。
@@ -71,6 +73,7 @@ get_inspector_properties,,Inspect a node or resource and return property metadat
 get_navigation_info,,"List navigation regions and agents under a node, including their properties and named layers.",列出节点下的导航区域和代理，包括其属性和命名层。
 get_node_groups,,Get groups that a node belongs to.,获取节点所属的组。
 get_node_properties,,Get all properties of a specific node in the scene tree.,获取场景树中特定节点的所有属性。
+get_particle_info,,"Read GPUParticles node state: amount, lifetime, one_shot, explosiveness, randomness, emitting, and material properties.",读取 GPUParticles 节点状态：数量、寿命、one_shot、爆发力、随机性、发射状态和材质属性。
 get_performance_metrics,,Get performance metrics from the editor or running game.,从编辑器或运行中的游戏获取性能指标。
 get_physics_layers,,"Read collision_layer and collision_mask from a physics node, including resolved layer names.",读取物理节点的 collision_layer 和 collision_mask，包括解析后的层名称。
 get_project_info,,Get general information about the Godot project, including name, version, and description.,获取 Godot 项目的总体信息，包括名称、版本和描述。
@@ -146,6 +149,8 @@ set_editor_setting,,Set an editor setting value. Requires editor restart for som
 set_material_3d,,"Create or update a StandardMaterial3D on a MeshInstance3D surface with PBR parameters (albedo, metallic, roughness, emission, transparency, cull mode).",在 MeshInstance3D 表面创建或更新 StandardMaterial3D，支持 PBR 参数（albedo/metallic/roughness/emission/transparency/cull mode）。
 set_navigation_layers,,"Set navigation_layers on a navigation region or agent. Accepts a bitmask, an array of layer numbers, or named layers from ProjectSettings.",设置导航区域或代理的 navigation_layers。接受位掩码、层号数组或 ProjectSettings 中的命名层。
 set_node_groups,,Set groups for a node.,设置节点所属的组。
+set_particle_color_gradient,,"Set a color gradient on a GPUParticles node's material from an array of {offset, color} stops.","从 {offset, color} 停止点数组设置 GPUParticles 节点材质的颜色渐变。"
+set_particle_material,,"Configure the ParticleProcessMaterial of a GPUParticles node: direction, spread, velocity, gravity, scale, color, emission shape, damping.",配置 GPUParticles 节点的 ParticleProcessMaterial：方向、扩散、速度、重力、缩放、颜色、发射形状、阻尼。
 set_physics_layers,,Set collision_layer and/or collision_mask on a physics node. Accepts an integer bitmask or an array of layer numbers (1-32).,设置物理节点的 collision_layer 和/或 collision_mask。接受整数位掩码或层号数组（1-32）。
 set_runtime_animation_tree_active,,Set an animation tree active/inactive in the running game.,设置运行中游戏中动画树的活动/非活动状态。
 set_runtime_shader_parameter,,Set a shader parameter in the running game.,设置运行中游戏中的着色器参数。

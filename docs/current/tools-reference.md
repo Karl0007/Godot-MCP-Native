@@ -29,7 +29,7 @@ Godot MCP Native 实现了 **161 个工具**，分为 7 大类（含核心和补
 | [Editor Tools](#editor-tools) | 4 | 12 | 16 | `editor_tools_native.gd` | 编辑器操作（运行、停止、状态、截图、信号、导出、选择） |
 | [Debug Tools](#debug-tools) | 3 | 68 | 71 | `debug_tools_native.gd` | 调试和运行时（日志、断点、栈帧、Profiler、运行时探针、动画、音频、着色器、瓦片地图） |
 | [Project Tools](#project-tools) | 3 | 23 | 26 | `project_tools_native.gd` | 项目配置（信息、设置、测试、输入映射、自动加载、全局类、资源诊断） |
-| [World Tools](#world-tools) | 0 | 17 | 17 | `world_tools_native.gd` | 3D 场景构建、物理与导航（网格、光照、材质、环境、相机、GridMap、碰撞、物理层、射线、导航区域、寻路代理） |
+| [World Tools](#world-tools) | 0 | 22 | 22 | `world_tools_native.gd` | 3D 场景构建、物理、导航与粒子（网格、光照、材质、环境、相机、GridMap、碰撞、物理层、射线、导航区域、寻路代理、GPU 粒子） |
 
 ### Vibe Coding / 免打扰模式
 
@@ -3924,7 +3924,7 @@ Continue：恢复执行。
 
 ## World Tools
 
-3D 场景构建、物理与导航工具（批次 1-3，共 17 个补充工具），源文件 `world_tools_native.gd`。
+3D 场景构建、物理、导航与粒子工具（批次 1-4，共 22 个补充工具），源文件 `world_tools_native.gd`。
 
 ### 156. add_mesh_instance
 
@@ -4182,6 +4182,63 @@ Continue：恢复执行。
 
 **注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
 
+### 173. create_particles
+
+创建 GPUParticles2D / GPUParticles3D。
+
+**参数**：
+| 参数 | 类型 | 必需 | 描述 |
+|------|------|------|------|
+| `parent_path` | string | 否 | 父节点路径，默认 `.` |
+| `name` | string | 否 | 节点名，默认 `Particles` |
+| `is_3d` | boolean | 否 | 创建 3D 粒子，默认 false（2D） |
+| `amount` | int | 否 | 粒子数，默认 16 |
+| `lifetime` | number | 否 | 寿命（秒），默认 1.0 |
+| `one_shot` / `explosiveness` / `randomness` | 多种 | 否 | 发射行为 |
+| `emitting` | boolean | 否 | 开始发射，默认 true |
+
+**返回值**：`name`、`parent`、`is_3d`、`amount`、`lifetime`、`one_shot`、`created`
+
+### 174. set_particle_material
+
+配置粒子材质（方向/扩散/速度/重力/缩放/颜色/发射形状/阻尼）。
+
+**参数**：`node_path`（是）、`direction`、`spread`、`initial_velocity_min/max`、`gravity`、`scale_min/max`、`color`、`emission_shape`（point/sphere/sphere_surface/box/ring）、`emission_*` 参数、`angular_velocity_*`、`orbit_velocity_*`、`damping_min/max`、`attractor_interaction_enabled`
+
+**返回值**：`node_path`、`changes`（已应用属性列表）
+
+**注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 175. set_particle_color_gradient
+
+从 `{offset, color}` 停止点数组设置颜色渐变。
+
+**参数**：`node_path`（是）、`stops`（是，数组）
+
+**返回值**：`node_path`、`stops_count`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 176. apply_particle_preset
+
+应用预定义粒子预设。
+
+**参数**：`node_path`（是）、`preset`（是，`explosion`/`fire`/`smoke`/`sparks`/`rain`/`snow`/`magic`/`dust`）
+
+**返回值**：`node_path`、`preset`、`applied`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 177. get_particle_info
+
+读取粒子节点状态与材质属性。
+
+**参数**：`node_path`（是）
+
+**返回值**：`node_path`、`type`、`amount`、`lifetime`、`one_shot`、`explosiveness`、`randomness`、`emitting`、`material`（含 `color_ramp`）
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
 ## 通用数据类型
 
 ### Vector2
@@ -4281,7 +4338,7 @@ Continue：恢复执行。
 
 ## 总结
 
-本手册详细说明了 Godot MCP Native 项目的所有核心工具及部分补充工具。项目共 **172 个工具**（30 核心 + 142 补充），所有工具均可通过 MCP 工具管理面板按分组动态启用/禁用。补充工具（`*-Advanced` 分组）默认不启用，需在工具管理面板中手动开启。
+本手册详细说明了 Godot MCP Native 项目的所有核心工具及部分补充工具。项目共 **177 个工具**（30 核心 + 147 补充），所有工具均可通过 MCP 工具管理面板按分组动态启用/禁用。补充工具（`*-Advanced` 分组）默认不启用，需在工具管理面板中手动开启。
 
 **提示**：
 - 使用 `tools/list` 方法获取所有工具的实时列表和完整 JSON Schema

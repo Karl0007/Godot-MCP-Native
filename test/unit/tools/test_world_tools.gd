@@ -136,10 +136,11 @@ func test_register_tools_registers_all_twelve():
 	server_core.register_tool = func(name: String, desc: String, schema: Dictionary, cb: Callable, out: Dictionary = {}, ann: Dictionary = {}, cat: String = "core", group: String = "") -> void:
 		registered.append(name)
 	_world_tools.register_tools(server_core)
-	assert_eq(registered.size(), 17, "Should register exactly 17 tools")
+	assert_eq(registered.size(), 22, "Should register exactly 22 tools")
 	for name in ["add_mesh_instance", "setup_lighting", "set_material_3d", "setup_environment", "setup_camera_3d", "add_gridmap",
 			"setup_collision", "set_physics_layers", "get_physics_layers", "add_raycast", "setup_physics_body", "get_collision_info",
-			"setup_navigation_region", "bake_navigation_mesh", "setup_navigation_agent", "set_navigation_layers", "get_navigation_info"]:
+			"setup_navigation_region", "bake_navigation_mesh", "setup_navigation_agent", "set_navigation_layers", "get_navigation_info",
+			"create_particles", "set_particle_material", "set_particle_color_gradient", "apply_particle_preset", "get_particle_info"]:
 		assert_true(name in registered, name + " should be registered")
 
 # --- Physics (Batch 2) ---
@@ -255,3 +256,57 @@ func test_is_3d_context_node2d():
 	var node := Node2D.new()
 	assert_false(_world_tools._is_3d_context(node), "Node2D should be 2D context")
 	node.free()
+
+# --- Particles (Batch 4) ---
+
+func test_create_particles_no_scene():
+	var result: Dictionary = _world_tools._tool_create_particles({})
+	assert_true(result.has("error"), "No open scene should error")
+
+func test_create_particles_output_format():
+	var result: Dictionary = _world_tools._tool_create_particles({})
+	if result.has("error"):
+		pass_test("Headless: expected error without editor interface")
+	else:
+		assert_has(result, "created", "Success should include created")
+		assert_has(result, "is_3d", "Success should include is_3d")
+
+func test_set_particle_material_requires_node_path():
+	var result: Dictionary = _world_tools._tool_set_particle_material({})
+	assert_true(result.has("error"), "Missing node_path should error")
+
+func test_set_particle_material_no_scene():
+	var result: Dictionary = _world_tools._tool_set_particle_material({"node_path": "/root/Particles"})
+	assert_true(result.has("error"), "No open scene should error")
+
+func test_set_particle_color_gradient_requires_stops():
+	var result: Dictionary = _world_tools._tool_set_particle_color_gradient({"node_path": "/root/Particles"})
+	assert_true(result.has("error"), "Missing stops should error")
+
+func test_set_particle_color_gradient_empty_stops():
+	var result: Dictionary = _world_tools._tool_set_particle_color_gradient({"node_path": "/root/Particles", "stops": []})
+	assert_true(result.has("error"), "Empty stops should error")
+
+func test_apply_particle_preset_requires_preset():
+	var result: Dictionary = _world_tools._tool_apply_particle_preset({"node_path": "/root/Particles"})
+	assert_true(result.has("error"), "Missing preset should error")
+
+func test_apply_particle_preset_unknown():
+	var result: Dictionary = _world_tools._tool_apply_particle_preset({"node_path": "/root/Particles", "preset": "laser"})
+	assert_true(result.has("error"), "Unknown preset should error")
+
+func test_get_particle_info_no_scene():
+	var result: Dictionary = _world_tools._tool_get_particle_info({"node_path": "/root/Particles"})
+	assert_true(result.has("error"), "No open scene should error")
+
+func test_parse_color_value_hex():
+	var color: Color = _world_tools._parse_color_value("#ff0000")
+	assert_eq(color.to_html(), "ff0000ff", "Hex color should parse")
+
+func test_parse_color_value_named():
+	var color: Color = _world_tools._parse_color_value("red")
+	assert_eq(color.to_html(), "ff0000ff", "Named color should parse")
+
+func test_parse_color_value_invalid_defaults_white():
+	var color: Color = _world_tools._parse_color_value("notacolor")
+	assert_eq(color.to_html(), "ffffffff", "Invalid color should default to white")
