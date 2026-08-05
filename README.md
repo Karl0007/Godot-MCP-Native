@@ -66,6 +66,26 @@ agent the CLI workflow. Copy [skills/gdmcp/](https://github.com/yurineko73/Godot
 2. Locate "Godot MCP Native" in the list
 3. Set the status to **Enable**
 
+### One-Click Bootstrap (scripts/gdmcp-bootstrap.ps1)
+
+For agents or users who want the Pro-style workflow without reading the full README,
+a PowerShell bootstrap script wraps install / start / doctor:
+
+```powershell
+# Install the plugin into a project (copies addons/, writes [editor_plugins], records port)
+.\scripts\gdmcp-bootstrap.ps1 install -ProjectPath C:\MyGame -Port 9080
+
+# Launch the editor with the MCP server on the recorded port
+.\scripts\gdmcp-bootstrap.ps1 start -ProjectPath C:\MyGame -Port 9080
+
+# Status check: Godot found, plugin installed+enabled, probe autoload, port listening
+.\scripts\gdmcp-bootstrap.ps1 doctor -ProjectPath C:\MyGame -Port 9080
+```
+
+`doctor` prints a pass/fail line per check and actionable next steps on failure
+(missing Godot exe -> set `-GodotExe`/`GODOT4_BIN`; plugin missing -> run install;
+port free -> run start). Each command is idempotent.
+
 ### Enabling Supplementary Tools
 
 The plugin registers **278 tools** but only **33 core tools** appear in `tools/list` by

@@ -13,6 +13,14 @@
 - **Visual Studio Code** 或其他代码编辑器
 - **Claude Desktop** (用于测试 MCP 集成)
 
+> **一键路径（Windows）**：不用逐步操作，直接
+> ```powershell
+> .\scripts\gdmcp-bootstrap.ps1 install -ProjectPath C:\MyGame
+> .\scripts\gdmcp-bootstrap.ps1 start -ProjectPath C:\MyGame
+> .\scripts\gdmcp-bootstrap.ps1 doctor -ProjectPath C:\MyGame
+> ```
+> `install` 复制插件并启用，`start` 启动带 MCP 的编辑器，`doctor` 检查状态并给出下一步指引。
+
 ## 步骤 1: 克隆项目
 
 ```bash

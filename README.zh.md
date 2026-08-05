@@ -64,6 +64,23 @@ gdmcp --json nodes properties set /root/Player --property speed --value 300
 2. 在列表中找到 "Godot MCP Native"
 3. 将状态设置为 **启用**
 
+### 一键引导（scripts/gdmcp-bootstrap.ps1）
+
+不想读完整 README 的 Agent 或用户，可以用 PowerShell 引导脚本完成安装/启动/状态检查：
+
+```powershell
+# 安装插件到项目（复制 addons/、写入 [editor_plugins]、记录端口）
+.\scripts\gdmcp-bootstrap.ps1 install -ProjectPath C:\MyGame -Port 9080
+
+# 启动带 MCP 服务器的编辑器
+.\scripts\gdmcp-bootstrap.ps1 start -ProjectPath C:\MyGame -Port 9080
+
+# 状态检查：Godot 是否存在、插件是否安装并启用、probe 自动加载、端口是否监听
+.\scripts\gdmcp-bootstrap.ps1 doctor -ProjectPath C:\MyGame -Port 9080
+```
+
+`doctor` 逐项输出通过/失败及失败时的下一步指引（Godot 缺失 → 设置 `-GodotExe`/`GODOT4_BIN`；插件缺失 → 运行 install；端口空闲 → 运行 start）。所有命令幂等。
+
 ### 启用补充工具
 
 插件注册了 **278 个工具**，但 `tools/list` 默认只返回 **33 个核心工具**。其余 **245 个补充工具**（运行时探针、3D 场景、媒体编辑、导出、分析、批量操作等）默认禁用，需要手动启用：
