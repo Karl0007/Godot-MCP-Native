@@ -201,6 +201,12 @@ func _build_classifications() -> void:
 		{"name": "remove_state_machine_transition", "category": "supplementary", "group": "Media-Animation"},
 		{"name": "set_blend_tree_node", "category": "supplementary", "group": "Media-Animation"},
 		{"name": "set_tree_parameter", "category": "supplementary", "group": "Media-Animation"},
+		{"name": "get_audio_bus_layout", "category": "supplementary", "group": "Media-Audio"},
+		{"name": "add_audio_bus", "category": "supplementary", "group": "Media-Audio"},
+		{"name": "set_audio_bus", "category": "supplementary", "group": "Media-Audio"},
+		{"name": "add_audio_bus_effect", "category": "supplementary", "group": "Media-Audio"},
+		{"name": "add_audio_player", "category": "supplementary", "group": "Media-Audio"},
+		{"name": "get_audio_info", "category": "supplementary", "group": "Media-Audio"},
 	]
 
 	for item in classifications:

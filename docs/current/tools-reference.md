@@ -31,7 +31,7 @@ Godot MCP Native 实现了 **161 个工具**，分为 7 大类（含核心和补
 | [Debug Tools](#debug-tools) | 3 | 68 | 71 | `debug_tools_native.gd` | 调试和运行时（日志、断点、栈帧、Profiler、运行时探针、动画、音频、着色器、瓦片地图） |
 | [Project Tools](#project-tools) | 3 | 23 | 26 | `project_tools_native.gd` | 项目配置（信息、设置、测试、输入映射、自动加载、全局类、资源诊断） |
 | [World Tools](#world-tools) | 0 | 22 | 22 | `world_tools_native.gd` | 3D 场景构建、物理、导航与粒子（网格、光照、材质、环境、相机、GridMap、碰撞、物理层、射线、导航区域、寻路代理、GPU 粒子） |
-| [Media Tools](#media-tools) | 0 | 14 | 14 | `media_tools_native.gd` | 动画与动画树编辑（创建/轨道/关键帧/状态机/混合树/参数） |
+| [Media Tools](#media-tools) | 0 | 20 | 20 | `media_tools_native.gd` | 动画、动画树与音频编辑（创建/轨道/关键帧/状态机/混合树/音频总线/播放器） |
 
 ### Vibe Coding / 免打扰模式
 
@@ -4243,7 +4243,7 @@ Continue：恢复执行。
 
 ## Media Tools
 
-动画与动画树编辑工具（批次 5-6，共 14 个补充工具），源文件 `media_tools_native.gd`。
+动画、动画树与音频编辑工具（批次 5-7，共 20 个补充工具），源文件 `media_tools_native.gd`。
 
 ### 178. list_animations
 
@@ -4374,6 +4374,60 @@ Continue：恢复执行。
 
 **注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
 
+### 192. get_audio_bus_layout
+
+读取 AudioServer 总线布局（含效果参数）。
+
+**参数**：无
+
+**返回值**：`bus_count`、`buses`（含 index/name/volume_db/solo/mute/bypass_effects/send/effects[type/params]）
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 193. add_audio_bus
+
+添加音频总线。
+
+**参数**：`name`（是）、`at_position`（否）、`volume_db`（否）、`send`（否）、`solo`（否）、`mute`（否）
+
+**返回值**：`name`、`index`、`bus_count`
+
+### 194. set_audio_bus
+
+更新总线属性。
+
+**参数**：`name`（是）、`volume_db`/`solo`/`mute`/`bypass_effects`/`send`/`rename`（否）
+
+**返回值**：`name`、`index`、`changes`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 195. add_audio_bus_effect
+
+向总线添加效果。
+
+**参数**：`bus`（是）、`effect_type`（是，reverb/chorus/delay/compressor/limiter/phaser/distortion/lowpassfilter/highpassfilter/bandpassfilter/amplify/eq）、`params`（否，效果参数字典）、`at_position`（否）
+
+**返回值**：`bus`、`bus_index`、`effect_type`、`effect_index`
+
+### 196. add_audio_player
+
+添加音频播放器节点。
+
+**参数**：`node_path`（是）、`name`（是）、`type`（否，AudioStreamPlayer/2D/3D）、`stream`（否）、`volume_db`（否）、`bus`（否）、`autoplay`（否）、`max_distance`/`attenuation`/`unit_size`（否，空间参数）
+
+**返回值**：`name`、`type`、`parent`、`stream`、`bus`、`volume_db`、`autoplay`
+
+### 197. get_audio_info
+
+列出节点下的音频播放器。
+
+**参数**：`node_path`（是）
+
+**返回值**：`node_path`、`audio_player_count`、`players`（含 stream/volume_db/bus/autoplay/playing/空间属性）
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
 ## 通用数据类型
 
 ### Vector2
@@ -4473,7 +4527,7 @@ Continue：恢复执行。
 
 ## 总结
 
-本手册详细说明了 Godot MCP Native 项目的所有核心工具及部分补充工具。项目共 **191 个工具**（30 核心 + 161 补充），所有工具均可通过 MCP 工具管理面板按分组动态启用/禁用。补充工具（`*-Advanced` 分组）默认不启用，需在工具管理面板中手动开启。
+本手册详细说明了 Godot MCP Native 项目的所有核心工具及部分补充工具。项目共 **197 个工具**（30 核心 + 167 补充），所有工具均可通过 MCP 工具管理面板按分组动态启用/禁用。补充工具（`*-Advanced` 分组）默认不启用，需在工具管理面板中手动开启。
 
 **提示**：
 - 使用 `tools/list` 方法获取所有工具的实时列表和完整 JSON Schema

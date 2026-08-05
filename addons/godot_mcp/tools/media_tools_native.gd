@@ -87,6 +87,12 @@ func register_tools(server_core: RefCounted) -> void:
 	_register_remove_state_machine_transition(server_core)
 	_register_set_blend_tree_node(server_core)
 	_register_set_tree_parameter(server_core)
+	_register_get_audio_bus_layout(server_core)
+	_register_add_audio_bus(server_core)
+	_register_set_audio_bus(server_core)
+	_register_add_audio_bus_effect(server_core)
+	_register_add_audio_player(server_core)
+	_register_get_audio_info(server_core)
 
 # ============================================================================
 # list_animations
@@ -1267,4 +1273,551 @@ func _register_set_tree_parameter(server_core: RefCounted) -> void:
 		},
 		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
 		"supplementary", "Media-Animation"
+	)
+
+# ============================================================================
+# Audio tools (Batch 7)
+# ============================================================================
+
+func _get_effect_params(effect: AudioEffect) -> Dictionary:
+	var params: Dictionary = {}
+	if effect is AudioEffectReverb:
+		var rev := effect as AudioEffectReverb
+		params = {"room_size": rev.room_size, "damping": rev.damping, "wet": rev.wet, "dry": rev.dry, "spread": rev.spread}
+	elif effect is AudioEffectDelay:
+		var d := effect as AudioEffectDelay
+		params = {"tap1_active": d.tap1_active, "tap1_delay_ms": d.tap1_delay_ms, "tap1_level_db": d.tap1_level_db, "tap2_active": d.tap2_active, "tap2_delay_ms": d.tap2_delay_ms, "tap2_level_db": d.tap2_level_db}
+	elif effect is AudioEffectCompressor:
+		var c := effect as AudioEffectCompressor
+		params = {"threshold": c.threshold, "ratio": c.ratio, "attack_us": c.attack_us, "release_ms": c.release_ms, "gain": c.gain, "mix": c.mix, "sidechain": c.sidechain}
+	elif effect is AudioEffectLimiter:
+		var l := effect as AudioEffectLimiter
+		params = {"ceiling_db": l.ceiling_db, "threshold_db": l.threshold_db, "soft_clip_db": l.soft_clip_db, "soft_clip_ratio": l.soft_clip_ratio}
+	elif effect is AudioEffectDistortion:
+		var dist := effect as AudioEffectDistortion
+		params = {"mode": dist.mode, "pre_gain": dist.pre_gain, "post_gain": dist.post_gain, "keep_hf_hz": dist.keep_hf_hz, "drive": dist.drive}
+	elif effect is AudioEffectChorus:
+		var ch := effect as AudioEffectChorus
+		params = {"voice_count": ch.voice_count, "dry": ch.dry, "wet": ch.wet}
+	elif effect is AudioEffectPhaser:
+		var ph := effect as AudioEffectPhaser
+		params = {"range_min_hz": ph.range_min_hz, "range_max_hz": ph.range_max_hz, "rate_hz": ph.rate_hz, "feedback": ph.feedback, "depth": ph.depth}
+	elif effect is AudioEffectFilter:
+		var f := effect as AudioEffectFilter
+		params = {"cutoff_hz": f.cutoff_hz, "resonance": f.resonance, "gain": f.gain, "db": f.db}
+	elif effect is AudioEffectAmplify:
+		var a := effect as AudioEffectAmplify
+		params = {"volume_db": a.volume_db}
+	return params
+
+func _tool_get_audio_bus_layout(params: Dictionary) -> Dictionary:
+	var buses: Array = []
+	for i in range(AudioServer.bus_count):
+		var bus_data: Dictionary = {
+			"index": i,
+			"name": AudioServer.get_bus_name(i),
+			"volume_db": AudioServer.get_bus_volume_db(i),
+			"solo": AudioServer.is_bus_solo(i),
+			"mute": AudioServer.is_bus_mute(i),
+			"bypass_effects": AudioServer.is_bus_bypassing_effects(i),
+			"send": AudioServer.get_bus_send(i),
+			"effects": [],
+		}
+		var effects: Array = []
+		for j in range(AudioServer.get_bus_effect_count(i)):
+			var effect: AudioEffect = AudioServer.get_bus_effect(i, j)
+			var effect_data: Dictionary = {
+				"index": j,
+				"type": effect.get_class(),
+				"enabled": AudioServer.is_bus_effect_enabled(i, j),
+			}
+			effect_data["params"] = _get_effect_params(effect)
+			effects.append(effect_data)
+		bus_data["effects"] = effects
+		buses.append(bus_data)
+	return {"bus_count": AudioServer.bus_count, "buses": buses}
+
+func _tool_add_audio_bus(params: Dictionary) -> Dictionary:
+	var bus_name: String = String(params.get("name", ""))
+	if bus_name.is_empty():
+		return {"error": "Missing required parameter: name"}
+	for i in range(AudioServer.bus_count):
+		if AudioServer.get_bus_name(i) == bus_name:
+			return {"error": "Audio bus '" + bus_name + "' already exists at index " + str(i)}
+
+	var at_position: int = int(params.get("at_position", -1))
+	AudioServer.add_bus(at_position)
+	var idx: int = AudioServer.bus_count - 1 if at_position < 0 else at_position
+	AudioServer.set_bus_name(idx, bus_name)
+	if params.has("volume_db"):
+		AudioServer.set_bus_volume_db(idx, float(params["volume_db"]))
+	var send: String = String(params.get("send", ""))
+	if not send.is_empty():
+		AudioServer.set_bus_send(idx, send)
+	if params.has("solo"):
+		AudioServer.set_bus_solo(idx, bool(params["solo"]))
+	if params.has("mute"):
+		AudioServer.set_bus_mute(idx, bool(params["mute"]))
+	return {"name": bus_name, "index": idx, "bus_count": AudioServer.bus_count}
+
+func _tool_set_audio_bus(params: Dictionary) -> Dictionary:
+	var bus_name: String = String(params.get("name", ""))
+	if bus_name.is_empty():
+		return {"error": "Missing required parameter: name"}
+	var idx: int = AudioServer.get_bus_index(bus_name)
+	if idx < 0:
+		return {"error": "Audio bus '" + bus_name + "' not found"}
+
+	var changes := 0
+	if params.has("volume_db"):
+		AudioServer.set_bus_volume_db(idx, float(params["volume_db"]))
+		changes += 1
+	if params.has("solo"):
+		AudioServer.set_bus_solo(idx, bool(params["solo"]))
+		changes += 1
+	if params.has("mute"):
+		AudioServer.set_bus_mute(idx, bool(params["mute"]))
+		changes += 1
+	if params.has("bypass_effects"):
+		AudioServer.set_bus_bypass_effects(idx, bool(params["bypass_effects"]))
+		changes += 1
+	var send: String = String(params.get("send", ""))
+	if not send.is_empty():
+		AudioServer.set_bus_send(idx, send)
+		changes += 1
+	if params.has("rename"):
+		var new_name: String = str(params["rename"])
+		AudioServer.set_bus_name(idx, new_name)
+		bus_name = new_name
+		changes += 1
+	return {"name": bus_name, "index": idx, "changes": changes}
+
+func _tool_add_audio_bus_effect(params: Dictionary) -> Dictionary:
+	var bus_name: String = String(params.get("bus", ""))
+	if bus_name.is_empty():
+		return {"error": "Missing required parameter: bus"}
+	var effect_type: String = String(params.get("effect_type", ""))
+	if effect_type.is_empty():
+		return {"error": "Missing required parameter: effect_type"}
+	var bus_idx: int = AudioServer.get_bus_index(bus_name)
+	if bus_idx < 0:
+		return {"error": "Audio bus '" + bus_name + "' not found"}
+
+	var effect: AudioEffect = null
+	var effect_params: Dictionary = params.get("params", {}) if params.has("params") else {}
+
+	match effect_type.to_lower():
+		"reverb":
+			var e := AudioEffectReverb.new()
+			if effect_params.has("room_size"):
+				e.room_size = float(effect_params["room_size"])
+			if effect_params.has("damping"):
+				e.damping = float(effect_params["damping"])
+			if effect_params.has("wet"):
+				e.wet = float(effect_params["wet"])
+			if effect_params.has("dry"):
+				e.dry = float(effect_params["dry"])
+			if effect_params.has("spread"):
+				e.spread = float(effect_params["spread"])
+			effect = e
+		"chorus":
+			var e := AudioEffectChorus.new()
+			if effect_params.has("voice_count"):
+				e.voice_count = int(effect_params["voice_count"])
+			if effect_params.has("dry"):
+				e.dry = float(effect_params["dry"])
+			if effect_params.has("wet"):
+				e.wet = float(effect_params["wet"])
+			effect = e
+		"delay":
+			var e := AudioEffectDelay.new()
+			if effect_params.has("tap1_active"):
+				e.tap1_active = bool(effect_params["tap1_active"])
+			if effect_params.has("tap1_delay_ms"):
+				e.tap1_delay_ms = float(effect_params["tap1_delay_ms"])
+			if effect_params.has("tap1_level_db"):
+				e.tap1_level_db = float(effect_params["tap1_level_db"])
+			if effect_params.has("tap2_active"):
+				e.tap2_active = bool(effect_params["tap2_active"])
+			if effect_params.has("tap2_delay_ms"):
+				e.tap2_delay_ms = float(effect_params["tap2_delay_ms"])
+			if effect_params.has("tap2_level_db"):
+				e.tap2_level_db = float(effect_params["tap2_level_db"])
+			effect = e
+		"compressor":
+			var e := AudioEffectCompressor.new()
+			if effect_params.has("threshold"):
+				e.threshold = float(effect_params["threshold"])
+			if effect_params.has("ratio"):
+				e.ratio = float(effect_params["ratio"])
+			if effect_params.has("attack_us"):
+				e.attack_us = float(effect_params["attack_us"])
+			if effect_params.has("release_ms"):
+				e.release_ms = float(effect_params["release_ms"])
+			if effect_params.has("gain"):
+				e.gain = float(effect_params["gain"])
+			if effect_params.has("mix"):
+				e.mix = float(effect_params["mix"])
+			effect = e
+		"limiter":
+			var e := AudioEffectLimiter.new()
+			if effect_params.has("ceiling_db"):
+				e.ceiling_db = float(effect_params["ceiling_db"])
+			if effect_params.has("threshold_db"):
+				e.threshold_db = float(effect_params["threshold_db"])
+			if effect_params.has("soft_clip_db"):
+				e.soft_clip_db = float(effect_params["soft_clip_db"])
+			if effect_params.has("soft_clip_ratio"):
+				e.soft_clip_ratio = float(effect_params["soft_clip_ratio"])
+			effect = e
+		"phaser":
+			var e := AudioEffectPhaser.new()
+			if effect_params.has("range_min_hz"):
+				e.range_min_hz = float(effect_params["range_min_hz"])
+			if effect_params.has("range_max_hz"):
+				e.range_max_hz = float(effect_params["range_max_hz"])
+			if effect_params.has("rate_hz"):
+				e.rate_hz = float(effect_params["rate_hz"])
+			if effect_params.has("feedback"):
+				e.feedback = float(effect_params["feedback"])
+			if effect_params.has("depth"):
+				e.depth = float(effect_params["depth"])
+			effect = e
+		"distortion":
+			var e := AudioEffectDistortion.new()
+			if effect_params.has("mode"):
+				e.mode = int(effect_params["mode"]) as AudioEffectDistortion.Mode
+			if effect_params.has("pre_gain"):
+				e.pre_gain = float(effect_params["pre_gain"])
+			if effect_params.has("post_gain"):
+				e.post_gain = float(effect_params["post_gain"])
+			if effect_params.has("keep_hf_hz"):
+				e.keep_hf_hz = float(effect_params["keep_hf_hz"])
+			if effect_params.has("drive"):
+				e.drive = float(effect_params["drive"])
+			effect = e
+		"lowpassfilter", "lowpass":
+			var e := AudioEffectLowPassFilter.new()
+			if effect_params.has("cutoff_hz"):
+				e.cutoff_hz = float(effect_params["cutoff_hz"])
+			if effect_params.has("resonance"):
+				e.resonance = float(effect_params["resonance"])
+			effect = e
+		"highpassfilter", "highpass":
+			var e := AudioEffectHighPassFilter.new()
+			if effect_params.has("cutoff_hz"):
+				e.cutoff_hz = float(effect_params["cutoff_hz"])
+			if effect_params.has("resonance"):
+				e.resonance = float(effect_params["resonance"])
+			effect = e
+		"bandpassfilter", "bandpass":
+			var e := AudioEffectBandPassFilter.new()
+			if effect_params.has("cutoff_hz"):
+				e.cutoff_hz = float(effect_params["cutoff_hz"])
+			if effect_params.has("resonance"):
+				e.resonance = float(effect_params["resonance"])
+			effect = e
+		"amplify":
+			var e := AudioEffectAmplify.new()
+			if effect_params.has("volume_db"):
+				e.volume_db = float(effect_params["volume_db"])
+			effect = e
+		"eq":
+			effect = AudioEffectEQ.new()
+		_:
+			return {"error": "Unknown effect type: '" + effect_type + "'. Valid types: reverb, chorus, delay, compressor, limiter, phaser, distortion, lowpassfilter, highpassfilter, bandpassfilter, amplify, eq"}
+
+	var at_position: int = int(params.get("at_position", -1))
+	AudioServer.add_bus_effect(bus_idx, effect, at_position)
+	var effect_idx: int = AudioServer.get_bus_effect_count(bus_idx) - 1 if at_position < 0 else at_position
+	return {"bus": bus_name, "bus_index": bus_idx, "effect_type": effect.get_class(), "effect_index": effect_idx}
+
+func _tool_add_audio_player(params: Dictionary) -> Dictionary:
+	var scene_root: Node = _get_user_scene_root()
+	if not scene_root:
+		return {"error": "No scene is currently open"}
+	var node_path: String = String(params.get("node_path", ""))
+	if node_path.is_empty():
+		return {"error": "Missing required parameter: node_path"}
+	var player_name: String = String(params.get("name", ""))
+	if player_name.is_empty():
+		return {"error": "Missing required parameter: name"}
+	var parent: Node = _resolve_node_path(node_path)
+	if not parent:
+		return {"error": "Node at '" + node_path + "' not found"}
+
+	var player_type: String = String(params.get("type", "AudioStreamPlayer"))
+	var valid_types: Array = ["AudioStreamPlayer", "AudioStreamPlayer2D", "AudioStreamPlayer3D"]
+	if player_type not in valid_types:
+		return {"error": "Invalid player type '" + player_type + "'. Valid: " + ", ".join(valid_types)}
+
+	var player: Node = null
+	match player_type:
+		"AudioStreamPlayer":
+			player = AudioStreamPlayer.new()
+		"AudioStreamPlayer2D":
+			player = AudioStreamPlayer2D.new()
+		"AudioStreamPlayer3D":
+			player = AudioStreamPlayer3D.new()
+	player.name = player_name
+
+	var stream_path: String = String(params.get("stream", ""))
+	if not stream_path.is_empty():
+		if ResourceLoader.exists(stream_path):
+			var stream: Resource = load(stream_path)
+			if stream is AudioStream:
+				player.set("stream", stream)
+			else:
+				player.free()
+				return {"error": "Resource at '" + stream_path + "' is not an AudioStream"}
+		else:
+			player.free()
+			return {"error": "Audio stream at '" + stream_path + "' not found"}
+
+	if params.has("volume_db"):
+		player.set("volume_db", float(params["volume_db"]))
+	var bus: String = String(params.get("bus", ""))
+	if not bus.is_empty():
+		player.set("bus", bus)
+	if params.has("autoplay"):
+		player.set("autoplay", bool(params["autoplay"]))
+	if player is AudioStreamPlayer2D:
+		if params.has("max_distance"):
+			(player as AudioStreamPlayer2D).max_distance = float(params["max_distance"])
+		if params.has("attenuation"):
+			(player as AudioStreamPlayer2D).attenuation = float(params["attenuation"])
+	if player is AudioStreamPlayer3D:
+		if params.has("max_distance"):
+			(player as AudioStreamPlayer3D).max_distance = float(params["max_distance"])
+		if params.has("attenuation_model"):
+			(player as AudioStreamPlayer3D).attenuation_model = int(params["attenuation_model"]) as AudioStreamPlayer3D.AttenuationModel
+		if params.has("unit_size"):
+			(player as AudioStreamPlayer3D).unit_size = float(params["unit_size"])
+
+	var error: Dictionary = _add_child_with_undo(parent, player, scene_root, "MCP: Add audio player")
+	if not error.is_empty():
+		return error
+
+	return {
+		"name": player_name,
+		"type": player_type,
+		"parent": node_path,
+		"stream": stream_path,
+		"bus": player.get("bus"),
+		"volume_db": player.get("volume_db"),
+		"autoplay": player.get("autoplay"),
+	}
+
+func _collect_audio_players(node: Node, result: Array) -> void:
+	if node is AudioStreamPlayer or node is AudioStreamPlayer2D or node is AudioStreamPlayer3D:
+		var info: Dictionary = {
+			"name": node.name,
+			"path": str(node.get_path()),
+			"type": node.get_class(),
+			"volume_db": node.get("volume_db"),
+			"bus": node.get("bus"),
+			"autoplay": node.get("autoplay"),
+			"playing": node.get("playing"),
+			"stream": "",
+		}
+		var stream: Variant = node.get("stream")
+		if stream is AudioStream:
+			info["stream"] = (stream as AudioStream).resource_path
+		if node is AudioStreamPlayer2D:
+			info["max_distance"] = (node as AudioStreamPlayer2D).max_distance
+			info["attenuation"] = (node as AudioStreamPlayer2D).attenuation
+		elif node is AudioStreamPlayer3D:
+			info["max_distance"] = (node as AudioStreamPlayer3D).max_distance
+			info["attenuation_model"] = (node as AudioStreamPlayer3D).attenuation_model
+			info["unit_size"] = (node as AudioStreamPlayer3D).unit_size
+		result.append(info)
+	for child in node.get_children():
+		_collect_audio_players(child, result)
+
+func _tool_get_audio_info(params: Dictionary) -> Dictionary:
+	var scene_root: Node = _get_user_scene_root()
+	if not scene_root:
+		return {"error": "No scene is currently open"}
+	var node_path: String = String(params.get("node_path", ""))
+	if node_path.is_empty():
+		return {"error": "Missing required parameter: node_path"}
+	var node: Node = _resolve_node_path(node_path)
+	if not node:
+		return {"error": "Node at '" + node_path + "' not found"}
+	var players: Array = []
+	_collect_audio_players(node, players)
+	return {"node_path": node_path, "audio_player_count": players.size(), "players": players}
+
+# ============================================================================
+# Registration helpers (Batch 7 audio)
+# ============================================================================
+
+func _register_get_audio_bus_layout(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"get_audio_bus_layout",
+		"Read the full AudioServer bus layout: names, volume, solo/mute, send, and per-bus effects with parameters.",
+		{
+			"type": "object",
+			"properties": {},
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_get_audio_bus_layout"),
+		{
+			"type": "object",
+			"properties": {
+				"bus_count": {"type": "integer"},
+				"buses": {"type": "array"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Media-Audio"
+	)
+
+func _register_add_audio_bus(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"add_audio_bus",
+		"Add a new audio bus to the AudioServer with volume, send, solo, and mute settings.",
+		{
+			"type": "object",
+			"properties": {
+				"name": {"type": "string"},
+				"at_position": {"type": "integer", "description": "Insert position. Default -1 (append)."},
+				"volume_db": {"type": "number"},
+				"send": {"type": "string"},
+				"solo": {"type": "boolean"},
+				"mute": {"type": "boolean"}
+			},
+			"required": ["name"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_add_audio_bus"),
+		{
+			"type": "object",
+			"properties": {
+				"name": {"type": "string"},
+				"index": {"type": "integer"},
+				"bus_count": {"type": "integer"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false},
+		"supplementary", "Media-Audio"
+	)
+
+func _register_set_audio_bus(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"set_audio_bus",
+		"Update audio bus properties: volume_db, solo, mute, bypass_effects, send, or rename.",
+		{
+			"type": "object",
+			"properties": {
+				"name": {"type": "string"},
+				"volume_db": {"type": "number"},
+				"solo": {"type": "boolean"},
+				"mute": {"type": "boolean"},
+				"bypass_effects": {"type": "boolean"},
+				"send": {"type": "string"},
+				"rename": {"type": "string"}
+			},
+			"required": ["name"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_set_audio_bus"),
+		{
+			"type": "object",
+			"properties": {
+				"name": {"type": "string"},
+				"index": {"type": "integer"},
+				"changes": {"type": "integer"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Media-Audio"
+	)
+
+func _register_add_audio_bus_effect(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"add_audio_bus_effect",
+		"Add an audio effect to a bus. Types: reverb, chorus, delay, compressor, limiter, phaser, distortion, lowpassfilter, highpassfilter, bandpassfilter, amplify, eq.",
+		{
+			"type": "object",
+			"properties": {
+				"bus": {"type": "string"},
+				"effect_type": {"type": "string"},
+				"params": {"type": "object", "description": "Effect-specific parameters."},
+				"at_position": {"type": "integer"}
+			},
+			"required": ["bus", "effect_type"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_add_audio_bus_effect"),
+		{
+			"type": "object",
+			"properties": {
+				"bus": {"type": "string"},
+				"effect_type": {"type": "string"},
+				"effect_index": {"type": "integer"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false},
+		"supplementary", "Media-Audio"
+	)
+
+func _register_add_audio_player(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"add_audio_player",
+		"Add an AudioStreamPlayer, AudioStreamPlayer2D, or AudioStreamPlayer3D with stream, volume, bus, and spatial settings.",
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string", "description": "Parent node path."},
+				"name": {"type": "string"},
+				"type": {"type": "string", "description": "AudioStreamPlayer, AudioStreamPlayer2D, or AudioStreamPlayer3D."},
+				"stream": {"type": "string", "description": "Audio stream resource path."},
+				"volume_db": {"type": "number"},
+				"bus": {"type": "string"},
+				"autoplay": {"type": "boolean"},
+				"max_distance": {"type": "number"},
+				"attenuation": {"type": "number"},
+				"unit_size": {"type": "number"}
+			},
+			"required": ["node_path", "name"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_add_audio_player"),
+		{
+			"type": "object",
+			"properties": {
+				"name": {"type": "string"},
+				"type": {"type": "string"},
+				"stream": {"type": "string"},
+				"bus": {"type": "string"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false},
+		"supplementary", "Media-Audio"
+	)
+
+func _register_get_audio_info(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"get_audio_info",
+		"List audio players under a node with stream, volume, bus, autoplay, and spatial properties.",
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"}
+			},
+			"required": ["node_path"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_get_audio_info"),
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"audio_player_count": {"type": "integer"},
+				"players": {"type": "array"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Media-Audio"
 	)

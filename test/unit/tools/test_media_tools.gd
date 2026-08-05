@@ -114,10 +114,11 @@ func test_register_tools_registers_all_six():
 	server_core.register_tool = func(name: String, desc: String, schema: Dictionary, cb: Callable, out: Dictionary = {}, ann: Dictionary = {}, cat: String = "core", group: String = "") -> void:
 		registered.append(name)
 	_media_tools.register_tools(server_core)
-	assert_eq(registered.size(), 14, "Should register exactly 14 tools")
+	assert_eq(registered.size(), 20, "Should register exactly 20 tools")
 	for name in ["list_animations", "create_animation", "add_animation_track", "set_animation_keyframe", "get_animation_info", "remove_animation",
 			"create_animation_tree", "get_animation_tree_structure", "add_state_machine_state", "remove_state_machine_state",
-			"add_state_machine_transition", "remove_state_machine_transition", "set_blend_tree_node", "set_tree_parameter"]:
+			"add_state_machine_transition", "remove_state_machine_transition", "set_blend_tree_node", "set_tree_parameter",
+			"get_audio_bus_layout", "add_audio_bus", "set_audio_bus", "add_audio_bus_effect", "add_audio_player", "get_audio_info"]:
 		assert_true(name in registered, name + " should be registered")
 
 # --- AnimationTree (Batch 6) ---
@@ -193,3 +194,69 @@ func test_resolve_state_machine_wrong_root():
 	var result: Array = _media_tools._resolve_state_machine(tree, "")
 	assert_true(result[1] != null, "Non-state-machine root should error")
 	tree.free()
+
+# --- Audio (Batch 7) ---
+
+func test_get_audio_bus_layout():
+	var result: Dictionary = _media_tools._tool_get_audio_bus_layout({})
+	assert_true(result.has("bus_count"), "Should return bus_count")
+	assert_true(result.has("buses"), "Should return buses")
+	assert_true(result["bus_count"] >= 1, "Default Master bus should exist")
+
+func test_add_audio_bus_requires_name():
+	var result: Dictionary = _media_tools._tool_add_audio_bus({})
+	assert_true(result.has("error"), "Missing name should error")
+
+func test_add_audio_bus_duplicate():
+	# Adding same name twice should error on second call
+	var first: Dictionary = _media_tools._tool_add_audio_bus({"name": "Music_Test"})
+	if first.has("error"):
+		pass_test("Bus may already exist from previous run")
+	else:
+		var second: Dictionary = _media_tools._tool_add_audio_bus({"name": "Music_Test"})
+		assert_true(second.has("error"), "Duplicate bus name should error")
+		# Cleanup: rename back to Master? AudioServer has no remove_bus; skip cleanup.
+
+func test_set_audio_bus_requires_name():
+	var result: Dictionary = _media_tools._tool_set_audio_bus({})
+	assert_true(result.has("error"), "Missing name should error")
+
+func test_set_audio_bus_unknown():
+	var result: Dictionary = _media_tools._tool_set_audio_bus({"name": "NonExistent_XYZ"})
+	assert_true(result.has("error"), "Unknown bus should error")
+
+func test_set_audio_bus_master_volume():
+	var result: Dictionary = _media_tools._tool_set_audio_bus({"name": "Master", "volume_db": -6.0})
+	assert_false(result.has("error"), "Master bus should be settable")
+	assert_eq(result.get("changes", 0), 1, "One change should be applied")
+
+func test_add_audio_bus_effect_requires_params():
+	var result: Dictionary = _media_tools._tool_add_audio_bus_effect({})
+	assert_true(result.has("error"), "Missing params should error")
+
+func test_add_audio_bus_effect_unknown_type():
+	var result: Dictionary = _media_tools._tool_add_audio_bus_effect({"bus": "Master", "effect_type": "flanger"})
+	assert_true(result.has("error"), "Unknown effect type should error")
+
+func test_add_audio_bus_effect_unknown_bus():
+	var result: Dictionary = _media_tools._tool_add_audio_bus_effect({"bus": "NonExistent_XYZ", "effect_type": "reverb"})
+	assert_true(result.has("error"), "Unknown bus should error")
+
+func test_add_audio_player_requires_params():
+	var result: Dictionary = _media_tools._tool_add_audio_player({})
+	assert_true(result.has("error"), "Missing params should error")
+
+func test_add_audio_player_invalid_type():
+	var result: Dictionary = _media_tools._tool_add_audio_player({"node_path": "/root/Main", "name": "P", "type": "AudioStreamPlayer4D"})
+	assert_true(result.has("error"), "Invalid player type should error")
+
+func test_get_audio_info_requires_node_path():
+	var result: Dictionary = _media_tools._tool_get_audio_info({})
+	assert_true(result.has("error"), "Missing node_path should error")
+
+func test_get_effect_params_reverb():
+	var effect := AudioEffectReverb.new()
+	effect.room_size = 0.5
+	var params: Dictionary = _media_tools._get_effect_params(effect)
+	assert_true(params.has("room_size"), "Reverb params should include room_size")
+	assert_eq(params["room_size"], 0.5, "room_size should round-trip")

@@ -189,5 +189,11 @@
   "add_state_machine_transition": "Add a transition between two states in an AnimationNodeStateMachine.",
   "remove_state_machine_transition": "Remove a transition between two states in an AnimationNodeStateMachine (undoable).",
   "set_blend_tree_node": "Add or replace a node inside an AnimationNodeBlendTree. Types: Animation, Add2, Blend2, Add3, Blend3, TimeScale, TimeSeek, Transition, OneShot, Sub2.",
-  "set_tree_parameter": "Set an AnimationTree parameter (auto-prefixed with 'parameters/')."
+  "set_tree_parameter": "Set an AnimationTree parameter (auto-prefixed with 'parameters/').",
+  "get_audio_bus_layout": "Read the full AudioServer bus layout: names, volume, solo/mute, send, and per-bus effects with parameters.",
+  "add_audio_bus": "Add a new audio bus to the AudioServer with volume, send, solo, and mute settings.",
+  "set_audio_bus": "Update audio bus properties: volume_db, solo, mute, bypass_effects, send, or rename.",
+  "add_audio_bus_effect": "Add an audio effect to a bus. Types: reverb, chorus, delay, compressor, limiter, phaser, distortion, lowpassfilter, highpassfilter, bandpassfilter, amplify, eq.",
+  "add_audio_player": "Add an AudioStreamPlayer, AudioStreamPlayer2D, or AudioStreamPlayer3D with stream, volume, bus, and spatial settings.",
+  "get_audio_info": "List audio players under a node with stream, volume, bus, autoplay, and spatial properties."
 }

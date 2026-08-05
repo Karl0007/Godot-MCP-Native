@@ -1,5 +1,8 @@
 key,source,en,zh
 add_animation_track,,"Add a track to an animation. Track types: value, position_2d, rotation_2d, scale_2d, method, bezier, blend_shape.",向动画添加轨道。轨道类型：value、position_2d、rotation_2d、scale_2d、method、bezier、blend_shape。
+add_audio_bus,,"Add a new audio bus to the AudioServer with volume, send, solo, and mute settings.",向 AudioServer 添加新音频总线，支持音量、send、solo 和 mute 设置。
+add_audio_bus_effect,,"Add an audio effect to a bus. Types: reverb, chorus, delay, compressor, limiter, phaser, distortion, lowpassfilter, highpassfilter, bandpassfilter, amplify, eq.",向总线添加音频效果。类型：reverb、chorus、delay、compressor、limiter、phaser、distortion、lowpassfilter、highpassfilter、bandpassfilter、amplify、eq。
+add_audio_player,,"Add an AudioStreamPlayer, AudioStreamPlayer2D, or AudioStreamPlayer3D with stream, volume, bus, and spatial settings.",添加 AudioStreamPlayer、AudioStreamPlayer2D 或 AudioStreamPlayer3D，支持流、音量、总线和空间设置。
 add_debugger_capture_prefix,,Allow the debugger bridge to capture custom EngineDebugger messages with the given prefix.,允许调试器桥捕获具有给定前缀的自定义 EngineDebugger 消息。
 add_gridmap,,"Create a GridMap node, optionally assign a MeshLibrary resource and set cell size.",创建 GridMap 节点，可指定 MeshLibrary 资源并设置单元格大小。
 add_mesh_instance,,"Create a MeshInstance3D with a primitive mesh (box, sphere, cylinder, capsule, plane, quad, prism, torus) or load a mesh from a .glb/.gltf/.obj file.",创建 MeshInstance3D，支持基本体网格（box/sphere/cylinder/capsule/plane/quad/prism/torus）或从 .glb/.gltf/.obj 文件加载网格。
@@ -59,6 +62,8 @@ find_script_symbol_references,,Find textual project references to a script symbo
 fix_resource_uid,,Fix resource UID issues.,修复资源 UID 问题。
 get_animation_info,,"Read animation details: length, loop mode, step, and per-track keyframes.",读取动画详情：长度、循环模式、步长和每个轨道的关键帧。
 get_animation_tree_structure,,"Read an AnimationTree structure: root node type, state machine states/transitions, or blend tree nodes.",读取 AnimationTree 结构：根节点类型、状态机状态/过渡或混合树节点。
+get_audio_bus_layout,,"Read the full AudioServer bus layout: names, volume, solo/mute, send, and per-bus effects with parameters.",读取完整的 AudioServer 总线布局：名称、音量、solo/mute、send 和每条总线的效果及参数。
+get_audio_info,,"List audio players under a node with stream, volume, bus, autoplay, and spatial properties.",列出节点下的音频播放器，包括流、音量、总线、自动播放和空间属性。
 get_class_api_metadata,,Get typed API metadata for an engine ClassDB class or a project global script class.,获取引擎 ClassDB 类或项目全局脚本类的类型化 API 元数据。
 get_collision_info,,"Read collision shapes, raycasts, layers, and body settings from a physics node (including children).",读取物理节点的碰撞形状、射线、层和物理体设置（含子节点）。
 get_current_scene,,Get information about the currently open scene, including name, path, and root node type.,获取当前打开场景的信息，包括名称、路径和根节点类型。
@@ -156,6 +161,7 @@ send_debug_command,,Send a command to the debugger.,向调试器发送命令。
 send_debugger_message,,Send a custom debugger message to active Godot debugger sessions.,向活动的 Godot 调试器会话发送自定义调试器消息。
 set_anchor_preset,,Set anchor preset for a Control node.,为 Control 节点设置锚点预设。
 set_animation_keyframe,,Insert or update a keyframe at a given time on an animation track.,在动画轨道的指定时间插入或更新关键帧。
+set_audio_bus,,"Update audio bus properties: volume_db, solo, mute, bypass_effects, send, or rename.",更新音频总线属性：volume_db、solo、mute、bypass_effects、send 或重命名。
 set_blend_tree_node,,"Add or replace a node inside an AnimationNodeBlendTree. Types: Animation, Add2, Blend2, Add3, Blend3, TimeScale, TimeSeek, Transition, OneShot, Sub2.",在 AnimationNodeBlendTree 中添加或替换节点。类型：Animation、Add2、Blend2、Add3、Blend3、TimeScale、TimeSeek、Transition、OneShot、Sub2。
 set_debugger_breakpoint,,Enable or disable a breakpoint in active Godot debugger sessions.,在活动的 Godot 调试器会话中启用或禁用断点。
 set_editor_setting,,Set an editor setting value. Requires editor restart for some settings to take effect.,设置编辑器设置值。某些设置需要重启编辑器才能生效。
