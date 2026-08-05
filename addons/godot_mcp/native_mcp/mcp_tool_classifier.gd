@@ -260,6 +260,11 @@ func _build_classifications() -> void:
 		{"name": "list_android_devices", "category": "supplementary", "group": "Editor-Advanced"},
 		{"name": "get_android_preset_info", "category": "supplementary", "group": "Editor-Advanced"},
 		{"name": "deploy_to_android", "category": "supplementary", "group": "Editor-Advanced"},
+		{"name": "run_test_scenario", "category": "supplementary", "group": "Debug-Advanced"},
+		{"name": "assert_node_state", "category": "supplementary", "group": "Debug-Advanced"},
+		{"name": "assert_screen_text", "category": "supplementary", "group": "Debug-Advanced"},
+		{"name": "run_stress_test", "category": "supplementary", "group": "Debug-Advanced"},
+		{"name": "get_test_report", "category": "supplementary", "group": "Debug-Advanced"},
 	]
 
 	for item in classifications:

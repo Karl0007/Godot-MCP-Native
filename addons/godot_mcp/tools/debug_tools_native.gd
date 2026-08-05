@@ -145,6 +145,11 @@ func register_tools(server_core: RefCounted) -> void:
 	_register_get_runtime_screenshot(server_core)
 	_register_await_runtime_condition(server_core)
 	_register_assert_runtime_condition(server_core)
+	_register_run_test_scenario(server_core)
+	_register_assert_node_state(server_core)
+	_register_assert_screen_text(server_core)
+	_register_run_stress_test(server_core)
+	_register_get_test_report(server_core)
 
 func _on_log_message(level: String, message: String) -> void:
 	var log_entry: String = "[%s] %s" % [level, message]
@@ -3863,3 +3868,458 @@ func _is_log_whitespace(codepoint: int) -> bool:
 		or codepoint == 0x3000
 		or codepoint == 0xFEFF
 	)
+
+# ============================================================================
+# Batch 17 - Runtime test orchestration
+# ============================================================================
+
+var _test_results: Array = []
+
+func _register_run_test_scenario(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"run_test_scenario",
+		"Execute a test scenario: optionally play a scene, run steps (input, wait, assert, screenshot), return pass/fail results.",
+		{
+			"type": "object",
+			"properties": {
+				"scene_path": {"type": "string", "description": "Scene to play first: 'main', 'current', or a path."},
+				"steps": {"type": "array", "description": "Steps: [{type: input|wait|assert|screenshot, ...}]."},
+				"half_resolution": {"type": "boolean", "description": "Screenshot half resolution. Default true."}
+			},
+			"required": ["steps"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_run_test_scenario"),
+		{
+			"type": "object",
+			"properties": {
+				"results": {"type": "array"},
+				"pass_count": {"type": "integer"},
+				"fail_count": {"type": "integer"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": true},
+		"supplementary", "Debug-Advanced"
+	)
+
+func _execute_input_step(step: Dictionary) -> Dictionary:
+	var events: Array = []
+	if step.has("action"):
+		var pressed: bool = bool(step.get("pressed", true))
+		events.append({"type": "action", "action_name": str(step["action"]), "pressed": pressed, "strength": 1.0 if pressed else 0.0})
+		if pressed and step.get("auto_release", true):
+			events.append({"type": "action", "action_name": str(step["action"]), "pressed": false, "strength": 0.0})
+	elif step.has("keycode"):
+		var pressed: bool = bool(step.get("pressed", true))
+		var keycode: String = str(step["keycode"])
+		events.append({"type": "key", "keycode": _keycode_to_int(keycode), "pressed": pressed})
+		if pressed and step.get("auto_release", true):
+			events.append({"type": "key", "keycode": _keycode_to_int(keycode), "pressed": false})
+	else:
+		return {"error": "Input step requires 'action' or 'keycode'"}
+	var sent: int = 0
+	for event_data: Dictionary in events:
+		var result: Dictionary = await _tool_simulate_runtime_input_event({"event": event_data})
+		if result.has("error"):
+			return {"error": str(result["error"])}
+		sent += 1
+	return {"events_sent": sent}
+
+func _keycode_to_int(keycode: String) -> int:
+	if keycode.begins_with("KEY_"):
+		var constant_value: int = ClassDB.class_get_integer_constant("@GlobalScope", keycode)
+		if constant_value != 0:
+			return constant_value
+		return OS.find_keycode_from_string(keycode.substr(4))
+	return OS.find_keycode_from_string(keycode)
+
+func _execute_wait_step(step: Dictionary) -> Dictionary:
+	if step.has("node_path"):
+		var timeout: float = float(step.get("timeout", 5.0))
+		var deadline_ms: int = Time.get_ticks_msec() + int(timeout * 1000)
+		var tree: SceneTree = Engine.get_main_loop() as SceneTree
+		while Time.get_ticks_msec() < deadline_ms:
+			var probe_result: Dictionary = await _request_runtime_probe_poll("get_scene_tree", [8], ["mcp:scene_tree"], {})
+			if not probe_result.has("error"):
+				return {"waited_for": str(step["node_path"]), "found": true}
+			if tree:
+				await tree.process_frame
+			else:
+				OS.delay_msec(100)
+		return {"waited_for": str(step["node_path"]), "found": false, "timeout": true}
+	else:
+		var seconds: float = float(step.get("seconds", 1.0))
+		var tree: SceneTree = Engine.get_main_loop() as SceneTree
+		if tree:
+			await tree.create_timer(seconds).timeout
+		else:
+			OS.delay_msec(int(seconds * 1000))
+		return {"waited_seconds": seconds}
+
+func _execute_assert_step(step: Dictionary) -> Dictionary:
+	if step.has("text"):
+		return {"passed": false, "assert_type": "screen_text", "expected": str(step["text"]), "error": "Screen text assertion requires UI inspection; use runtime scene tree checks instead."}
+	elif step.has("node_path") and step.has("property"):
+		var result: Dictionary = await _tool_evaluate_runtime_expression({
+			"expression": str(step["node_path"]) + " " + str(step.get("operator", "eq")) + " " + str(step.get("expected", "")),
+			"node_path": str(step["node_path"]),
+		})
+		return {
+			"passed": not result.has("error"),
+			"assert_type": "node_state",
+			"node_path": str(step["node_path"]),
+			"property": str(step["property"]),
+			"operator": str(step.get("operator", "eq")),
+			"expected": step.get("expected", null),
+			"error": result.get("error", "") if result.has("error") else "",
+		}
+	return {"passed": false, "error": "Assert step requires 'text' or node_path+property"}
+
+func _tool_run_test_scenario(params: Dictionary) -> Dictionary:
+	if not params.has("steps") or not params["steps"] is Array:
+		return {"error": "Missing required parameter: steps (Array)"}
+	var steps: Array = params["steps"]
+	if steps.is_empty():
+		return {"error": "Steps array is empty"}
+
+	var scene_path: String = String(params.get("scene_path", ""))
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if not editor_interface:
+		return {"error": "Editor interface not available"}
+
+	if not scene_path.is_empty():
+		if editor_interface.is_playing_scene():
+			editor_interface.stop_playing_scene()
+			await _wait_ms(500)
+		if scene_path == "main":
+			editor_interface.play_main_scene()
+		elif scene_path == "current":
+			editor_interface.play_current_scene()
+		else:
+			if not FileAccess.file_exists(scene_path):
+				return {"error": "Scene file '" + scene_path + "' not found"}
+			editor_interface.play_custom_scene(scene_path)
+		await _wait_ms(1000)
+
+	var results: Array = []
+	var pass_count: int = 0
+	var fail_count: int = 0
+	for i in steps.size():
+		var step: Dictionary = steps[i]
+		if not step.has("type"):
+			results.append({"step": i, "error": "Missing 'type' field"})
+			fail_count += 1
+			continue
+		var step_type: String = str(step["type"])
+		var step_result: Dictionary = {"step": i, "type": step_type}
+		match step_type:
+			"input":
+				var input_result: Dictionary = await _execute_input_step(step)
+				step_result.merge(input_result)
+			"wait":
+				var wait_result: Dictionary = await _execute_wait_step(step)
+				step_result.merge(wait_result)
+			"assert":
+				var assert_result: Dictionary = await _execute_assert_step(step)
+				step_result.merge(assert_result)
+				if assert_result.get("passed", false):
+					pass_count += 1
+				else:
+					fail_count += 1
+				_test_results.append(step_result)
+			"screenshot":
+				var shot: Dictionary = await _tool_get_runtime_screenshot({"save_path": "user://mcp_test_screenshot_" + str(i) + ".png"})
+				if shot.has("error"):
+					step_result["captured"] = false
+					step_result["error"] = str(shot["error"])
+					fail_count += 1
+				else:
+					step_result["captured"] = true
+			_:
+				step_result["error"] = "Unknown step type: " + step_type
+				fail_count += 1
+		results.append(step_result)
+
+	return {"results": results, "pass_count": pass_count, "fail_count": fail_count, "total": results.size()}
+
+func _wait_ms(ms: int) -> void:
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree:
+		await tree.create_timer(float(ms) / 1000.0).timeout
+	else:
+		OS.delay_msec(ms)
+
+func _register_assert_node_state(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"assert_node_state",
+		"Assert a runtime node property against an expected value with an operator (eq, neq, gt, lt, gte, lte, contains).",
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"property": {"type": "string"},
+				"expected": {"type": "object"},
+				"operator": {"type": "string", "description": "eq, neq, gt, lt, gte, lte, contains. Default 'eq'."}
+			},
+			"required": ["node_path", "property"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_assert_node_state"),
+		{
+			"type": "object",
+			"properties": {
+				"result": {"type": "object"},
+				"passed": {"type": "boolean"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": true},
+		"supplementary", "Debug-Advanced"
+	)
+
+func _tool_assert_node_state(params: Dictionary) -> Dictionary:
+	var node_path: String = String(params.get("node_path", ""))
+	if node_path.is_empty():
+		return {"error": "Missing required parameter: node_path"}
+	var property: String = String(params.get("property", ""))
+	if property.is_empty():
+		return {"error": "Missing required parameter: property"}
+	var expected: Variant = params.get("expected", null)
+	var operator: String = String(params.get("operator", "eq"))
+
+	var result: Dictionary = await _tool_inspect_runtime_node({"node_path": node_path})
+	if result.has("error"):
+		return {"result": {"assertion": "node_state", "node_path": node_path, "passed": false}, "passed": false, "error": str(result["error"])}
+	var props: Dictionary = result.get("properties", {})
+	if not props.has(property):
+		return {"result": {"assertion": "node_state", "node_path": node_path, "property": property, "passed": false}, "passed": false, "error": "Property '" + property + "' not found on runtime node '" + node_path + "'"}
+	var actual: Variant = props.get(property, null)
+	var passed: bool = false
+	match operator:
+		"eq":
+			passed = str(actual) == str(expected) or actual == expected
+		"neq":
+			passed = not (str(actual) == str(expected) or actual == expected)
+		"gt":
+			passed = float(actual) > float(expected)
+		"lt":
+			passed = float(actual) < float(expected)
+		"gte":
+			passed = float(actual) >= float(expected)
+		"lte":
+			passed = float(actual) <= float(expected)
+		"contains":
+			passed = str(actual).contains(str(expected))
+		_:
+			return {"error": "Unknown operator: " + operator}
+
+	var assertion: Dictionary = {
+		"assertion": "node_state",
+		"node_path": node_path,
+		"property": property,
+		"operator": operator,
+		"expected": str(expected),
+		"actual": str(actual),
+		"passed": passed,
+	}
+	_test_results.append({"result": assertion, "passed": passed})
+	return {"result": assertion, "passed": passed}
+
+func _register_assert_screen_text(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"assert_screen_text",
+		"Assert that a text string appears in a runtime UI element (requires visible Control nodes with text).",
+		{
+			"type": "object",
+			"properties": {
+				"text": {"type": "string"},
+				"partial": {"type": "boolean", "description": "Partial match. Default true."}
+			},
+			"required": ["text"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_assert_screen_text"),
+		{
+			"type": "object",
+			"properties": {
+				"result": {"type": "object"},
+				"passed": {"type": "boolean"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": true},
+		"supplementary", "Debug-Advanced"
+	)
+
+func _tool_assert_screen_text(params: Dictionary) -> Dictionary:
+	var text: String = String(params.get("text", ""))
+	if text.is_empty():
+		return {"error": "Missing required parameter: text"}
+	var partial: bool = bool(params.get("partial", true))
+
+	# Search runtime scene tree for Control nodes with matching text
+	var tree_result: Dictionary = await _request_runtime_probe_poll("get_scene_tree", [8], ["mcp:scene_tree"], {})
+	var found: bool = false
+	var found_in: String = ""
+	var tree_data: Variant = tree_result.get("scene_tree", {})
+	var candidates: Array = []
+	_collect_control_texts(tree_data, candidates)
+	for candidate: Dictionary in candidates:
+		var candidate_text: String = str(candidate.get("text", ""))
+		if partial and candidate_text.contains(text):
+			found = true
+			found_in = candidate_text
+			break
+		elif not partial and candidate_text == text:
+			found = true
+			found_in = candidate_text
+			break
+
+	var assertion: Dictionary = {
+		"assertion": "screen_text",
+		"expected": text,
+		"partial": partial,
+		"passed": found,
+	}
+	if found:
+		assertion["found_in"] = found_in
+	var passed: bool = found
+	_test_results.append({"result": assertion, "passed": passed})
+	return {"result": assertion, "passed": passed}
+
+func _collect_control_texts(node_data: Variant, candidates: Array) -> void:
+	if not node_data is Dictionary:
+		return
+	var dict: Dictionary = node_data
+	if dict.has("type"):
+		var node_type: String = str(dict["type"])
+		if node_type == "Button" or node_type == "Label" or node_type == "LineEdit" or node_type == "TextEdit" or node_type == "OptionButton":
+			var text: Variant = dict.get("text", "")
+			candidates.append({"type": node_type, "text": str(text)})
+	if dict.has("children") and dict["children"] is Array:
+		for child: Variant in dict["children"]:
+			_collect_control_texts(child, candidates)
+
+func _register_run_stress_test(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"run_stress_test",
+		"Send random inputs to the running game for N seconds and check for crashes.",
+		{
+			"type": "object",
+			"properties": {
+				"duration": {"type": "number", "description": "Duration in seconds (0-60). Default 5."},
+				"actions": {"type": "array", "description": "Extra InputMap actions to include."}
+			},
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_run_stress_test"),
+		{
+			"type": "object",
+			"properties": {
+				"completed": {"type": "boolean"},
+				"crashed": {"type": "boolean"},
+				"duration_seconds": {"type": "number"},
+				"events_sent": {"type": "integer"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": true, "idempotentHint": false, "openWorldHint": true},
+		"supplementary", "Debug-Advanced"
+	)
+
+func _tool_run_stress_test(params: Dictionary) -> Dictionary:
+	var duration: float = float(params.get("duration", 5.0))
+	if duration <= 0 or duration > 60:
+		return {"error": "Duration must be between 0 and 60 seconds"}
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if not editor_interface:
+		return {"error": "Editor interface not available"}
+	if not editor_interface.is_playing_scene():
+		return {"error": "No scene is currently playing", "suggestion": "Use run_project first"}
+
+	var actions: Array = ["ui_up", "ui_down", "ui_left", "ui_right", "ui_accept", "ui_cancel"]
+	var custom_actions: Array = params.get("actions", [])
+	for action: Variant in custom_actions:
+		actions.append(str(action))
+
+	var events_sent: int = 0
+	var start_time: int = Time.get_ticks_msec()
+	var duration_ms: int = int(duration * 1000.0)
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+
+	while Time.get_ticks_msec() - start_time < duration_ms:
+		if not editor_interface.is_playing_scene():
+			var elapsed: float = (Time.get_ticks_msec() - start_time) / 1000.0
+			return {"completed": false, "crashed": true, "elapsed_seconds": elapsed, "events_sent": events_sent, "error": "Game stopped during stress test"}
+		var action_name: String = actions[randi() % actions.size()]
+		var result: Dictionary = await _tool_simulate_runtime_input_action({"action_name": action_name, "pressed": true})
+		if not result.has("error"):
+			events_sent += 1
+			await _tool_simulate_runtime_input_action({"action_name": action_name, "pressed": false})
+			events_sent += 1
+		if tree:
+			await tree.create_timer(0.05).timeout
+		else:
+			OS.delay_msec(50)
+
+	var elapsed: float = (Time.get_ticks_msec() - start_time) / 1000.0
+	var still_running: bool = editor_interface.is_playing_scene()
+	return {
+		"completed": true,
+		"crashed": not still_running,
+		"duration_seconds": elapsed,
+		"events_sent": events_sent,
+	}
+
+func _register_get_test_report(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"get_test_report",
+		"Collect and format results from accumulated assertions into a test report.",
+		{
+			"type": "object",
+			"properties": {
+				"clear": {"type": "boolean", "description": "Clear results after reading. Default true."}
+			},
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_get_test_report"),
+		{
+			"type": "object",
+			"properties": {
+				"total": {"type": "integer"},
+				"passed": {"type": "integer"},
+				"failed": {"type": "integer"},
+				"pass_rate": {"type": "string"},
+				"all_passed": {"type": "boolean"},
+				"details": {"type": "array"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Debug-Advanced"
+	)
+
+func _tool_get_test_report(params: Dictionary) -> Dictionary:
+	var clear: bool = bool(params.get("clear", true))
+	var pass_count: int = 0
+	var fail_count: int = 0
+	var details: Array = []
+	for entry: Variant in _test_results:
+		if entry is Dictionary:
+			var entry_dict: Dictionary = entry
+			if not entry_dict.has("passed"):
+				continue
+			if entry_dict.get("passed", false):
+				pass_count += 1
+			else:
+				fail_count += 1
+			details.append(entry_dict)
+	var total: int = pass_count + fail_count
+	var report: Dictionary = {
+		"total": total,
+		"passed": pass_count,
+		"failed": fail_count,
+		"pass_rate": ("%.1f%%" % (100.0 * pass_count / total)) if total > 0 else "N/A",
+		"all_passed": fail_count == 0 and total > 0,
+		"no_results": total == 0,
+		"details": details,
+	}
+	if clear:
+		_test_results.clear()
+	return report

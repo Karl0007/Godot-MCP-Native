@@ -369,3 +369,61 @@ func test_request_key_omits_empty_match_fields():
 	assert_true(key.contains("mcp:runtime_info"), "Key should contain response_messages")
 	# It should NOT end with an extra dangling separator from empty match_fields
 	assert_false(key.ends_with("|"), "Key should not end with |")
+
+# --- Batch 17: test orchestration ---
+
+func _new_debug_tools() -> RefCounted:
+	var tools: RefCounted = load("res://addons/godot_mcp/tools/debug_tools_native.gd").new()
+	return tools
+
+func test_run_test_scenario_requires_steps():
+	var tools: RefCounted = _new_debug_tools()
+	var result: Dictionary = tools._tool_run_test_scenario({})
+	assert_true(result.has("error"), "Missing steps should error")
+
+func test_run_test_scenario_empty_steps():
+	var tools: RefCounted = _new_debug_tools()
+	var result: Dictionary = tools._tool_run_test_scenario({"steps": []})
+	assert_true(result.has("error"), "Empty steps should error")
+
+func test_assert_node_state_requires_params():
+	var tools: RefCounted = _new_debug_tools()
+	var result: Dictionary = tools._tool_assert_node_state({})
+	assert_true(result.has("error"), "Missing params should error")
+
+func test_assert_node_state_requires_property():
+	var tools: RefCounted = _new_debug_tools()
+	var result: Dictionary = tools._tool_assert_node_state({"node_path": "/root/Main"})
+	assert_true(result.has("error"), "Missing property should error")
+
+func test_assert_screen_text_requires_text():
+	var tools: RefCounted = _new_debug_tools()
+	var result: Dictionary = tools._tool_assert_screen_text({})
+	assert_true(result.has("error"), "Missing text should error")
+
+func test_run_stress_test_invalid_duration():
+	var tools: RefCounted = _new_debug_tools()
+	var result: Dictionary = tools._tool_run_stress_test({"duration": 100})
+	assert_true(result.has("error"), "Duration > 60 should error")
+
+func test_get_test_report_format():
+	var tools: RefCounted = _new_debug_tools()
+	var result: Dictionary = tools._tool_get_test_report({"clear": true})
+	assert_true(result.has("total"), "Should return total")
+	assert_true(result.has("passed"), "Should return passed")
+	assert_true(result.has("failed"), "Should return failed")
+	assert_true(result.has("all_passed"), "Should return all_passed")
+
+func test_collect_control_texts():
+	var tools: RefCounted = _new_debug_tools()
+	var candidates: Array = []
+	tools._collect_control_texts({"type": "Button", "text": "Play"}, candidates)
+	assert_eq(candidates.size(), 1, "Button text should be collected")
+	assert_eq(candidates[0]["text"], "Play", "Text should round-trip")
+
+func test_collect_control_texts_nested():
+	var tools: RefCounted = _new_debug_tools()
+	var candidates: Array = []
+	tools._collect_control_texts({"type": "Node2D", "children": [{"type": "Label", "text": "Score: 10"}]}, candidates)
+	assert_eq(candidates.size(), 1, "Nested Label should be collected")
+	assert_eq(candidates[0]["text"], "Score: 10", "Nested text should round-trip")
