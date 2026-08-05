@@ -220,6 +220,12 @@ func _build_classifications() -> void:
 		{"name": "assign_shader_material", "category": "supplementary", "group": "Media-Shader"},
 		{"name": "set_shader_param", "category": "supplementary", "group": "Media-Shader"},
 		{"name": "get_shader_params", "category": "supplementary", "group": "Media-Shader"},
+		{"name": "tilemap_set_cell", "category": "supplementary", "group": "Media-TileMap"},
+		{"name": "tilemap_fill_rect", "category": "supplementary", "group": "Media-TileMap"},
+		{"name": "tilemap_get_cell", "category": "supplementary", "group": "Media-TileMap"},
+		{"name": "tilemap_clear", "category": "supplementary", "group": "Media-TileMap"},
+		{"name": "tilemap_get_info", "category": "supplementary", "group": "Media-TileMap"},
+		{"name": "tilemap_get_used_cells", "category": "supplementary", "group": "Media-TileMap"},
 	]
 
 	for item in classifications:

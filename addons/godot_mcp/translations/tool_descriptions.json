@@ -208,5 +208,11 @@
   "edit_shader": "Edit a shader file with full content replacement or search-and-replace.",
   "assign_shader_material": "Create a ShaderMaterial from a shader file and assign it to a CanvasItem or MeshInstance3D node.",
   "set_shader_param": "Set a shader uniform on a node's ShaderMaterial. Values are auto-parsed from strings.",
-  "get_shader_params": "Read all shader uniforms from a node's ShaderMaterial."
+  "get_shader_params": "Read all shader uniforms from a node's ShaderMaterial.",
+  "tilemap_set_cell": "Set a cell on a TileMapLayer or legacy TileMap node (undoable).",
+  "tilemap_fill_rect": "Fill a rectangular region of a TileMapLayer or legacy TileMap with a tile (undoable).",
+  "tilemap_get_cell": "Read a cell from a TileMapLayer or legacy TileMap.",
+  "tilemap_clear": "Clear a TileMapLayer or legacy TileMap (optionally one layer), undoable.",
+  "tilemap_get_info": "Read TileMapLayer/TileMap info: layers, used cells, TileSet sources, and tile size.",
+  "tilemap_get_used_cells": "List used cells of a TileMapLayer or legacy TileMap layer with their source ids."
 }

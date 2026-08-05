@@ -200,6 +200,12 @@ simulate_runtime_input_action,,Simulate an input action in the running game.,在
 simulate_runtime_input_event,,Simulate an input event in the running game.,在运行中的游戏中模拟输入事件。
 stop_project,,Stop the currently running project and return to editor mode.,停止当前正在运行的项目并返回编辑器模式。
 stop_runtime_animation,,Stop an animation in the running game.,停止运行中游戏中的动画。
+tilemap_clear,,"Clear a TileMapLayer or legacy TileMap (optionally one layer), undoable.",清空 TileMapLayer 或旧版 TileMap（可选单层），可撤销。
+tilemap_fill_rect,,Fill a rectangular region of a TileMapLayer or legacy TileMap with a tile (undoable).,用瓦片填充 TileMapLayer 或旧版 TileMap 的矩形区域（可撤销）。
+tilemap_get_cell,,Read a cell from a TileMapLayer or legacy TileMap.,从 TileMapLayer 或旧版 TileMap 读取单元格。
+tilemap_get_info,,"Read TileMapLayer/TileMap info: layers, used cells, TileSet sources, and tile size.",读取 TileMapLayer/TileMap 信息：图层、已用单元格、TileSet 源和瓦片大小。
+tilemap_get_used_cells,,List used cells of a TileMapLayer or legacy TileMap layer with their source ids.,列出 TileMapLayer 或旧版 TileMap 图层的已用单元格及其源 ID。
+tilemap_set_cell,,Set a cell on a TileMapLayer or legacy TileMap node (undoable).,在 TileMapLayer 或旧版 TileMap 节点上设置单元格（可撤销）。
 toggle_debugger_profiler,,Toggle an EngineProfiler in active Godot debugger sessions.,在活动的 Godot 调试器会话中切换引擎性能分析器。
 travel_runtime_animation_tree,,Travel to a new state in an animation tree in the running game.,在运行中游戏中导航到动画树的新状态。
 update_node_property,,Update a property of a specific node. Supports common property types with automatic type conversion.,更新特定节点的属性。支持常见属性类型并自动进行类型转换。

@@ -114,13 +114,14 @@ func test_register_tools_registers_all_six():
 	server_core.register_tool = func(name: String, desc: String, schema: Dictionary, cb: Callable, out: Dictionary = {}, ann: Dictionary = {}, cat: String = "core", group: String = "") -> void:
 		registered.append(name)
 	_media_tools.register_tools(server_core)
-	assert_eq(registered.size(), 33, "Should register exactly 33 tools")
+	assert_eq(registered.size(), 39, "Should register exactly 39 tools")
 	for name in ["list_animations", "create_animation", "add_animation_track", "set_animation_keyframe", "get_animation_info", "remove_animation",
 			"create_animation_tree", "get_animation_tree_structure", "add_state_machine_state", "remove_state_machine_state",
 			"add_state_machine_transition", "remove_state_machine_transition", "set_blend_tree_node", "set_tree_parameter",
 			"get_audio_bus_layout", "add_audio_bus", "set_audio_bus", "add_audio_bus_effect", "add_audio_player", "get_audio_info",
 			"create_theme", "set_theme_color", "set_theme_constant", "set_theme_font_size", "set_theme_stylebox", "setup_control", "get_theme_info",
-			"create_shader", "read_shader", "edit_shader", "assign_shader_material", "set_shader_param", "get_shader_params"]:
+			"create_shader", "read_shader", "edit_shader", "assign_shader_material", "set_shader_param", "get_shader_params",
+			"tilemap_set_cell", "tilemap_fill_rect", "tilemap_get_cell", "tilemap_clear", "tilemap_get_info", "tilemap_get_used_cells"]:
 		assert_true(name in registered, name + " should be registered")
 
 # --- AnimationTree (Batch 6) ---
@@ -403,3 +404,56 @@ func test_is_shader_resource_path():
 func test_guard_shader_path_rejects_non_shader():
 	var guard: Dictionary = _media_tools._guard_shader_path("res://s.gd", "create_shader")
 	assert_true(not guard.is_empty(), "Non-shader path should be guarded")
+
+# --- TileMap (Batch 10) ---
+
+func test_tilemap_set_cell_requires_node_path():
+	var result: Dictionary = _media_tools._tool_tilemap_set_cell({})
+	assert_true(result.has("error"), "Missing node_path should error")
+
+func test_tilemap_set_cell_no_scene():
+	var result: Dictionary = _media_tools._tool_tilemap_set_cell({"node_path": "/root/TileMap"})
+	assert_true(result.has("error"), "No open scene should error")
+
+func test_tilemap_fill_rect_requires_node_path():
+	var result: Dictionary = _media_tools._tool_tilemap_fill_rect({})
+	assert_true(result.has("error"), "Missing node_path should error")
+
+func test_tilemap_get_cell_requires_node_path():
+	var result: Dictionary = _media_tools._tool_tilemap_get_cell({})
+	assert_true(result.has("error"), "Missing node_path should error")
+
+func test_tilemap_clear_requires_node_path():
+	var result: Dictionary = _media_tools._tool_tilemap_clear({})
+	assert_true(result.has("error"), "Missing node_path should error")
+
+func test_tilemap_get_info_requires_node_path():
+	var result: Dictionary = _media_tools._tool_tilemap_get_info({})
+	assert_true(result.has("error"), "Missing node_path should error")
+
+func test_tilemap_get_used_cells_requires_node_path():
+	var result: Dictionary = _media_tools._tool_tilemap_get_used_cells({})
+	assert_true(result.has("error"), "Missing node_path should error")
+
+func test_find_tilemap_node_none():
+	var result: Node = _media_tools._find_tilemap_node("/root/Main")
+	assert_eq(result, null, "Non-tilemap node should return null")
+
+func test_is_legacy_tilemap_plain_node():
+	var node := Node.new()
+	assert_false(_media_tools._is_legacy_tilemap(node), "Plain Node is not legacy TileMap")
+	node.free()
+
+func test_validate_tilemap_layer_layer_out_of_range():
+	var tilemap := TileMap.new()
+	var err: Dictionary = _media_tools._validate_tilemap_layer(tilemap, 5)
+	assert_true(not err.is_empty(), "Out-of-range layer should error")
+	tilemap.free()
+
+func test_make_cell_structure():
+	var cell: Dictionary = _media_tools._make_cell(0, Vector2i(1, 2), 3, Vector2i(4, 5), 6)
+	assert_eq(cell["layer"], 0, "layer should round-trip")
+	assert_eq(cell["coords"], Vector2i(1, 2), "coords should round-trip")
+	assert_eq(cell["source_id"], 3, "source_id should round-trip")
+	assert_eq(cell["atlas_coords"], Vector2i(4, 5), "atlas_coords should round-trip")
+	assert_eq(cell["alternative"], 6, "alternative should round-trip")

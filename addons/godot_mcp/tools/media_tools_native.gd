@@ -106,6 +106,12 @@ func register_tools(server_core: RefCounted) -> void:
 	_register_assign_shader_material(server_core)
 	_register_set_shader_param(server_core)
 	_register_get_shader_params(server_core)
+	_register_tilemap_set_cell(server_core)
+	_register_tilemap_fill_rect(server_core)
+	_register_tilemap_get_cell(server_core)
+	_register_tilemap_clear(server_core)
+	_register_tilemap_get_info(server_core)
+	_register_tilemap_get_used_cells(server_core)
 
 # ============================================================================
 # list_animations
@@ -2801,4 +2807,536 @@ func _register_get_shader_params(server_core: RefCounted) -> void:
 		},
 		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
 		"supplementary", "Media-Shader"
+	)
+
+# ============================================================================
+# TileMap tools (Batch 10)
+# ============================================================================
+
+func _find_tilemap_node(node_path: String) -> Node:
+	var node: Node = _resolve_node_path(node_path)
+	if node is TileMapLayer or _is_legacy_tilemap(node):
+		return node
+	return null
+
+func _is_legacy_tilemap(node: Node) -> bool:
+	return node != null and node.get_class() == "TileMap"
+
+func _get_single_layer(tilemap: Node, params: Dictionary) -> Array:
+	if tilemap is TileMapLayer:
+		if params.has("layer") and int(params["layer"]) != 0:
+			return [0, {"error": "layer only applies to deprecated TileMap nodes; TileMapLayer has one implicit layer"}]
+		return [0, null]
+	var layer: int = int(params.get("layer", 0))
+	var layer_error: Dictionary = _validate_tilemap_layer(tilemap, layer)
+	if not layer_error.is_empty():
+		return [layer, layer_error]
+	return [layer, null]
+
+func _get_clear_layers(tilemap: Node, params: Dictionary) -> Array:
+	if tilemap is TileMapLayer:
+		var layer_result: Array = _get_single_layer(tilemap, params)
+		if layer_result[1] != null:
+			return [[], layer_result[1]]
+		return [[0], null]
+	if params.has("layer"):
+		var layer_result: Array = _get_single_layer(tilemap, params)
+		if layer_result[1] != null:
+			return [[], layer_result[1]]
+		return [[int(layer_result[0])], null]
+	var layers: Array = []
+	for layer in range(_get_tilemap_layer_count(tilemap)):
+		layers.append(layer)
+	return [layers, null]
+
+func _validate_tilemap_layer(tilemap: Node, layer: int) -> Dictionary:
+	if tilemap is TileMapLayer:
+		return {}
+	var layer_count: int = _get_tilemap_layer_count(tilemap)
+	if layer_count <= 0:
+		return {"error": "TileMap has no layers"}
+	if layer < -layer_count or layer >= layer_count:
+		return {"error": "layer " + str(layer) + " is out of range for TileMap with " + str(layer_count) + " layers"}
+	return {}
+
+func _get_tilemap_layer_count(tilemap: Node) -> int:
+	if tilemap is TileMapLayer:
+		return 1
+	return int(tilemap.call("get_layers_count"))
+
+func _get_used_cells(tilemap: Node, layer: int) -> Array:
+	if tilemap is TileMapLayer:
+		return tilemap.call("get_used_cells")
+	return tilemap.call("get_used_cells", layer)
+
+func _get_cell_source_id(tilemap: Node, layer: int, coords: Vector2i) -> int:
+	if tilemap is TileMapLayer:
+		return int(tilemap.call("get_cell_source_id", coords))
+	return int(tilemap.call("get_cell_source_id", layer, coords))
+
+func _get_cell_atlas_coords(tilemap: Node, layer: int, coords: Vector2i) -> Vector2i:
+	if tilemap is TileMapLayer:
+		return tilemap.call("get_cell_atlas_coords", coords)
+	return tilemap.call("get_cell_atlas_coords", layer, coords)
+
+func _get_cell_alternative_tile(tilemap: Node, layer: int, coords: Vector2i) -> int:
+	if tilemap is TileMapLayer:
+		return int(tilemap.call("get_cell_alternative_tile", coords))
+	return int(tilemap.call("get_cell_alternative_tile", layer, coords))
+
+func _make_cell(layer: int, coords: Vector2i, source_id: int, atlas_coords: Vector2i, alternative: int) -> Dictionary:
+	return {
+		"layer": layer,
+		"coords": coords,
+		"source_id": source_id,
+		"atlas_coords": atlas_coords,
+		"alternative": alternative,
+	}
+
+func _capture_cell(tilemap: Node, layer: int, coords: Vector2i) -> Dictionary:
+	return _make_cell(
+		layer,
+		coords,
+		_get_cell_source_id(tilemap, layer, coords),
+		_get_cell_atlas_coords(tilemap, layer, coords),
+		_get_cell_alternative_tile(tilemap, layer, coords)
+	)
+
+func _capture_cells(tilemap: Node, layers: Array) -> Array:
+	var cells: Array = []
+	for layer: int in layers:
+		for coords: Vector2i in _get_used_cells(tilemap, layer):
+			cells.append(_capture_cell(tilemap, layer, coords))
+	return cells
+
+func _add_do_set_cells(undo_redo: EditorUndoRedoManager, tilemap: Node, cells: Array) -> void:
+	for cell: Dictionary in cells:
+		if tilemap is TileMapLayer:
+			undo_redo.add_do_method(tilemap, "set_cell", cell["coords"], cell["source_id"], cell["atlas_coords"], cell["alternative"])
+		else:
+			undo_redo.add_do_method(tilemap, "set_cell", cell["layer"], cell["coords"], cell["source_id"], cell["atlas_coords"], cell["alternative"])
+
+func _add_undo_set_cells(undo_redo: EditorUndoRedoManager, tilemap: Node, cells: Array) -> void:
+	for cell: Dictionary in cells:
+		if tilemap is TileMapLayer:
+			undo_redo.add_undo_method(tilemap, "set_cell", cell["coords"], cell["source_id"], cell["atlas_coords"], cell["alternative"])
+		else:
+			undo_redo.add_undo_method(tilemap, "set_cell", cell["layer"], cell["coords"], cell["source_id"], cell["atlas_coords"], cell["alternative"])
+
+func _add_do_clear(undo_redo: EditorUndoRedoManager, tilemap: Node, layers: Array) -> void:
+	if tilemap is TileMapLayer or layers.size() == _get_tilemap_layer_count(tilemap):
+		undo_redo.add_do_method(tilemap, "clear")
+		return
+	for layer: int in layers:
+		undo_redo.add_do_method(tilemap, "clear_layer", layer)
+
+func _tool_tilemap_set_cell(params: Dictionary) -> Dictionary:
+	var scene_root: Node = _get_user_scene_root()
+	if not scene_root:
+		return {"error": "No scene is currently open"}
+	var node_path: String = String(params.get("node_path", ""))
+	if node_path.is_empty():
+		return {"error": "Missing required parameter: node_path"}
+	var tilemap: Node = _find_tilemap_node(node_path)
+	if tilemap == null:
+		return {"error": "TileMapLayer or TileMap at '" + node_path + "' not found"}
+
+	var layer_result: Array = _get_single_layer(tilemap, params)
+	if layer_result[1] != null:
+		return layer_result[1]
+	var layer: int = layer_result[0]
+
+	var x: int = int(params.get("x", 0))
+	var y: int = int(params.get("y", 0))
+	var source_id: int = int(params.get("source_id", 0))
+	var atlas_x: int = int(params.get("atlas_x", 0))
+	var atlas_y: int = int(params.get("atlas_y", 0))
+	var alternative: int = int(params.get("alternative", 0))
+
+	var coords := Vector2i(x, y)
+	var old_cells: Array = [_capture_cell(tilemap, layer, coords)]
+	var new_cells: Array = [_make_cell(layer, coords, source_id, Vector2i(atlas_x, atlas_y), alternative)]
+
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if not editor_interface:
+		return {"error": "Editor interface not available"}
+	var undo_redo: EditorUndoRedoManager = editor_interface.get_editor_undo_redo()
+	undo_redo.create_action("MCP: Set TileMap cell")
+	_add_do_set_cells(undo_redo, tilemap, new_cells)
+	_add_undo_set_cells(undo_redo, tilemap, old_cells)
+	undo_redo.commit_action()
+	editor_interface.mark_scene_as_unsaved()
+
+	return {"x": x, "y": y, "layer": layer, "node_class": tilemap.get_class(), "source_id": source_id, "atlas_coords": [atlas_x, atlas_y]}
+
+func _tool_tilemap_fill_rect(params: Dictionary) -> Dictionary:
+	var scene_root: Node = _get_user_scene_root()
+	if not scene_root:
+		return {"error": "No scene is currently open"}
+	var node_path: String = String(params.get("node_path", ""))
+	if node_path.is_empty():
+		return {"error": "Missing required parameter: node_path"}
+	var tilemap: Node = _find_tilemap_node(node_path)
+	if tilemap == null:
+		return {"error": "TileMapLayer or TileMap at '" + node_path + "' not found"}
+
+	var layer_result: Array = _get_single_layer(tilemap, params)
+	if layer_result[1] != null:
+		return layer_result[1]
+	var layer: int = layer_result[0]
+
+	var x1: int = int(params.get("x1", 0))
+	var y1: int = int(params.get("y1", 0))
+	var x2: int = int(params.get("x2", 0))
+	var y2: int = int(params.get("y2", 0))
+	var source_id: int = int(params.get("source_id", 0))
+	var atlas_x: int = int(params.get("atlas_x", 0))
+	var atlas_y: int = int(params.get("atlas_y", 0))
+	var alternative: int = int(params.get("alternative", 0))
+
+	var count := 0
+	var old_cells: Array = []
+	var new_cells: Array = []
+	for cx in range(mini(x1, x2), maxi(x1, x2) + 1):
+		for cy in range(mini(y1, y2), maxi(y1, y2) + 1):
+			var coords := Vector2i(cx, cy)
+			old_cells.append(_capture_cell(tilemap, layer, coords))
+			new_cells.append(_make_cell(layer, coords, source_id, Vector2i(atlas_x, atlas_y), alternative))
+			count += 1
+
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if not editor_interface:
+		return {"error": "Editor interface not available"}
+	var undo_redo: EditorUndoRedoManager = editor_interface.get_editor_undo_redo()
+	undo_redo.create_action("MCP: Fill TileMap rect")
+	_add_do_set_cells(undo_redo, tilemap, new_cells)
+	_add_undo_set_cells(undo_redo, tilemap, old_cells)
+	undo_redo.commit_action()
+	editor_interface.mark_scene_as_unsaved()
+
+	return {"filled": count, "rect": [x1, y1, x2, y2], "layer": layer, "node_class": tilemap.get_class()}
+
+func _tool_tilemap_get_cell(params: Dictionary) -> Dictionary:
+	var scene_root: Node = _get_user_scene_root()
+	if not scene_root:
+		return {"error": "No scene is currently open"}
+	var node_path: String = String(params.get("node_path", ""))
+	if node_path.is_empty():
+		return {"error": "Missing required parameter: node_path"}
+	var tilemap: Node = _find_tilemap_node(node_path)
+	if tilemap == null:
+		return {"error": "TileMapLayer or TileMap at '" + node_path + "' not found"}
+
+	var layer_result: Array = _get_single_layer(tilemap, params)
+	if layer_result[1] != null:
+		return layer_result[1]
+	var layer: int = layer_result[0]
+
+	var x: int = int(params.get("x", 0))
+	var y: int = int(params.get("y", 0))
+	var coords := Vector2i(x, y)
+
+	var source_id: int = _get_cell_source_id(tilemap, layer, coords)
+	var atlas_coords: Vector2i = _get_cell_atlas_coords(tilemap, layer, coords)
+	var alternative: int = _get_cell_alternative_tile(tilemap, layer, coords)
+
+	return {
+		"x": x, "y": y,
+		"layer": layer,
+		"node_class": tilemap.get_class(),
+		"source_id": source_id,
+		"atlas_coords": [atlas_coords.x, atlas_coords.y],
+		"alternative": alternative,
+		"empty": source_id == -1,
+	}
+
+func _tool_tilemap_clear(params: Dictionary) -> Dictionary:
+	var scene_root: Node = _get_user_scene_root()
+	if not scene_root:
+		return {"error": "No scene is currently open"}
+	var node_path: String = String(params.get("node_path", ""))
+	if node_path.is_empty():
+		return {"error": "Missing required parameter: node_path"}
+	var tilemap: Node = _find_tilemap_node(node_path)
+	if tilemap == null:
+		return {"error": "TileMapLayer or TileMap at '" + node_path + "' not found"}
+
+	var clear_layers_result: Array = _get_clear_layers(tilemap, params)
+	if clear_layers_result[1] != null:
+		return clear_layers_result[1]
+	var layers: Array = clear_layers_result[0]
+
+	var old_cells: Array = _capture_cells(tilemap, layers)
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if not editor_interface:
+		return {"error": "Editor interface not available"}
+	var undo_redo: EditorUndoRedoManager = editor_interface.get_editor_undo_redo()
+	undo_redo.create_action("MCP: Clear TileMap")
+	_add_do_clear(undo_redo, tilemap, layers)
+	_add_undo_set_cells(undo_redo, tilemap, old_cells)
+	undo_redo.commit_action()
+	editor_interface.mark_scene_as_unsaved()
+
+	return {"cleared": true, "layers": layers, "node_class": tilemap.get_class()}
+
+func _get_layer_info(tilemap: Node) -> Array:
+	var layers: Array = []
+	if tilemap is TileMapLayer:
+		layers.append({
+			"index": 0,
+			"name": tilemap.name,
+			"enabled": true,
+			"used_cells": _get_used_cells(tilemap, 0).size(),
+		})
+		return layers
+	for layer in range(_get_tilemap_layer_count(tilemap)):
+		layers.append({
+			"index": layer,
+			"name": String(tilemap.call("get_layer_name", layer)),
+			"enabled": bool(tilemap.call("is_layer_enabled", layer)),
+			"used_cells": _get_used_cells(tilemap, layer).size(),
+		})
+	return layers
+
+func _tool_tilemap_get_info(params: Dictionary) -> Dictionary:
+	var scene_root: Node = _get_user_scene_root()
+	if not scene_root:
+		return {"error": "No scene is currently open"}
+	var node_path: String = String(params.get("node_path", ""))
+	if node_path.is_empty():
+		return {"error": "Missing required parameter: node_path"}
+	var tilemap: Node = _find_tilemap_node(node_path)
+	if tilemap == null:
+		return {"error": "TileMapLayer or TileMap at '" + node_path + "' not found"}
+
+	var tile_set: TileSet = tilemap.get("tile_set")
+	var sources: Array = []
+	if tile_set:
+		for i in tile_set.get_source_count():
+			var source_id: int = tile_set.get_source_id(i)
+			var source: TileSetSource = tile_set.get_source(source_id)
+			var info: Dictionary = {"id": source_id, "type": source.get_class()}
+			if source is TileSetAtlasSource:
+				var atlas: TileSetAtlasSource = source
+				info["texture"] = atlas.texture.resource_path if atlas.texture else ""
+				info["tile_count"] = atlas.get_tiles_count()
+			sources.append(info)
+
+	var layers: Array = _get_layer_info(tilemap)
+	var used_cells := 0
+	for layer_info: Dictionary in layers:
+		used_cells += int(layer_info["used_cells"])
+
+	return {
+		"node_path": node_path,
+		"node_class": tilemap.get_class(),
+		"layer_count": layers.size(),
+		"layers": layers,
+		"used_cells": used_cells,
+		"tile_set_sources": sources,
+		"tile_size": [tile_set.tile_size.x, tile_set.tile_size.y] if tile_set else [0, 0],
+	}
+
+func _tool_tilemap_get_used_cells(params: Dictionary) -> Dictionary:
+	var scene_root: Node = _get_user_scene_root()
+	if not scene_root:
+		return {"error": "No scene is currently open"}
+	var node_path: String = String(params.get("node_path", ""))
+	if node_path.is_empty():
+		return {"error": "Missing required parameter: node_path"}
+	var tilemap: Node = _find_tilemap_node(node_path)
+	if tilemap == null:
+		return {"error": "TileMapLayer or TileMap at '" + node_path + "' not found"}
+
+	var layer_result: Array = _get_single_layer(tilemap, params)
+	if layer_result[1] != null:
+		return layer_result[1]
+	var layer: int = layer_result[0]
+
+	var max_count: int = maxi(0, int(params.get("max_count", 500)))
+	var cells: Array = []
+	var used: Array = _get_used_cells(tilemap, layer)
+	for i in mini(used.size(), max_count):
+		var pos: Vector2i = used[i]
+		cells.append({"x": pos.x, "y": pos.y, "layer": layer, "source_id": _get_cell_source_id(tilemap, layer, pos)})
+
+	return {"cells": cells, "total": used.size(), "returned": cells.size(), "layer": layer, "node_class": tilemap.get_class()}
+
+# ============================================================================
+# Registration helpers (Batch 10 tilemap)
+# ============================================================================
+
+func _register_tilemap_set_cell(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"tilemap_set_cell",
+		"Set a cell on a TileMapLayer or legacy TileMap node (undoable).",
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"x": {"type": "integer"},
+				"y": {"type": "integer"},
+				"source_id": {"type": "integer", "description": "TileSet source id. Default 0."},
+				"atlas_x": {"type": "integer", "description": "Atlas coordinates X. Default 0."},
+				"atlas_y": {"type": "integer"},
+				"alternative": {"type": "integer", "description": "Alternative tile id. Default 0."},
+				"layer": {"type": "integer", "description": "Layer index (legacy TileMap only)."}
+			},
+			"required": ["node_path"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_tilemap_set_cell"),
+		{
+			"type": "object",
+			"properties": {
+				"x": {"type": "integer"},
+				"y": {"type": "integer"},
+				"source_id": {"type": "integer"},
+				"node_class": {"type": "string"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Media-TileMap"
+	)
+
+func _register_tilemap_fill_rect(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"tilemap_fill_rect",
+		"Fill a rectangular region of a TileMapLayer or legacy TileMap with a tile (undoable).",
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"x1": {"type": "integer"},
+				"y1": {"type": "integer"},
+				"x2": {"type": "integer"},
+				"y2": {"type": "integer"},
+				"source_id": {"type": "integer"},
+				"atlas_x": {"type": "integer"},
+				"atlas_y": {"type": "integer"},
+				"alternative": {"type": "integer"},
+				"layer": {"type": "integer"}
+			},
+			"required": ["node_path"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_tilemap_fill_rect"),
+		{
+			"type": "object",
+			"properties": {
+				"filled": {"type": "integer"},
+				"rect": {"type": "array"},
+				"node_class": {"type": "string"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Media-TileMap"
+	)
+
+func _register_tilemap_get_cell(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"tilemap_get_cell",
+		"Read a cell from a TileMapLayer or legacy TileMap.",
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"x": {"type": "integer"},
+				"y": {"type": "integer"},
+				"layer": {"type": "integer"}
+			},
+			"required": ["node_path"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_tilemap_get_cell"),
+		{
+			"type": "object",
+			"properties": {
+				"x": {"type": "integer"},
+				"y": {"type": "integer"},
+				"source_id": {"type": "integer"},
+				"empty": {"type": "boolean"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Media-TileMap"
+	)
+
+func _register_tilemap_clear(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"tilemap_clear",
+		"Clear a TileMapLayer or legacy TileMap (optionally one layer), undoable.",
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"layer": {"type": "integer", "description": "Layer to clear (legacy TileMap only). Omit to clear all."}
+			},
+			"required": ["node_path"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_tilemap_clear"),
+		{
+			"type": "object",
+			"properties": {
+				"cleared": {"type": "boolean"},
+				"layers": {"type": "array"},
+				"node_class": {"type": "string"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": true, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Media-TileMap"
+	)
+
+func _register_tilemap_get_info(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"tilemap_get_info",
+		"Read TileMapLayer/TileMap info: layers, used cells, TileSet sources, and tile size.",
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"}
+			},
+			"required": ["node_path"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_tilemap_get_info"),
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"layer_count": {"type": "integer"},
+				"used_cells": {"type": "integer"},
+				"tile_set_sources": {"type": "array"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Media-TileMap"
+	)
+
+func _register_tilemap_get_used_cells(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"tilemap_get_used_cells",
+		"List used cells of a TileMapLayer or legacy TileMap layer with their source ids.",
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"layer": {"type": "integer"},
+				"max_count": {"type": "integer", "description": "Max cells to return. Default 500."}
+			},
+			"required": ["node_path"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_tilemap_get_used_cells"),
+		{
+			"type": "object",
+			"properties": {
+				"cells": {"type": "array"},
+				"total": {"type": "integer"},
+				"returned": {"type": "integer"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Media-TileMap"
 	)

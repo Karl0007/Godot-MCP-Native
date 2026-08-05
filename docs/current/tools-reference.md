@@ -31,7 +31,7 @@ Godot MCP Native 实现了 **161 个工具**，分为 7 大类（含核心和补
 | [Debug Tools](#debug-tools) | 3 | 68 | 71 | `debug_tools_native.gd` | 调试和运行时（日志、断点、栈帧、Profiler、运行时探针、动画、音频、着色器、瓦片地图） |
 | [Project Tools](#project-tools) | 3 | 23 | 26 | `project_tools_native.gd` | 项目配置（信息、设置、测试、输入映射、自动加载、全局类、资源诊断） |
 | [World Tools](#world-tools) | 0 | 22 | 22 | `world_tools_native.gd` | 3D 场景构建、物理、导航与粒子（网格、光照、材质、环境、相机、GridMap、碰撞、物理层、射线、导航区域、寻路代理、GPU 粒子） |
-| [Media Tools](#media-tools) | 0 | 33 | 33 | `media_tools_native.gd` | 动画、音频、主题与着色器编辑（创建/轨道/关键帧/状态机/音频总线/主题覆盖/着色器） |
+| [Media Tools](#media-tools) | 0 | 39 | 39 | `media_tools_native.gd` | 动画、音频、主题、着色器与 TileMap 编辑（创建/轨道/关键帧/状态机/音频总线/主题覆盖/着色器/瓦片地图） |
 
 ### Vibe Coding / 免打扰模式
 
@@ -4243,7 +4243,7 @@ Continue：恢复执行。
 
 ## Media Tools
 
-动画、音频、主题与着色器编辑工具（批次 5-9，共 33 个补充工具），源文件 `media_tools_native.gd`。
+动画、音频、主题、着色器与 TileMap 编辑工具（批次 5-10，共 39 个补充工具），源文件 `media_tools_native.gd`。
 
 ### 178. list_animations
 
@@ -4554,6 +4554,66 @@ Continue：恢复执行。
 
 **注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
 
+### 211. tilemap_set_cell
+
+在 TileMapLayer / 旧版 TileMap 上设置单元格（可撤销）。
+
+**参数**：`node_path`（是）、`x`/`y`（否）、`source_id`（否）、`atlas_x`/`atlas_y`（否）、`alternative`（否）、`layer`（否，旧版 TileMap）
+
+**返回值**：`x`、`y`、`layer`、`node_class`、`source_id`、`atlas_coords`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 212. tilemap_fill_rect
+
+填充矩形区域（可撤销）。
+
+**参数**：`node_path`（是）、`x1`/`y1`/`x2`/`y2`（否）、`source_id`/`atlas_x`/`atlas_y`/`alternative`（否）、`layer`（否）
+
+**返回值**：`filled`、`rect`、`layer`、`node_class`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 213. tilemap_get_cell
+
+读取单元格。
+
+**参数**：`node_path`（是）、`x`/`y`（否）、`layer`（否）
+
+**返回值**：`x`、`y`、`layer`、`node_class`、`source_id`、`atlas_coords`、`alternative`、`empty`
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 214. tilemap_clear
+
+清空瓦片地图（可撤销）。
+
+**参数**：`node_path`（是）、`layer`（否，旧版 TileMap 单层）
+
+**返回值**：`cleared`、`layers`、`node_class`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=true`, `idempotentHint=true`, `openWorldHint=false`
+
+### 215. tilemap_get_info
+
+读取瓦片地图信息。
+
+**参数**：`node_path`（是）
+
+**返回值**：`node_path`、`node_class`、`layer_count`、`layers`、`used_cells`、`tile_set_sources`、`tile_size`
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 216. tilemap_get_used_cells
+
+列出已用单元格。
+
+**参数**：`node_path`（是）、`layer`（否）、`max_count`（否，默认 500）
+
+**返回值**：`cells`、`total`、`returned`、`layer`、`node_class`
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
 ## 通用数据类型
 
 ### Vector2
@@ -4653,7 +4713,7 @@ Continue：恢复执行。
 
 ## 总结
 
-本手册详细说明了 Godot MCP Native 项目的所有核心工具及部分补充工具。项目共 **210 个工具**（30 核心 + 180 补充），所有工具均可通过 MCP 工具管理面板按分组动态启用/禁用。补充工具（`*-Advanced` 分组）默认不启用，需在工具管理面板中手动开启。
+本手册详细说明了 Godot MCP Native 项目的所有核心工具及部分补充工具。项目共 **216 个工具**（30 核心 + 186 补充），所有工具均可通过 MCP 工具管理面板按分组动态启用/禁用。补充工具（`*-Advanced` 分组）默认不启用，需在工具管理面板中手动开启。
 
 **提示**：
 - 使用 `tools/list` 方法获取所有工具的实时列表和完整 JSON Schema
