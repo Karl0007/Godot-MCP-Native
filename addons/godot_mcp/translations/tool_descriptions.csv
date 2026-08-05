@@ -5,6 +5,8 @@ add_gridmap,,"Create a GridMap node, optionally assign a MeshLibrary resource an
 add_mesh_instance,,"Create a MeshInstance3D with a primitive mesh (box, sphere, cylinder, capsule, plane, quad, prism, torus) or load a mesh from a .glb/.gltf/.obj file.",创建 MeshInstance3D，支持基本体网格（box/sphere/cylinder/capsule/plane/quad/prism/torus）或从 .glb/.gltf/.obj 文件加载网格。
 add_raycast,,"Add a RayCast2D or RayCast3D to a node with configurable target position, collision mask, and hit settings.",向节点添加 RayCast2D 或 RayCast3D，支持目标位置、碰撞掩码和命中设置。
 add_resource,,Add a resource child node to a target node.,向目标节点添加资源子节点。
+add_state_machine_state,,"Add a state to an AnimationNodeStateMachine. State types: animation, blend_tree, or state_machine.",向 AnimationNodeStateMachine 添加状态。状态类型：animation、blend_tree 或 state_machine。
+add_state_machine_transition,,Add a transition between two states in an AnimationNodeStateMachine.,在 AnimationNodeStateMachine 中两个状态之间添加过渡。
 analyze_script,,Analyze a GDScript file and report code quality issues.,分析 GDScript 文件并报告代码质量问题。
 apply_particle_preset,,"Apply a predefined particle preset: explosion, fire, smoke, sparks, rain, snow, magic, or dust.",应用预定义粒子预设：explosion、fire、smoke、sparks、rain、snow、magic 或 dust。
 assert_runtime_condition,,Assert a condition in the running game.,在运行中游戏中断言一个条件。
@@ -25,6 +27,7 @@ close_scene_tab,,Close the active scene tab, or activate a specified scene tab a
 compare_render_screenshots,,Compare two screenshot images and report pixel differences, RMSE, and threshold-based match status.,比较两张截图图像并报告像素差异、RMSE 和基于阈值的匹配状态。
 connect_signal,,Connect a signal from one node to another.,将一个节点的信号连接到另一个节点。
 create_animation,,Create a new animation on an AnimationPlayer node with length and loop mode.,在 AnimationPlayer 节点上创建新动画，支持长度和循环模式。
+create_animation_tree,,"Create an AnimationTree node with an AnimationNodeStateMachine root, optionally linked to an AnimationPlayer.",创建 AnimationTree 节点，根为 AnimationNodeStateMachine，可链接 AnimationPlayer。
 create_node,,Create a new node in the Godot scene tree. Returns the node path and type.,在 Godot 场景树中创建新节点。返回节点路径和类型。
 create_particles,,"Create a GPUParticles2D or GPUParticles3D node with amount, lifetime, one_shot, explosiveness, and randomness settings.",创建 GPUParticles2D 或 GPUParticles3D 节点，支持数量、寿命、one_shot、爆发力和随机性设置。
 create_resource,,Create a new Godot resource file (.tres). Supports common resource types.,创建新的 Godot 资源文件（.tres）。支持常见的资源类型。
@@ -55,6 +58,7 @@ find_script_symbol_definition,,Find definition locations for a script symbol acr
 find_script_symbol_references,,Find textual project references to a script symbol across GDScript, C#, and scene files.,在 GDScript、C# 和场景文件中查找脚本符号的文本引用。
 fix_resource_uid,,Fix resource UID issues.,修复资源 UID 问题。
 get_animation_info,,"Read animation details: length, loop mode, step, and per-track keyframes.",读取动画详情：长度、循环模式、步长和每个轨道的关键帧。
+get_animation_tree_structure,,"Read an AnimationTree structure: root node type, state machine states/transitions, or blend tree nodes.",读取 AnimationTree 结构：根节点类型、状态机状态/过渡或混合树节点。
 get_class_api_metadata,,Get typed API metadata for an engine ClassDB class or a project global script class.,获取引擎 ClassDB 类或项目全局脚本类的类型化 API 元数据。
 get_collision_info,,"Read collision shapes, raycasts, layers, and body settings from a physics node (including children).",读取物理节点的碰撞形状、射线、层和物理体设置（含子节点）。
 get_current_scene,,Get information about the currently open scene, including name, path, and root node type.,获取当前打开场景的信息，包括名称、路径和根节点类型。
@@ -133,6 +137,8 @@ remove_animation,,Remove an animation from an AnimationPlayer node (undoable).,�
 remove_project_input_action,,Remove a project InputMap action from ProjectSettings and save project.godot.,从 ProjectSettings 中移除项目 InputMap 动作并保存 project.godot。
 remove_runtime_input_action,,Remove an input action from the running game.,从运行中的游戏中移除输入动作。
 remove_runtime_probe,,Remove a runtime probe.,移除运行时探针。
+remove_state_machine_state,,Remove a state from an AnimationNodeStateMachine (undoable).,从 AnimationNodeStateMachine 移除状态（可撤销）。
+remove_state_machine_transition,,Remove a transition between two states in an AnimationNodeStateMachine (undoable).,移除 AnimationNodeStateMachine 中两个状态之间的过渡（可撤销）。
 rename_node,,Rename a node in the scene tree. The new name must be unique among siblings.,重命名场景树中的节点。新名称必须在同级节点中唯一。
 rename_script_symbol,,Rename a script symbol across project files using identifier-boundary text replacements. Supports dry-run previews before applying changes.,使用标识符边界文本替换在项目文件中重命名脚本符号。支持在应用更改前进行试运行预览。
 request_debug_break,,Request the debugger to break at the current execution point.,请求调试器在当前执行点断点。
@@ -150,6 +156,7 @@ send_debug_command,,Send a command to the debugger.,向调试器发送命令。
 send_debugger_message,,Send a custom debugger message to active Godot debugger sessions.,向活动的 Godot 调试器会话发送自定义调试器消息。
 set_anchor_preset,,Set anchor preset for a Control node.,为 Control 节点设置锚点预设。
 set_animation_keyframe,,Insert or update a keyframe at a given time on an animation track.,在动画轨道的指定时间插入或更新关键帧。
+set_blend_tree_node,,"Add or replace a node inside an AnimationNodeBlendTree. Types: Animation, Add2, Blend2, Add3, Blend3, TimeScale, TimeSeek, Transition, OneShot, Sub2.",在 AnimationNodeBlendTree 中添加或替换节点。类型：Animation、Add2、Blend2、Add3、Blend3、TimeScale、TimeSeek、Transition、OneShot、Sub2。
 set_debugger_breakpoint,,Enable or disable a breakpoint in active Godot debugger sessions.,在活动的 Godot 调试器会话中启用或禁用断点。
 set_editor_setting,,Set an editor setting value. Requires editor restart for some settings to take effect.,设置编辑器设置值。某些设置需要重启编辑器才能生效。
 set_material_3d,,"Create or update a StandardMaterial3D on a MeshInstance3D surface with PBR parameters (albedo, metallic, roughness, emission, transparency, cull mode).",在 MeshInstance3D 表面创建或更新 StandardMaterial3D，支持 PBR 参数（albedo/metallic/roughness/emission/transparency/cull mode）。
@@ -162,6 +169,7 @@ set_runtime_animation_tree_active,,Set an animation tree active/inactive in the 
 set_runtime_shader_parameter,,Set a shader parameter in the running game.,设置运行中游戏中的着色器参数。
 set_runtime_theme_override,,Set a theme override in the running game.,在运行中的游戏中设置主题覆盖。
 set_runtime_tilemap_cell,,Set a TileMap cell in the running game.,设置运行中游戏中的 TileMap 单元格。
+set_tree_parameter,,Set an AnimationTree parameter (auto-prefixed with 'parameters/').,设置 AnimationTree 参数（自动添加 'parameters/' 前缀）。
 setup_camera_3d,,"Create or configure a Camera3D with position, rotation, FOV, near/far planes, and current camera flag.",创建或配置 Camera3D，支持位置、旋转、FOV、近远裁剪面和当前相机标志。
 setup_collision,,"Add a CollisionShape2D or CollisionShape3D to a physics body or area node. Supports rectangle, circle, capsule, segment, convex (2D) and box, sphere, capsule, cylinder, convex (3D).",向物理体或区域节点添加 CollisionShape2D 或 CollisionShape3D。支持 2D（rectangle/circle/capsule/segment/convex）和 3D（box/sphere/capsule/cylinder/convex）。
 setup_environment,,"Create or update a WorldEnvironment with background mode, procedural sky, ambient light, and tonemap settings.",创建或更新 WorldEnvironment，支持背景模式、程序化天空、环境光和色调映射设置。

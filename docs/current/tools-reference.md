@@ -31,7 +31,7 @@ Godot MCP Native 实现了 **161 个工具**，分为 7 大类（含核心和补
 | [Debug Tools](#debug-tools) | 3 | 68 | 71 | `debug_tools_native.gd` | 调试和运行时（日志、断点、栈帧、Profiler、运行时探针、动画、音频、着色器、瓦片地图） |
 | [Project Tools](#project-tools) | 3 | 23 | 26 | `project_tools_native.gd` | 项目配置（信息、设置、测试、输入映射、自动加载、全局类、资源诊断） |
 | [World Tools](#world-tools) | 0 | 22 | 22 | `world_tools_native.gd` | 3D 场景构建、物理、导航与粒子（网格、光照、材质、环境、相机、GridMap、碰撞、物理层、射线、导航区域、寻路代理、GPU 粒子） |
-| [Media Tools](#media-tools) | 0 | 6 | 6 | `media_tools_native.gd` | 动画编辑（创建/轨道/关键帧/信息/删除） |
+| [Media Tools](#media-tools) | 0 | 14 | 14 | `media_tools_native.gd` | 动画与动画树编辑（创建/轨道/关键帧/状态机/混合树/参数） |
 
 ### Vibe Coding / 免打扰模式
 
@@ -4243,7 +4243,7 @@ Continue：恢复执行。
 
 ## Media Tools
 
-动画编辑工具（批次 5，共 6 个补充工具），源文件 `media_tools_native.gd`。
+动画与动画树编辑工具（批次 5-6，共 14 个补充工具），源文件 `media_tools_native.gd`。
 
 ### 178. list_animations
 
@@ -4301,6 +4301,78 @@ Continue：恢复执行。
 
 **注解**：`readOnlyHint=false`, `destructiveHint=true`, `idempotentHint=false`, `openWorldHint=false`
 
+
+### 184. create_animation_tree
+
+创建 AnimationTree（根为 AnimationNodeStateMachine）。
+
+**参数**：`node_path`（是）、`name`（否）、`anim_player`（否，AnimationPlayer 路径）
+
+**返回值**：`name`、`node_path`、`root_type`、`anim_player`、`created`
+
+### 185. get_animation_tree_structure
+
+读取 AnimationTree 结构（状态机状态/过渡或混合树节点）。
+
+**参数**：`node_path`（是）
+
+**返回值**：`type`、`states`（含 name/position/子结构）、`transitions`（含 from/to/switch_mode/advance_mode）、`active`、`anim_player`、`nodes`（混合树）
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 186. add_state_machine_state
+
+添加状态机状态。
+
+**参数**：`node_path`（是）、`state_name`（是）、`state_machine_path`（否）、`state_type`（否，animation/blend_tree/state_machine）、`animation`（否）、`position_x/y`（否）
+
+**返回值**：`state_name`、`state_type`、`position`、`added`
+
+### 187. remove_state_machine_state
+
+移除状态机状态（可撤销）。
+
+**参数**：`node_path`（是）、`state_name`（是）、`state_machine_path`（否）
+
+**返回值**：`state_name`、`removed`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=true`, `idempotentHint=false`, `openWorldHint=false`
+
+### 188. add_state_machine_transition
+
+添加状态机过渡。
+
+**参数**：`node_path`（是）、`from_state`（是）、`to_state`（是）、`state_machine_path`（否）、`switch_mode`（否，at_end/immediate/sync）、`advance_mode`（否，disabled/enabled/auto）、`advance_expression`（否）、`xfade_time`（否）
+
+**返回值**：`from`、`to`、`switch_mode`、`advance_mode`、`advance_expression`、`added`
+
+### 189. remove_state_machine_transition
+
+移除状态机过渡（可撤销）。
+
+**参数**：`node_path`（是）、`from_state`（是）、`to_state`（是）、`state_machine_path`（否）
+
+**返回值**：`from`、`to`、`removed`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=true`, `idempotentHint=false`, `openWorldHint=false`
+
+### 190. set_blend_tree_node
+
+在混合树中添加/替换节点。
+
+**参数**：`node_path`（是）、`blend_tree_state`（是）、`bt_node_name`（是）、`bt_node_type`（是，Animation/Add2/Blend2/Add3/Blend3/TimeScale/TimeSeek/Transition/OneShot/Sub2）、`animation`（否）、`position_x/y`（否）、`connect_to`/`connect_port`（否）
+
+**返回值**：`blend_tree_state`、`bt_node_name`、`bt_node_type`、`position`、`connected_to`、`added`
+
+### 191. set_tree_parameter
+
+设置 AnimationTree 参数（自动加 `parameters/` 前缀）。
+
+**参数**：`node_path`（是）、`parameter`（是）、`value`（是）
+
+**返回值**：`parameter`、`value`、`set`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
 
 ## 通用数据类型
 
@@ -4401,7 +4473,7 @@ Continue：恢复执行。
 
 ## 总结
 
-本手册详细说明了 Godot MCP Native 项目的所有核心工具及部分补充工具。项目共 **183 个工具**（30 核心 + 153 补充），所有工具均可通过 MCP 工具管理面板按分组动态启用/禁用。补充工具（`*-Advanced` 分组）默认不启用，需在工具管理面板中手动开启。
+本手册详细说明了 Godot MCP Native 项目的所有核心工具及部分补充工具。项目共 **191 个工具**（30 核心 + 161 补充），所有工具均可通过 MCP 工具管理面板按分组动态启用/禁用。补充工具（`*-Advanced` 分组）默认不启用，需在工具管理面板中手动开启。
 
 **提示**：
 - 使用 `tools/list` 方法获取所有工具的实时列表和完整 JSON Schema

@@ -181,5 +181,13 @@
   "add_animation_track": "Add a track to an animation. Track types: value, position_2d, rotation_2d, scale_2d, method, bezier, blend_shape.",
   "set_animation_keyframe": "Insert or update a keyframe at a given time on an animation track.",
   "get_animation_info": "Read animation details: length, loop mode, step, and per-track keyframes.",
-  "remove_animation": "Remove an animation from an AnimationPlayer node (undoable)."
+  "remove_animation": "Remove an animation from an AnimationPlayer node (undoable).",
+  "create_animation_tree": "Create an AnimationTree node with an AnimationNodeStateMachine root, optionally linked to an AnimationPlayer.",
+  "get_animation_tree_structure": "Read an AnimationTree structure: root node type, state machine states/transitions, or blend tree nodes.",
+  "add_state_machine_state": "Add a state to an AnimationNodeStateMachine. State types: animation, blend_tree, or state_machine.",
+  "remove_state_machine_state": "Remove a state from an AnimationNodeStateMachine (undoable).",
+  "add_state_machine_transition": "Add a transition between two states in an AnimationNodeStateMachine.",
+  "remove_state_machine_transition": "Remove a transition between two states in an AnimationNodeStateMachine (undoable).",
+  "set_blend_tree_node": "Add or replace a node inside an AnimationNodeBlendTree. Types: Animation, Add2, Blend2, Add3, Blend3, TimeScale, TimeSeek, Transition, OneShot, Sub2.",
+  "set_tree_parameter": "Set an AnimationTree parameter (auto-prefixed with 'parameters/')."
 }

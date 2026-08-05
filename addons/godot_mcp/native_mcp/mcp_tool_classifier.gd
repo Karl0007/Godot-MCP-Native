@@ -193,6 +193,14 @@ func _build_classifications() -> void:
 		{"name": "set_animation_keyframe", "category": "supplementary", "group": "Media-Animation"},
 		{"name": "get_animation_info", "category": "supplementary", "group": "Media-Animation"},
 		{"name": "remove_animation", "category": "supplementary", "group": "Media-Animation"},
+		{"name": "create_animation_tree", "category": "supplementary", "group": "Media-Animation"},
+		{"name": "get_animation_tree_structure", "category": "supplementary", "group": "Media-Animation"},
+		{"name": "add_state_machine_state", "category": "supplementary", "group": "Media-Animation"},
+		{"name": "remove_state_machine_state", "category": "supplementary", "group": "Media-Animation"},
+		{"name": "add_state_machine_transition", "category": "supplementary", "group": "Media-Animation"},
+		{"name": "remove_state_machine_transition", "category": "supplementary", "group": "Media-Animation"},
+		{"name": "set_blend_tree_node", "category": "supplementary", "group": "Media-Animation"},
+		{"name": "set_tree_parameter", "category": "supplementary", "group": "Media-Animation"},
 	]
 
 	for item in classifications:
