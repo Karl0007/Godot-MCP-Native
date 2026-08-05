@@ -64,6 +64,18 @@ gdmcp --json nodes properties set /root/Player --property speed --value 300
 2. 在列表中找到 "Godot MCP Native"
 3. 将状态设置为 **启用**
 
+### 启用补充工具
+
+插件注册了 **278 个工具**，但 `tools/list` 默认只返回 **33 个核心工具**。其余 **245 个补充工具**（运行时探针、3D 场景、媒体编辑、导出、分析、批量操作等）默认禁用，需要手动启用：
+
+1. 打开 Godot 编辑器的 **MCP** 停靠面板（视图 > 底部面板 > MCP）
+2. 在 **Tools** 列表中勾选需要启用的工具
+3. 启用状态持久化到 `user://mcp_tool_state.cfg`，立即生效
+
+> 无头环境提示：手动编辑 `mcp_tool_state.cfg` 后必须重算 `[meta]` 段的 `checksum`（对 `tools/<key>=<value>` 行以 `\n` 连接计算 MD5），否则改动会被忽略。先关闭编辑器再编辑——退出时会重写该文件。
+
+**运行时探针**：运行时工具（播放/调试/UI 检查）需要游戏内的 `MCPRuntimeProbe` 自动加载。插件启用时会自动写入 `project.godot` 的 `[autoload]` 段；卸载插件时请删除对应行。
+
 ### 配置 MCP 服务器
 插件提供两种传输模式：
 

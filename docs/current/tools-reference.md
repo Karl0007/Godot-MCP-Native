@@ -20,18 +20,20 @@
 
 ## 工具概述
 
-Godot MCP Native 实现了 **161 个工具**，分为 7 大类（含核心和补充工具）：
+Godot MCP Native 实现了 **278 个工具**（33 核心 + 245 补充），分为 8 大类（含核心和补充工具）：
 
 | 类别 | 核心工具 | 补充工具 | 总计 | 源文件 | 用途 |
 |------|----------|----------|------|--------|------|
-| [Node Tools](#node-tools) | 9 | 17 | 26 | `node_tools_native.gd` | 节点管理（创建、删除、修改属性、复制、移动、重命名、信号、组） |
+| [Node Tools](#node-tools) | 9 | 17 | 26 | `node_tools_native.gd` | 节点管理（创建、删除、修改属性、复制、移动、重命名、信号、组、批量操作、场景审计） |
 | [Script Tools](#script-tools) | 7 | 7 | 14 | `script_tools_native.gd` | 脚本管理（读取、创建、修改、分析、附加、验证、搜索、符号索引） |
-| [Scene Tools](#scene-tools) | 4 | 10 | 14 | `scene_tools_native.gd` | 场景管理（创建、保存、打开、列出） |
-| [Editor Tools](#editor-tools) | 4 | 26 | 30 | `editor_tools_native.gd` | 编辑器操作（运行、停止、状态、截图、信号、导出、选择） |
-| [Debug Tools](#debug-tools) | 3 | 83 | 86 | `debug_tools_native.gd` | 调试和运行时（日志、断点、栈帧、Profiler、运行时探针、动画、音频、着色器、瓦片地图） |
-| [Project Tools](#project-tools) | 3 | 39 | 42 | `project_tools_native.gd` | 项目配置（信息、设置、测试、输入映射、自动加载、全局类、资源诊断） |
+| [Scene Tools](#scene-tools) | 4 | 10 | 14 | `scene_tools_native.gd` | 场景管理（创建、保存、打开、列出、播放） |
+| [Editor Tools](#editor-tools) | 4 | 26 | 30 | `editor_tools_native.gd` | 编辑器操作（运行、停止、状态、截图、信号、导出、选择、插件重载） |
+| [Debug Tools](#debug-tools) | 3 | 83 | 86 | `debug_tools_native.gd` | 调试和运行时（日志、断点、栈帧、Profiler、运行时探针、测试编排、录制回放、运行时 UI） |
+| [Project Tools](#project-tools) | 3 | 39 | 42 | `project_tools_native.gd` | 项目配置（信息、设置、测试、输入映射、自动加载、全局类、资源诊断、分析） |
 | [World Tools](#world-tools) | 0 | 22 | 22 | `world_tools_native.gd` | 3D 场景构建、物理、导航与粒子（网格、光照、材质、环境、相机、GridMap、碰撞、物理层、射线、导航区域、寻路代理、GPU 粒子） |
 | [Media Tools](#media-tools) | 0 | 39 | 39 | `media_tools_native.gd` | 动画、音频、主题、着色器与 TileMap 编辑（创建/轨道/关键帧/状态机/音频总线/主题覆盖/着色器/瓦片地图） |
+
+> **补充工具（supplementary）默认禁用**：`tools/list` 只返回 33 个核心工具。245 个补充工具默认不暴露，需要先在 MCP 面板的 **Tools** 列表中勾选启用（见下文「启用补充工具」）。启用状态持久化在 `user://mcp_tool_state.cfg`。
 
 ### Vibe Coding / 免打扰模式
 
@@ -40,6 +42,26 @@ Godot MCP Native 实现了 **161 个工具**，分为 7 大类（含核心和补
 - 会切换场景、选择节点/文件或聚焦脚本编辑器的工具，需要本次调用传入 `allow_ui_focus=true`。
 - 会打开或控制运行窗口的工具，需要本次调用传入 `allow_window=true`。
 - 需要人工调试配合 MCP 时，可以在 MCP 面板关闭 `Vibe Coding / 免打扰模式`。
+
+### 启用补充工具（supplementary tools）
+
+278 个工具中 **245 个是补充工具**，默认禁用且不出现在 `tools/list` 响应中。启用方式有两种：
+
+**方式 A（推荐）：MCP 面板**
+1. 打开 Godot 编辑器的 **MCP** 停靠面板（视图 > 底部面板 > MCP）
+2. 找到 **Tools** 列表，勾选需要启用的工具开关
+3. 开关状态立即生效，持久化到 `user://mcp_tool_state.cfg`
+
+**方式 B：配置文件**（适合 headless / 无 UI 场景）
+编辑 `user://mcp_tool_state.cfg`（Windows: `%APPDATA%/Godot/app_userdata/<项目名>/mcp_tool_state.cfg`）：
+```ini
+[tools]
+play_scene=true
+runtime_ui_find_ui=true
+```
+修改后**必须重算 `[meta]` 段的 `checksum`**，否则改动会被忽略。checksum = 对 `[tools]` 段所有 `key=value` 行（按 `tools/<key>=<value>` 格式，`\n` 连接）计算 MD5。
+
+**注意**：Godot 编辑器退出时会重写此文件，请先关闭编辑器再手动编辑，或用 MCP 面板修改。
 
 ### 工具调用格式
 

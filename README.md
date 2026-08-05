@@ -66,6 +66,25 @@ agent the CLI workflow. Copy [skills/gdmcp/](https://github.com/yurineko73/Godot
 2. Locate "Godot MCP Native" in the list
 3. Set the status to **Enable**
 
+### Enabling Supplementary Tools
+
+The plugin registers **278 tools** but only **33 core tools** appear in `tools/list` by
+default. The remaining **245 supplementary tools** (runtime probe, scene 3D, media
+editing, export, analysis, batch ops, etc.) are disabled until explicitly enabled:
+
+1. Open the **MCP** dock panel in the Godot editor (View > Bottom Panel > MCP)
+2. Find the **Tools** list and toggle on the tools you need
+3. State persists to `user://mcp_tool_state.cfg`; changes apply immediately
+
+> Headless note: when editing `mcp_tool_state.cfg` by hand, recompute the
+> `[meta] checksum` (MD5 over `tools/<key>=<value>` lines joined by `\n`) or the
+> changes are ignored. Close the editor first — it rewrites the file on exit.
+
+**Runtime probe**: runtime tools (play/debug/UI inspection) require the
+`MCPRuntimeProbe` autoload in the game. The plugin adds it to `project.godot`
+automatically when enabled; remove the `[autoload] MCPRuntimeProbe` line if you
+uninstall the plugin.
+
 ### Configuring MCP Server
 The plugin provides two transport modes:
 

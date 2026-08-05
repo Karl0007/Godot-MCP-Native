@@ -28,6 +28,16 @@ cd Godot-MCP-Native
 4. 找到 **Godot Native MCP Server** 插件
 5. 将状态设置为 **启用**
 
+> **无头/手动启用插件**：如果不用编辑器 UI（例如 CI 或脚本自动安装），需要在
+> `project.godot` 中添加插件启用条目。Godot 4.7+ 的格式：
+> ```ini
+> [editor_plugins]
+>
+> enabled=PackedStringArray("res://addons/godot_mcp/plugin.cfg")
+> ```
+> （Godot 4.6 及更早版本使用 `[editor] plugins/uid://...=true` 形式。添加后首次打开编辑器
+> 会自动扫描插件。插件启用时会自动把 `MCPRuntimeProbe` 写入 `[autoload]` 段。）
+
 ## 步骤 3: 配置传输模式
 
 Godot-MCP 支持两种传输模式：
@@ -71,19 +81,16 @@ HTTP 模式通过 HTTP 协议通信，支持远程访问和 SSE 流式响应。
 
 ## 步骤 4: 验证安装
 
-### 测试 Stdio 模式
+### 运行集成测试（HTTP 模式）
 
-运行测试脚本：
+仓库包含 40+ 个 Python 集成测试脚本（`test/integration/`），它们启动 Godot 并通过 HTTP MCP 验证工具流程。先启动带 MCP 的编辑器（见上），再运行：
+
 ```bash
-python test/test_mcp_client_simple.py
+cd test/integration
+python test_runtime_probe_flow.py
 ```
 
-预期输出：
-```
-✓ MCP Server responding on stdio
-✓ Tools list received: 33 tools
-✓ Successfully called tool: get_project_info
-```
+预期输出：测试断言全部通过（`PASSED` 行）。集成测试通过环境变量指定 Godot 可执行文件与 MCP 端口（参考 `test/integration/README` 或脚本头部的 `GODOT_EXE` / `MCP_PORT` 常量）。
 
 ### 测试 HTTP 模式
 

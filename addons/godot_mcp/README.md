@@ -52,6 +52,20 @@ See [CLI README](https://github.com/yurineko73/Godot-MCP-Native/blob/main/cli/gd
 2. Locate "Godot MCP Native" in the list
 3. Set the status to **Enable**
 
+### Enabling Supplementary Tools
+
+The plugin registers **278 tools** but only **33 core tools** appear in `tools/list`
+by default. The remaining **245 supplementary tools** are disabled until enabled:
+open the **MCP** dock panel (View > Bottom Panel > MCP), toggle the tools you need
+in the **Tools** list, and the state persists to `user://mcp_tool_state.cfg`.
+
+> Headless note: when editing `mcp_tool_state.cfg` by hand, recompute the
+> `[meta] checksum` (MD5 over `tools/<key>=<value>` lines joined by `\n`) or the
+> changes are ignored. Close the editor first — it rewrites the file on exit.
+
+Runtime tools require the `MCPRuntimeProbe` autoload; the plugin adds it to
+`project.godot` automatically when enabled.
+
 ### Configuring MCP Server
 The plugin provides two transport modes:
 
