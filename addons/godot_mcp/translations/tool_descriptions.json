@@ -238,5 +238,8 @@
   "add_autoload": "Add an autoload singleton to ProjectSettings.",
   "remove_autoload": "Remove an autoload singleton from ProjectSettings.",
   "get_project_statistics": "Collect project statistics: script, scene, resource, and image file counts by extension.",
-  "get_autoload": "Read a project autoload singleton's properties and script path."
+  "get_autoload": "Read a project autoload singleton's properties and script path.",
+  "read_resource": "Read a resource file (.tres/.res) and return its editor-visible properties.",
+  "edit_resource": "Modify properties of a resource file and save it.",
+  "get_resource_preview": "Generate a PNG preview (base64) of a resource: images, textures, or any resource with a visual representation."
 }

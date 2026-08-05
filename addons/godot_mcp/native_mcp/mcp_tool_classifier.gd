@@ -250,6 +250,9 @@ func _build_classifications() -> void:
 		{"name": "remove_autoload", "category": "supplementary", "group": "Project-Advanced"},
 		{"name": "get_project_statistics", "category": "supplementary", "group": "Project-Advanced"},
 		{"name": "get_autoload", "category": "supplementary", "group": "Project-Advanced"},
+		{"name": "read_resource", "category": "supplementary", "group": "Project-Advanced"},
+		{"name": "edit_resource", "category": "supplementary", "group": "Project-Advanced"},
+		{"name": "get_resource_preview", "category": "supplementary", "group": "Project-Advanced"},
 	]
 
 	for item in classifications:

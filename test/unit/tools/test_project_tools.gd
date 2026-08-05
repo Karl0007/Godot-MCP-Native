@@ -211,3 +211,51 @@ func test_get_autoload_requires_name():
 func test_get_autoload_unknown():
 	var result: Dictionary = _project_tools._tool_get_autoload({"name": "NonExistentAutoload"})
 	assert_true(result.has("error"), "Unknown autoload should error")
+
+# --- Batch 14: resource tools ---
+
+func test_read_resource_requires_path():
+	var result: Dictionary = _project_tools._tool_read_resource({})
+	assert_true(result.has("error"), "Missing path should error")
+
+func test_read_resource_not_found():
+	var result: Dictionary = _project_tools._tool_read_resource({"path": "res://nonexistent.tres"})
+	assert_true(result.has("error"), "Missing file should error")
+
+func test_edit_resource_requires_params():
+	var result: Dictionary = _project_tools._tool_edit_resource({})
+	assert_true(result.has("error"), "Missing params should error")
+
+func test_edit_resource_requires_properties():
+	var result: Dictionary = _project_tools._tool_edit_resource({"path": "res://x.tres"})
+	assert_true(result.has("error"), "Missing properties should error")
+
+func test_edit_resource_not_found():
+	var result: Dictionary = _project_tools._tool_edit_resource({"path": "res://nonexistent.tres", "properties": {"a": 1}})
+	assert_true(result.has("error"), "Missing file should error")
+
+func test_get_resource_preview_requires_path():
+	var result: Dictionary = _project_tools._tool_get_resource_preview({})
+	assert_true(result.has("error"), "Missing path should error")
+
+func test_get_resource_preview_not_found():
+	var result: Dictionary = _project_tools._tool_get_resource_preview({"path": "res://nonexistent.png"})
+	assert_true(result.has("error"), "Missing file should error")
+
+func test_resource_property_parse_int():
+	var parsed: Variant = _project_tools._resource_property_parse("42", TYPE_INT)
+	assert_eq(parsed, 42, "String should parse to int")
+
+func test_resource_property_parse_bool():
+	var parsed: Variant = _project_tools._resource_property_parse("true", TYPE_BOOL)
+	assert_eq(parsed, true, "String should parse to bool")
+
+func test_resource_property_parse_vector2():
+	var parsed: Variant = _project_tools._resource_property_parse({"x": 1.0, "y": 2.0}, TYPE_VECTOR2)
+	assert_true(parsed is Vector2, "Dict should parse to Vector2")
+	assert_eq(parsed, Vector2(1, 2), "Vector2 values should round-trip")
+
+func test_resource_property_serialize_color():
+	var serialized: Variant = _project_tools._resource_property_serialize(Color.RED)
+	assert_true(serialized is Dictionary, "Color should serialize to dict")
+	assert_eq(serialized["html"], "#ff0000ff", "HTML should match")

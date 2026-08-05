@@ -58,6 +58,7 @@ delete_scene,,Delete a scene file (.tscn) and its .import sidecar from the proje
 detect_broken_scripts,,Detect broken scripts in the project.,检测项目中的损坏脚本。
 disconnect_signal,,Disconnect a signal from one node to another.,断开一个节点到另一个节点的信号连接。
 duplicate_node,,Duplicate a node and its children in the scene tree. Returns the new node path.,在场景树中复制节点及其子节点。返回新节点的路径。
+edit_resource,,Modify properties of a resource file and save it.,修改资源文件的属性并保存。
 edit_shader,,Edit a shader file with full content replacement or search-and-replace.,编辑着色器文件，支持全量替换或查找替换。
 evaluate_debug_expression,,Evaluate an expression in the paused script debugger context for a given frame.,在给定帧的暂停脚本调试器上下文中求值表达式。
 evaluate_runtime_expression,,Evaluate an expression in the running game context.,在运行中的游戏上下文中求值表达式。
@@ -107,6 +108,7 @@ get_project_settings,,Get project settings. Optionally filter by a prefix.,获�
 get_project_statistics,,"Collect project statistics: script, scene, resource, and image file counts by extension.",收集项目统计：按扩展名统计脚本、场景、资源和图像文件数量。
 get_project_structure,,Get project structure and file organization.,获取项目结构和文件组织。
 get_resource_dependencies,,Get resource dependencies.,获取资源依赖关系。
+get_resource_preview,,"Generate a PNG preview (base64) of a resource: images, textures, or any resource with a visual representation.",生成资源的 PNG 预览（base64）：图像、纹理或任何有视觉表示的资源。
 get_resource_uid_info,,Get resource UID information.,获取资源 UID 信息。
 get_runtime_animation_state,,Get the state of an animation in the running game.,获取运行中游戏中动画的状态。
 get_runtime_animation_tree_state,,Get the state of an animation tree in the running game.,获取运行中游戏中动画树的状态。
@@ -156,6 +158,7 @@ open_script_at_line,,Open a script file at a specific line number in the Godot e
 play_runtime_animation,,Play an animation in the running game.,播放运行中游戏中的动画。
 play_scene,,"Play the main scene, current scene, or a specific scene path.",播放主场景、当前场景或指定场景路径。
 project_path_to_uid,,Convert a project path to its resource UID string.,将项目路径转换为资源 UID 字符串。
+read_resource,,Read a resource file (.tres/.res) and return its editor-visible properties.,读取资源文件（.tres/.res）并返回其编辑器可见属性。
 read_script,,Read the content of a GDScript file (.gd). Returns the complete script source code.,读取 GDScript 文件（.gd）的内容。返回完整的脚本源代码。
 read_shader,,Read a shader file's content.,读取着色器文件内容。
 reimport_resources,,Reimport project resources.,重新导入项目资源。

@@ -58,6 +58,9 @@ func register_tools(server_core: RefCounted) -> void:
 	_register_remove_autoload(server_core)
 	_register_get_project_statistics(server_core)
 	_register_get_autoload(server_core)
+	_register_read_resource(server_core)
+	_register_edit_resource(server_core)
+	_register_get_resource_preview(server_core)
 
 # ============================================================================
 # get_project_info - 获取项目信息
@@ -3632,3 +3635,237 @@ func _tool_get_autoload(params: Dictionary) -> Dictionary:
 	if script:
 		result["script"] = script.resource_path
 	return result
+
+# ============================================================================
+# Batch 14 - Resource tools (read/edit/preview)
+# ============================================================================
+
+func _resource_property_serialize(value: Variant) -> Variant:
+	if value is Vector2:
+		return {"x": value.x, "y": value.y}
+	if value is Vector3:
+		return {"x": value.x, "y": value.y, "z": value.z}
+	if value is Vector4:
+		return {"x": value.x, "y": value.y, "z": value.z, "w": value.w}
+	if value is Color:
+		return {"r": value.r, "g": value.g, "b": value.b, "a": value.a, "html": "#" + value.to_html()}
+	if value is NodePath:
+		return str(value)
+	if value is Rect2:
+		return {"x": value.position.x, "y": value.position.y, "width": value.size.x, "height": value.size.y}
+	return value
+
+func _resource_property_parse(value: Variant, target_type: int) -> Variant:
+	if typeof(value) == target_type:
+		return value
+	if value is Dictionary:
+		var dict: Dictionary = value
+		match target_type:
+			TYPE_VECTOR2:
+				return Vector2(float(dict.get("x", 0)), float(dict.get("y", 0)))
+			TYPE_VECTOR3:
+				return Vector3(float(dict.get("x", 0)), float(dict.get("y", 0)), float(dict.get("z", 0)))
+			TYPE_COLOR:
+				return Color(float(dict.get("r", 0)), float(dict.get("g", 0)), float(dict.get("b", 0)), float(dict.get("a", 1)))
+	if value is String:
+		var s: String = String(value)
+		if s.begins_with("Vector2(") or s.begins_with("Vector3(") or s.begins_with("Color(") or s.begins_with("#"):
+			var expr := Expression.new()
+			if expr.parse(s) == OK:
+				var parsed: Variant = expr.execute()
+				if parsed != null:
+					return parsed
+		if target_type == TYPE_INT:
+			if s.is_valid_int():
+				return s.to_int()
+		elif target_type == TYPE_FLOAT:
+			if s.is_valid_float():
+				return s.to_float()
+		elif target_type == TYPE_BOOL:
+			if s == "true":
+				return true
+			if s == "false":
+				return false
+	return value
+
+func _register_read_resource(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"read_resource",
+		"Read a resource file (.tres/.res) and return its editor-visible properties.",
+		{
+			"type": "object",
+			"properties": {
+				"path": {"type": "string"}
+			},
+			"required": ["path"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_read_resource"),
+		{
+			"type": "object",
+			"properties": {
+				"path": {"type": "string"},
+				"type": {"type": "string"},
+				"properties": {"type": "object"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Project-Advanced"
+	)
+
+func _tool_read_resource(params: Dictionary) -> Dictionary:
+	var path: String = String(params.get("path", ""))
+	if path.is_empty():
+		return {"error": "Missing required parameter: path"}
+	if not FileAccess.file_exists(path):
+		return {"error": "Resource '" + path + "' not found"}
+	var resource: Resource = ResourceLoader.load(path)
+	if resource == null:
+		return {"error": "Failed to load resource: " + path}
+	var props: Dictionary = {}
+	for prop_info: Dictionary in resource.get_property_list():
+		var prop_name: String = prop_info["name"]
+		var usage: int = prop_info["usage"]
+		if not (usage & PROPERTY_USAGE_EDITOR):
+			continue
+		if prop_name.begins_with("_") or prop_name == "script" or prop_name == "resource_local_to_scene" or prop_name == "resource_name" or prop_name == "resource_path":
+			continue
+		props[prop_name] = _resource_property_serialize(resource.get(prop_name))
+	return {
+		"path": path,
+		"type": resource.get_class(),
+		"resource_name": resource.resource_name,
+		"properties": props,
+	}
+
+func _register_edit_resource(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"edit_resource",
+		"Modify properties of a resource file and save it.",
+		{
+			"type": "object",
+			"properties": {
+				"path": {"type": "string"},
+				"properties": {"type": "object", "description": "Property name -> value map. Values auto-converted to the property type."}
+			},
+			"required": ["path", "properties"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_edit_resource"),
+		{
+			"type": "object",
+			"properties": {
+				"path": {"type": "string"},
+				"type": {"type": "string"},
+				"changed": {"type": "object"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Project-Advanced"
+	)
+
+func _tool_edit_resource(params: Dictionary) -> Dictionary:
+	var path: String = String(params.get("path", ""))
+	if path.is_empty():
+		return {"error": "Missing required parameter: path"}
+	if not params.has("properties") or not params["properties"] is Dictionary:
+		return {"error": "'properties' dictionary is required"}
+	var new_props: Dictionary = params["properties"]
+	if not FileAccess.file_exists(path):
+		return {"error": "Resource '" + path + "' not found"}
+	var resource: Resource = ResourceLoader.load(path)
+	if resource == null:
+		return {"error": "Failed to load resource: " + path}
+
+	var changed: Dictionary = {}
+	for prop_name: String in new_props:
+		if not prop_name in resource:
+			continue
+		var old_value: Variant = resource.get(prop_name)
+		var target_type: int = typeof(old_value)
+		var new_value: Variant = _resource_property_parse(new_props[prop_name], target_type)
+		resource.set(prop_name, new_value)
+		changed[prop_name] = {
+			"old": _resource_property_serialize(old_value),
+			"new": _resource_property_serialize(resource.get(prop_name)),
+		}
+
+	if changed.is_empty():
+		return {"path": path, "changed": {}, "message": "No properties were changed"}
+	var err: Error = ResourceSaver.save(resource, path)
+	if err != OK:
+		return {"error": "Failed to save resource: " + error_string(err)}
+	return {"path": path, "type": resource.get_class(), "changed": changed}
+
+func _register_get_resource_preview(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"get_resource_preview",
+		"Generate a PNG preview (base64) of a resource: images, textures, or any resource with a visual representation.",
+		{
+			"type": "object",
+			"properties": {
+				"path": {"type": "string"},
+				"max_size": {"type": "integer", "description": "Max preview dimension. Default 256."}
+			},
+			"required": ["path"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_get_resource_preview"),
+		{
+			"type": "object",
+			"properties": {
+				"image_base64": {"type": "string"},
+				"width": {"type": "integer"},
+				"height": {"type": "integer"},
+				"format": {"type": "string"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Project-Advanced"
+	)
+
+func _tool_get_resource_preview(params: Dictionary) -> Dictionary:
+	var path: String = String(params.get("path", ""))
+	if path.is_empty():
+		return {"error": "Missing required parameter: path"}
+	if not FileAccess.file_exists(path):
+		return {"error": "Resource '" + path + "' not found"}
+	var max_size: int = int(params.get("max_size", 256))
+	var image: Image = null
+
+	var ext: String = path.get_extension().to_lower()
+	if ext in ["png", "jpg", "jpeg", "bmp", "webp", "svg"]:
+		image = Image.new()
+		var err: Error = image.load(path)
+		if err != OK:
+			return {"error": "Failed to load image: " + error_string(err)}
+	else:
+		var resource: Resource = ResourceLoader.load(path)
+		if resource == null:
+			return {"error": "Failed to load resource: " + path}
+		if resource is Texture2D:
+			image = (resource as Texture2D).get_image()
+		elif resource is Image:
+			image = resource as Image
+		else:
+			return {"error": "Resource type '" + resource.get_class() + "' does not have an image preview"}
+
+	if image == null:
+		return {"error": "Could not extract image from resource"}
+	if image.get_width() > max_size or image.get_height() > max_size:
+		var scale_x: float = float(max_size) / float(image.get_width())
+		var scale_y: float = float(max_size) / float(image.get_height())
+		var scale: float = minf(scale_x, scale_y)
+		var new_w: int = int(image.get_width() * scale)
+		var new_h: int = int(image.get_height() * scale)
+		image.resize(new_w, new_h, Image.INTERPOLATE_LANCZOS)
+
+	var png_buffer: PackedByteArray = image.save_png_to_buffer()
+	var base64: String = Marshalls.raw_to_base64(png_buffer)
+	return {
+		"image_base64": base64,
+		"width": image.get_width(),
+		"height": image.get_height(),
+		"format": "png",
+		"path": path,
+	}
