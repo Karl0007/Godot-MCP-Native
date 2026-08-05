@@ -86,6 +86,17 @@ a PowerShell bootstrap script wraps install / start / doctor:
 (missing Godot exe -> set `-GodotExe`/`GODOT4_BIN`; plugin missing -> run install;
 port free -> run start). Each command is idempotent.
 
+**Multiple Godot instances in parallel**: give each project its own port. Each
+editor keeps its own `user://` state (settings, tool states) and binds its own
+port, so projects and even different Godot versions run side by side:
+
+```powershell
+.\scripts\gdmcp-bootstrap.ps1 install -ProjectPath C:\GameA -Port 9080
+.\scripts\gdmcp-bootstrap.ps1 start  -ProjectPath C:\GameA -Port 9080
+.\scripts\gdmcp-bootstrap.ps1 install -ProjectPath C:\GameB -Port 9081
+.\scripts\gdmcp-bootstrap.ps1 start  -ProjectPath C:\GameB -Port 9081
+```
+
 ### Enabling Supplementary Tools
 
 The plugin registers **278 tools** but only **33 core tools** appear in `tools/list` by

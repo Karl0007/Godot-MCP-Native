@@ -81,6 +81,15 @@ gdmcp --json nodes properties set /root/Player --property speed --value 300
 
 `doctor` 逐项输出通过/失败及失败时的下一步指引（Godot 缺失 → 设置 `-GodotExe`/`GODOT4_BIN`；插件缺失 → 运行 install；端口空闲 → 运行 start）。所有命令幂等。
 
+**多 Godot 实例并行**：每个项目使用独立端口。每个编辑器持有自己的 `user://` 状态（设置、工具状态）并绑定自己的端口，因此不同项目甚至不同 Godot 版本可以并行运行：
+
+```powershell
+.\scripts\gdmcp-bootstrap.ps1 install -ProjectPath C:\GameA -Port 9080
+.\scripts\gdmcp-bootstrap.ps1 start  -ProjectPath C:\GameA -Port 9080
+.\scripts\gdmcp-bootstrap.ps1 install -ProjectPath C:\GameB -Port 9081
+.\scripts\gdmcp-bootstrap.ps1 start  -ProjectPath C:\GameB -Port 9081
+```
+
 ### 启用补充工具
 
 插件注册了 **278 个工具**，但 `tools/list` 默认只返回 **33 个核心工具**。其余 **245 个补充工具**（运行时探针、3D 场景、媒体编辑、导出、分析、批量操作等）默认禁用，需要手动启用：
