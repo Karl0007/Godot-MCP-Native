@@ -31,7 +31,7 @@ Godot MCP Native 实现了 **161 个工具**，分为 7 大类（含核心和补
 | [Debug Tools](#debug-tools) | 3 | 68 | 71 | `debug_tools_native.gd` | 调试和运行时（日志、断点、栈帧、Profiler、运行时探针、动画、音频、着色器、瓦片地图） |
 | [Project Tools](#project-tools) | 3 | 23 | 26 | `project_tools_native.gd` | 项目配置（信息、设置、测试、输入映射、自动加载、全局类、资源诊断） |
 | [World Tools](#world-tools) | 0 | 22 | 22 | `world_tools_native.gd` | 3D 场景构建、物理、导航与粒子（网格、光照、材质、环境、相机、GridMap、碰撞、物理层、射线、导航区域、寻路代理、GPU 粒子） |
-| [Media Tools](#media-tools) | 0 | 20 | 20 | `media_tools_native.gd` | 动画、动画树与音频编辑（创建/轨道/关键帧/状态机/混合树/音频总线/播放器） |
+| [Media Tools](#media-tools) | 0 | 27 | 27 | `media_tools_native.gd` | 动画、音频与主题编辑（创建/轨道/关键帧/状态机/混合树/音频总线/主题覆盖/控件布局） |
 
 ### Vibe Coding / 免打扰模式
 
@@ -4243,7 +4243,7 @@ Continue：恢复执行。
 
 ## Media Tools
 
-动画、动画树与音频编辑工具（批次 5-7，共 20 个补充工具），源文件 `media_tools_native.gd`。
+动画、音频与主题编辑工具（批次 5-8，共 27 个补充工具），源文件 `media_tools_native.gd`。
 
 ### 178. list_animations
 
@@ -4428,6 +4428,74 @@ Continue：恢复执行。
 
 **注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
 
+### 198. create_theme
+
+创建 Theme 资源（.tres）。
+
+**参数**：`path`（是，res:// 路径）、`default_font_size`（否）
+
+**返回值**：`path`、`created`
+
+### 199. set_theme_color
+
+设置 Control 主题颜色覆盖（可撤销）。
+
+**参数**：`node_path`（是）、`name`（是，如 `font_color`）、`color`（是，如 `#ff0000`）
+
+**返回值**：`node_path`、`name`、`color`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 200. set_theme_constant
+
+设置 Control 主题常量覆盖（可撤销）。
+
+**参数**：`node_path`（是）、`name`（是）、`value`（是）
+
+**返回值**：`node_path`、`name`、`value`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 201. set_theme_font_size
+
+设置 Control 主题字体大小覆盖（可撤销）。
+
+**参数**：`node_path`（是）、`name`（是，如 `font_size`）、`size`（否，默认 16）
+
+**返回值**：`node_path`、`name`、`size`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 202. set_theme_stylebox
+
+设置 StyleBoxFlat 主题覆盖（可撤销）。
+
+**参数**：`node_path`（是）、`name`（是，如 `panel`）、`bg_color`/`border_color`（否）、`border_width`（否）、`corner_radius`（否）、`padding`（否）
+
+**返回值**：`node_path`、`name`、`type`（StyleBoxFlat）
+
+**注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 203. setup_control
+
+配置 Control 布局（可撤销）。
+
+**参数**：`node_path`（是）、`anchor_preset`（否，16 种预设）、`min_size`（否，`Vector2(w,h)`）、`size_flags_h/v`（否）、`margins`（否，MarginContainer）、`separation`（否，BoxContainer）、`grow_h/v`（否）
+
+**返回值**：`node_path`、`applied`、`count`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 204. get_theme_info
+
+读取 Control 主题信息与覆盖。
+
+**参数**：`node_path`（是）
+
+**返回值**：`node_path`、`class`、`theme_path`、`type_list`、`overrides`（colors/constants/font_sizes/styleboxes）
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
 ## 通用数据类型
 
 ### Vector2
@@ -4527,7 +4595,7 @@ Continue：恢复执行。
 
 ## 总结
 
-本手册详细说明了 Godot MCP Native 项目的所有核心工具及部分补充工具。项目共 **197 个工具**（30 核心 + 167 补充），所有工具均可通过 MCP 工具管理面板按分组动态启用/禁用。补充工具（`*-Advanced` 分组）默认不启用，需在工具管理面板中手动开启。
+本手册详细说明了 Godot MCP Native 项目的所有核心工具及部分补充工具。项目共 **204 个工具**（30 核心 + 174 补充），所有工具均可通过 MCP 工具管理面板按分组动态启用/禁用。补充工具（`*-Advanced` 分组）默认不启用，需在工具管理面板中手动开启。
 
 **提示**：
 - 使用 `tools/list` 方法获取所有工具的实时列表和完整 JSON Schema

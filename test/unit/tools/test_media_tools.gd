@@ -114,11 +114,12 @@ func test_register_tools_registers_all_six():
 	server_core.register_tool = func(name: String, desc: String, schema: Dictionary, cb: Callable, out: Dictionary = {}, ann: Dictionary = {}, cat: String = "core", group: String = "") -> void:
 		registered.append(name)
 	_media_tools.register_tools(server_core)
-	assert_eq(registered.size(), 20, "Should register exactly 20 tools")
+	assert_eq(registered.size(), 27, "Should register exactly 27 tools")
 	for name in ["list_animations", "create_animation", "add_animation_track", "set_animation_keyframe", "get_animation_info", "remove_animation",
 			"create_animation_tree", "get_animation_tree_structure", "add_state_machine_state", "remove_state_machine_state",
 			"add_state_machine_transition", "remove_state_machine_transition", "set_blend_tree_node", "set_tree_parameter",
-			"get_audio_bus_layout", "add_audio_bus", "set_audio_bus", "add_audio_bus_effect", "add_audio_player", "get_audio_info"]:
+			"get_audio_bus_layout", "add_audio_bus", "set_audio_bus", "add_audio_bus_effect", "add_audio_player", "get_audio_info",
+			"create_theme", "set_theme_color", "set_theme_constant", "set_theme_font_size", "set_theme_stylebox", "setup_control", "get_theme_info"]:
 		assert_true(name in registered, name + " should be registered")
 
 # --- AnimationTree (Batch 6) ---
@@ -260,3 +261,77 @@ func test_get_effect_params_reverb():
 	var params: Dictionary = _media_tools._get_effect_params(effect)
 	assert_true(params.has("room_size"), "Reverb params should include room_size")
 	assert_eq(params["room_size"], 0.5, "room_size should round-trip")
+
+# --- Theme/UI (Batch 8) ---
+
+func test_create_theme_requires_path():
+	var result: Dictionary = _media_tools._tool_create_theme({})
+	assert_true(result.has("error"), "Missing path should error")
+
+func test_create_theme_invalid_path():
+	var result: Dictionary = _media_tools._tool_create_theme({"path": "C:/tmp/theme.tres"})
+	assert_true(result.has("error"), "Non-res:// path should error")
+
+func test_create_theme_wrong_extension():
+	var result: Dictionary = _media_tools._tool_create_theme({"path": "res://theme.json"})
+	assert_true(result.has("error"), "Non-.tres path should error")
+
+func test_set_theme_color_requires_params():
+	var result: Dictionary = _media_tools._tool_set_theme_color({})
+	assert_true(result.has("error"), "Missing params should error")
+
+func test_set_theme_color_requires_color():
+	var result: Dictionary = _media_tools._tool_set_theme_color({"node_path": "/root/Main", "name": "font_color"})
+	assert_true(result.has("error"), "Missing color should error")
+
+func test_set_theme_color_not_control():
+	var result: Dictionary = _media_tools._tool_set_theme_color({"node_path": "/root/Main", "name": "font_color", "color": "#ff0000"})
+	assert_true(result.has("error"), "Non-Control node should error")
+
+func test_set_theme_constant_requires_params():
+	var result: Dictionary = _media_tools._tool_set_theme_constant({})
+	assert_true(result.has("error"), "Missing params should error")
+
+func test_set_theme_constant_requires_value():
+	var result: Dictionary = _media_tools._tool_set_theme_constant({"node_path": "/root/Main", "name": "outline_size"})
+	assert_true(result.has("error"), "Missing value should error")
+
+func test_set_theme_font_size_requires_params():
+	var result: Dictionary = _media_tools._tool_set_theme_font_size({})
+	assert_true(result.has("error"), "Missing params should error")
+
+func test_set_theme_font_size_not_control():
+	var result: Dictionary = _media_tools._tool_set_theme_font_size({"node_path": "/root/Main", "name": "font_size"})
+	assert_true(result.has("error"), "Non-Control node should error")
+
+func test_set_theme_stylebox_requires_params():
+	var result: Dictionary = _media_tools._tool_set_theme_stylebox({})
+	assert_true(result.has("error"), "Missing params should error")
+
+func test_set_theme_stylebox_not_control():
+	var result: Dictionary = _media_tools._tool_set_theme_stylebox({"node_path": "/root/Main", "name": "panel"})
+	assert_true(result.has("error"), "Non-Control node should error")
+
+func test_setup_control_requires_node_path():
+	var result: Dictionary = _media_tools._tool_setup_control({})
+	assert_true(result.has("error"), "Missing node_path should error")
+
+func test_setup_control_not_control():
+	var result: Dictionary = _media_tools._tool_setup_control({"node_path": "/root/Main"})
+	assert_true(result.has("error"), "Non-Control node should error")
+
+func test_get_theme_info_requires_node_path():
+	var result: Dictionary = _media_tools._tool_get_theme_info({})
+	assert_true(result.has("error"), "Missing node_path should error")
+
+func test_get_theme_info_not_control():
+	var result: Dictionary = _media_tools._tool_get_theme_info({"node_path": "/root/Main"})
+	assert_true(result.has("error"), "Non-Control node should error")
+
+func test_validate_theme_path_valid():
+	var validation: Dictionary = _media_tools._validate_theme_path("res://themes/my.tres")
+	assert_true(validation.is_empty(), "Valid theme path should pass")
+
+func test_validate_theme_path_invalid_extension():
+	var validation: Dictionary = _media_tools._validate_theme_path("res://themes/my.json")
+	assert_true(not validation.is_empty(), "Wrong extension should fail")

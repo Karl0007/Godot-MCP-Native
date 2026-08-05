@@ -37,6 +37,7 @@ create_resource,,Create a new Godot resource file (.tres). Supports common resou
 create_runtime_node,,Create a node in the running game.,在运行中的游戏中创建节点。
 create_scene,,Create a new Godot scene with a root node. The scene is saved to the specified path.,创建一个新的 Godot 场景并包含根节点。场景保存到指定路径。
 create_script,,Create a new GDScript file with optional template. GDScript files are complete programs, not resource files.,创建新的 GDScript 文件，可选模板。GDScript 文件是完整程序，不是资源文件。
+create_theme,,Create a new Theme resource (.tres) with an optional default font size.,创建新的 Theme 资源（.tres），可设置默认字体大小。
 debug_continue,,Continue execution in the debugger.,在调试器中继续执行。
 debug_continue_and_wait,,Continue and wait for the debugger to pause or complete.,继续执行并等待调试器暂停或完成。
 debug_print,,Print debug messages to the editor console.,向编辑器控制台输出调试消息。
@@ -109,6 +110,7 @@ get_scene_structure,,Get the complete structure of the current scene as a tree. 
 get_scene_tree,,Get the complete scene tree hierarchy starting from the scene root. Returns full tree structure with node types.,获取从场景根节点开始的完整场景树层级。返回包含节点类型的完整树结构。
 get_selected_nodes,,Get the list of currently selected nodes in the editor.,获取编辑器中当前选中节点的列表。
 get_signals,,Get all signals and their connections for a node.,获取节点的所有信号及其连接。
+get_theme_info,,"Read a Control node's theme path, type list, and all theme overrides (colors, constants, font sizes, styleboxes).",读取 Control 节点的主题路径、类型列表和所有主题覆盖（颜色、常量、字体大小、样式盒）。
 inspect_csharp_project_support,,Inspect C# / Mono project support files such as .csproj and .sln, including target frameworks, assembly metadata, and references.,检查 C# / Mono 项目支持文件（如 .csproj 和 .sln），包括目标框架、程序集元数据和引用。
 inspect_export_templates,,Inspect locally installed Godot export templates for the current editor version.,检查本地安装的适用于当前编辑器版本的 Godot 导出模板。
 inspect_runtime_node,,Inspect a node in the running game.,检查运行中游戏中的节点。
@@ -175,9 +177,14 @@ set_runtime_animation_tree_active,,Set an animation tree active/inactive in the 
 set_runtime_shader_parameter,,Set a shader parameter in the running game.,设置运行中游戏中的着色器参数。
 set_runtime_theme_override,,Set a theme override in the running game.,在运行中的游戏中设置主题覆盖。
 set_runtime_tilemap_cell,,Set a TileMap cell in the running game.,设置运行中游戏中的 TileMap 单元格。
+set_theme_color,,Set a theme color override on a Control node (undoable).,在 Control 节点上设置主题颜色覆盖（可撤销）。
+set_theme_constant,,Set a theme constant override on a Control node (undoable).,在 Control 节点上设置主题常量覆盖（可撤销）。
+set_theme_font_size,,Set a theme font size override on a Control node (undoable).,在 Control 节点上设置主题字体大小覆盖（可撤销）。
+set_theme_stylebox,,"Set a StyleBoxFlat theme override on a Control node with background, border, corner radius, and padding (undoable).",在 Control 节点上设置 StyleBoxFlat 主题覆盖，支持背景、边框、圆角和内边距（可撤销）。
 set_tree_parameter,,Set an AnimationTree parameter (auto-prefixed with 'parameters/').,设置 AnimationTree 参数（自动添加 'parameters/' 前缀）。
 setup_camera_3d,,"Create or configure a Camera3D with position, rotation, FOV, near/far planes, and current camera flag.",创建或配置 Camera3D，支持位置、旋转、FOV、近远裁剪面和当前相机标志。
 setup_collision,,"Add a CollisionShape2D or CollisionShape3D to a physics body or area node. Supports rectangle, circle, capsule, segment, convex (2D) and box, sphere, capsule, cylinder, convex (3D).",向物理体或区域节点添加 CollisionShape2D 或 CollisionShape3D。支持 2D（rectangle/circle/capsule/segment/convex）和 3D（box/sphere/capsule/cylinder/convex）。
+setup_control,,"Configure a Control node layout: anchor preset, min size, size flags, margins, separation, and grow direction (undoable).",配置 Control 节点布局：锚点预设、最小尺寸、尺寸标志、边距、间距和增长方向（可撤销）。
 setup_environment,,"Create or update a WorldEnvironment with background mode, procedural sky, ambient light, and tonemap settings.",创建或更新 WorldEnvironment，支持背景模式、程序化天空、环境光和色调映射设置。
 setup_lighting,,"Add a DirectionalLight3D, OmniLight3D, or SpotLight3D with color, energy, and shadow settings.",添加 DirectionalLight3D、OmniLight3D 或 SpotLight3D，支持颜色、能量和阴影设置。
 setup_navigation_agent,,Create a NavigationAgent2D or NavigationAgent3D with pathfinding and avoidance settings.,创建 NavigationAgent2D 或 NavigationAgent3D，支持寻路和避障设置。

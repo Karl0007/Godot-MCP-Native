@@ -207,6 +207,13 @@ func _build_classifications() -> void:
 		{"name": "add_audio_bus_effect", "category": "supplementary", "group": "Media-Audio"},
 		{"name": "add_audio_player", "category": "supplementary", "group": "Media-Audio"},
 		{"name": "get_audio_info", "category": "supplementary", "group": "Media-Audio"},
+		{"name": "create_theme", "category": "supplementary", "group": "Media-Theme"},
+		{"name": "set_theme_color", "category": "supplementary", "group": "Media-Theme"},
+		{"name": "set_theme_constant", "category": "supplementary", "group": "Media-Theme"},
+		{"name": "set_theme_font_size", "category": "supplementary", "group": "Media-Theme"},
+		{"name": "set_theme_stylebox", "category": "supplementary", "group": "Media-Theme"},
+		{"name": "setup_control", "category": "supplementary", "group": "Media-Theme"},
+		{"name": "get_theme_info", "category": "supplementary", "group": "Media-Theme"},
 	]
 
 	for item in classifications:

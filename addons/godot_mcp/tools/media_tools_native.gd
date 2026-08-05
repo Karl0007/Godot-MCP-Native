@@ -93,6 +93,13 @@ func register_tools(server_core: RefCounted) -> void:
 	_register_add_audio_bus_effect(server_core)
 	_register_add_audio_player(server_core)
 	_register_get_audio_info(server_core)
+	_register_create_theme(server_core)
+	_register_set_theme_color(server_core)
+	_register_set_theme_constant(server_core)
+	_register_set_theme_font_size(server_core)
+	_register_set_theme_stylebox(server_core)
+	_register_setup_control(server_core)
+	_register_get_theme_info(server_core)
 
 # ============================================================================
 # list_animations
@@ -1820,4 +1827,571 @@ func _register_get_audio_info(server_core: RefCounted) -> void:
 		},
 		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
 		"supplementary", "Media-Audio"
+	)
+
+# ============================================================================
+# Theme/UI tools (Batch 8)
+# ============================================================================
+
+func _tool_create_theme(params: Dictionary) -> Dictionary:
+	var path: String = String(params.get("path", ""))
+	if path.is_empty():
+		return {"error": "Missing required parameter: path"}
+	var validation: Dictionary = _validate_theme_path(path)
+	if not validation.is_empty():
+		return validation
+
+	var theme := Theme.new()
+	var font_size: int = int(params.get("default_font_size", 0))
+	if font_size > 0:
+		theme.default_font_size = font_size
+
+	var dir_path: String = path.get_base_dir()
+	if not dir_path.is_empty() and not DirAccess.dir_exists_absolute(dir_path):
+		var derr: Error = DirAccess.make_dir_recursive_absolute(dir_path)
+		if derr != OK:
+			return {"error": "Cannot create directory '" + dir_path + "': " + error_string(derr)}
+
+	var err: Error = ResourceSaver.save(theme, path)
+	if err != OK:
+		return {"error": "Failed to save theme: " + error_string(err)}
+
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if editor_interface:
+		editor_interface.get_resource_filesystem().scan()
+	return {"path": path, "created": true}
+
+func _validate_theme_path(path: String) -> Dictionary:
+	if not path.begins_with("res://"):
+		return {"error": "Invalid theme path (must be res://): " + path}
+	if path.get_extension().to_lower() != "tres":
+		return {"error": "Theme path must end with .tres"}
+	return {}
+
+func _resolve_control_node(node_path: String) -> Control:
+	var node: Node = _resolve_node_path(node_path)
+	if node is Control:
+		return node as Control
+	return null
+
+func _restore_theme_override(control: Control, kind: String, override_name: String, had_old: bool, old_value: Variant) -> void:
+	match kind:
+		"color":
+			if had_old:
+				control.add_theme_color_override(override_name, old_value)
+			else:
+				control.remove_theme_color_override(override_name)
+		"constant":
+			if had_old:
+				control.add_theme_constant_override(override_name, old_value)
+			else:
+				control.remove_theme_constant_override(override_name)
+		"font_size":
+			if had_old:
+				control.add_theme_font_size_override(override_name, old_value)
+			else:
+				control.remove_theme_font_size_override(override_name)
+		"stylebox":
+			if had_old:
+				control.add_theme_stylebox_override(override_name, old_value)
+			else:
+				control.remove_theme_stylebox_override(override_name)
+
+func _tool_set_theme_color(params: Dictionary) -> Dictionary:
+	var node_path: String = String(params.get("node_path", ""))
+	if node_path.is_empty():
+		return {"error": "Missing required parameter: node_path"}
+	var color_name: String = String(params.get("name", ""))
+	if color_name.is_empty():
+		return {"error": "Missing required parameter: name"}
+	var color_str: String = String(params.get("color", ""))
+	if color_str.is_empty():
+		return {"error": "Missing required parameter: color"}
+	var control: Control = _resolve_control_node(node_path)
+	if not control:
+		return {"error": "Control node at '" + node_path + "' not found"}
+	var color := Color(color_str)
+
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if not editor_interface:
+		return {"error": "Editor interface not available"}
+	var had_old: bool = control.has_theme_color_override(color_name)
+	var old_value: Variant = control.get("theme_override_colors/" + color_name) if had_old else null
+	var undo_redo: EditorUndoRedoManager = editor_interface.get_editor_undo_redo()
+	undo_redo.create_action("MCP: Set theme color override")
+	undo_redo.add_do_method(control, "add_theme_color_override", color_name, color)
+	undo_redo.add_undo_method(self, "_restore_theme_override", control, "color", color_name, had_old, old_value)
+	undo_redo.commit_action()
+	editor_interface.mark_scene_as_unsaved()
+	return {"node_path": node_path, "name": color_name, "color": color_str}
+
+func _tool_set_theme_constant(params: Dictionary) -> Dictionary:
+	var node_path: String = String(params.get("node_path", ""))
+	if node_path.is_empty():
+		return {"error": "Missing required parameter: node_path"}
+	var const_name: String = String(params.get("name", ""))
+	if const_name.is_empty():
+		return {"error": "Missing required parameter: name"}
+	var control: Control = _resolve_control_node(node_path)
+	if not control:
+		return {"error": "Control node at '" + node_path + "' not found"}
+	var value: int = int(params.get("value", 0))
+
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if not editor_interface:
+		return {"error": "Editor interface not available"}
+	var had_old: bool = control.has_theme_constant_override(const_name)
+	var old_value: Variant = control.get("theme_override_constants/" + const_name) if had_old else null
+	var undo_redo: EditorUndoRedoManager = editor_interface.get_editor_undo_redo()
+	undo_redo.create_action("MCP: Set theme constant override")
+	undo_redo.add_do_method(control, "add_theme_constant_override", const_name, value)
+	undo_redo.add_undo_method(self, "_restore_theme_override", control, "constant", const_name, had_old, old_value)
+	undo_redo.commit_action()
+	editor_interface.mark_scene_as_unsaved()
+	return {"node_path": node_path, "name": const_name, "value": value}
+
+func _tool_set_theme_font_size(params: Dictionary) -> Dictionary:
+	var node_path: String = String(params.get("node_path", ""))
+	if node_path.is_empty():
+		return {"error": "Missing required parameter: node_path"}
+	var font_name: String = String(params.get("name", ""))
+	if font_name.is_empty():
+		return {"error": "Missing required parameter: name"}
+	var control: Control = _resolve_control_node(node_path)
+	if not control:
+		return {"error": "Control node at '" + node_path + "' not found"}
+	var size: int = int(params.get("size", 16))
+
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if not editor_interface:
+		return {"error": "Editor interface not available"}
+	var had_old: bool = control.has_theme_font_size_override(font_name)
+	var old_value: Variant = control.get("theme_override_font_sizes/" + font_name) if had_old else null
+	var undo_redo: EditorUndoRedoManager = editor_interface.get_editor_undo_redo()
+	undo_redo.create_action("MCP: Set theme font size override")
+	undo_redo.add_do_method(control, "add_theme_font_size_override", font_name, size)
+	undo_redo.add_undo_method(self, "_restore_theme_override", control, "font_size", font_name, had_old, old_value)
+	undo_redo.commit_action()
+	editor_interface.mark_scene_as_unsaved()
+	return {"node_path": node_path, "name": font_name, "size": size}
+
+func _tool_set_theme_stylebox(params: Dictionary) -> Dictionary:
+	var node_path: String = String(params.get("node_path", ""))
+	if node_path.is_empty():
+		return {"error": "Missing required parameter: node_path"}
+	var style_name: String = String(params.get("name", ""))
+	if style_name.is_empty():
+		return {"error": "Missing required parameter: name"}
+	var control: Control = _resolve_control_node(node_path)
+	if not control:
+		return {"error": "Control node at '" + node_path + "' not found"}
+
+	var stylebox := StyleBoxFlat.new()
+	var bg_color: String = String(params.get("bg_color", ""))
+	if not bg_color.is_empty():
+		stylebox.bg_color = Color(bg_color)
+	var border_color: String = String(params.get("border_color", ""))
+	if not border_color.is_empty():
+		stylebox.border_color = Color(border_color)
+	var border_width: int = int(params.get("border_width", 0))
+	if border_width > 0:
+		stylebox.border_width_left = border_width
+		stylebox.border_width_top = border_width
+		stylebox.border_width_right = border_width
+		stylebox.border_width_bottom = border_width
+	var corner_radius: int = int(params.get("corner_radius", 0))
+	if corner_radius > 0:
+		stylebox.corner_radius_top_left = corner_radius
+		stylebox.corner_radius_top_right = corner_radius
+		stylebox.corner_radius_bottom_left = corner_radius
+		stylebox.corner_radius_bottom_right = corner_radius
+	var padding: int = int(params.get("padding", 0))
+	if padding > 0:
+		stylebox.content_margin_left = padding
+		stylebox.content_margin_top = padding
+		stylebox.content_margin_right = padding
+		stylebox.content_margin_bottom = padding
+
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if not editor_interface:
+		return {"error": "Editor interface not available"}
+	var had_old: bool = control.has_theme_stylebox_override(style_name)
+	var old_value: Variant = control.get("theme_override_styles/" + style_name) if had_old else null
+	var undo_redo: EditorUndoRedoManager = editor_interface.get_editor_undo_redo()
+	undo_redo.create_action("MCP: Set theme stylebox override")
+	undo_redo.add_do_method(control, "add_theme_stylebox_override", style_name, stylebox)
+	undo_redo.add_do_reference(stylebox)
+	undo_redo.add_undo_method(self, "_restore_theme_override", control, "stylebox", style_name, had_old, old_value)
+	if old_value is Resource:
+		undo_redo.add_undo_reference(old_value)
+	undo_redo.commit_action()
+	editor_interface.mark_scene_as_unsaved()
+	return {"node_path": node_path, "name": style_name, "type": "StyleBoxFlat"}
+
+func _capture_control_setup_state(control: Control) -> Dictionary:
+	var state: Dictionary = {"properties": {}, "theme_constants": {}}
+	for property: String in [
+		"anchor_left", "anchor_top", "anchor_right", "anchor_bottom",
+		"offset_left", "offset_top", "offset_right", "offset_bottom",
+		"custom_minimum_size", "size_flags_horizontal", "size_flags_vertical",
+		"grow_horizontal", "grow_vertical",
+	]:
+		state["properties"][property] = control.get(property)
+	for constant_name: String in ["margin_left", "margin_top", "margin_right", "margin_bottom", "separation"]:
+		var had_override: bool = control.has_theme_constant_override(constant_name)
+		state["theme_constants"][constant_name] = {
+			"had": had_override,
+			"value": control.get("theme_override_constants/" + constant_name) if had_override else null,
+		}
+	return state
+
+func _register_control_setup_undo(control: Control, old_state: Dictionary, new_state: Dictionary) -> void:
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if not editor_interface:
+		return
+	var undo_redo: EditorUndoRedoManager = editor_interface.get_editor_undo_redo()
+	undo_redo.create_action("MCP: Setup Control")
+	for property: String in new_state["properties"]:
+		undo_redo.add_do_property(control, property, new_state["properties"][property])
+		undo_redo.add_undo_property(control, property, old_state["properties"][property])
+	for constant_name: String in new_state["theme_constants"]:
+		var new_constant: Dictionary = new_state["theme_constants"][constant_name]
+		var old_constant: Dictionary = old_state["theme_constants"][constant_name]
+		undo_redo.add_do_method(self, "_restore_theme_override", control, "constant", constant_name, new_constant["had"], new_constant["value"])
+		undo_redo.add_undo_method(self, "_restore_theme_override", control, "constant", constant_name, old_constant["had"], old_constant["value"])
+	undo_redo.commit_action()
+	editor_interface.mark_scene_as_unsaved()
+
+func _tool_setup_control(params: Dictionary) -> Dictionary:
+	var node_path: String = String(params.get("node_path", ""))
+	if node_path.is_empty():
+		return {"error": "Missing required parameter: node_path"}
+	var control: Control = _resolve_control_node(node_path)
+	if not control:
+		return {"error": "Control node at '" + node_path + "' not found"}
+
+	var applied: Array = []
+	var old_state: Dictionary = _capture_control_setup_state(control)
+	var target: Control = control.duplicate() as Control
+
+	var anchor_preset: String = String(params.get("anchor_preset", ""))
+	if not anchor_preset.is_empty():
+		var preset_map: Dictionary = {
+			"top_left": Control.PRESET_TOP_LEFT,
+			"top_right": Control.PRESET_TOP_RIGHT,
+			"bottom_left": Control.PRESET_BOTTOM_LEFT,
+			"bottom_right": Control.PRESET_BOTTOM_RIGHT,
+			"center_left": Control.PRESET_CENTER_LEFT,
+			"center_top": Control.PRESET_CENTER_TOP,
+			"center_right": Control.PRESET_CENTER_RIGHT,
+			"center_bottom": Control.PRESET_CENTER_BOTTOM,
+			"center": Control.PRESET_CENTER,
+			"left_wide": Control.PRESET_LEFT_WIDE,
+			"top_wide": Control.PRESET_TOP_WIDE,
+			"right_wide": Control.PRESET_RIGHT_WIDE,
+			"bottom_wide": Control.PRESET_BOTTOM_WIDE,
+			"vcenter_wide": Control.PRESET_VCENTER_WIDE,
+			"hcenter_wide": Control.PRESET_HCENTER_WIDE,
+			"full_rect": Control.PRESET_FULL_RECT,
+		}
+		if preset_map.has(anchor_preset):
+			target.set_anchors_and_offsets_preset(preset_map[anchor_preset])
+			applied.append("anchor_preset=" + anchor_preset)
+
+	var min_size_str: String = String(params.get("min_size", ""))
+	if not min_size_str.is_empty():
+		var expr := Expression.new()
+		if expr.parse(min_size_str) == OK:
+			var val: Variant = expr.execute()
+			if val is Vector2:
+				target.custom_minimum_size = val
+				applied.append("min_size=" + min_size_str)
+
+	var flags_map: Dictionary = {
+		"fill": Control.SIZE_FILL,
+		"expand": Control.SIZE_EXPAND,
+		"fill_expand": Control.SIZE_EXPAND_FILL,
+		"shrink_center": Control.SIZE_SHRINK_CENTER,
+		"shrink_end": Control.SIZE_SHRINK_END,
+	}
+	var sf_h: String = String(params.get("size_flags_h", ""))
+	if not sf_h.is_empty() and flags_map.has(sf_h):
+		target.size_flags_horizontal = flags_map[sf_h]
+		applied.append("size_flags_h=" + sf_h)
+	var sf_v: String = String(params.get("size_flags_v", ""))
+	if not sf_v.is_empty() and flags_map.has(sf_v):
+		target.size_flags_vertical = flags_map[sf_v]
+		applied.append("size_flags_v=" + sf_v)
+
+	if params.has("margins") and params["margins"] is Dictionary:
+		var margins: Dictionary = params["margins"]
+		if target is MarginContainer:
+			if margins.has("left"):
+				target.add_theme_constant_override("margin_left", int(margins["left"]))
+			if margins.has("top"):
+				target.add_theme_constant_override("margin_top", int(margins["top"]))
+			if margins.has("right"):
+				target.add_theme_constant_override("margin_right", int(margins["right"]))
+			if margins.has("bottom"):
+				target.add_theme_constant_override("margin_bottom", int(margins["bottom"]))
+			applied.append("margins=" + str(margins))
+
+	if params.has("separation"):
+		var sep: int = int(params["separation"])
+		if target is BoxContainer:
+			target.add_theme_constant_override("separation", sep)
+			applied.append("separation=" + str(sep))
+
+	var grow_map: Dictionary = {
+		"begin": Control.GROW_DIRECTION_BEGIN,
+		"end": Control.GROW_DIRECTION_END,
+		"both": Control.GROW_DIRECTION_BOTH,
+	}
+	var grow_h: String = String(params.get("grow_h", ""))
+	if not grow_h.is_empty() and grow_map.has(grow_h):
+		target.grow_horizontal = grow_map[grow_h]
+		applied.append("grow_h=" + grow_h)
+	var grow_v: String = String(params.get("grow_v", ""))
+	if not grow_v.is_empty() and grow_map.has(grow_v):
+		target.grow_vertical = grow_map[grow_v]
+		applied.append("grow_v=" + grow_v)
+
+	if not applied.is_empty():
+		var new_state: Dictionary = _capture_control_setup_state(target)
+		_register_control_setup_undo(control, old_state, new_state)
+	target.free()
+	return {"node_path": node_path, "applied": applied, "count": applied.size()}
+
+func _tool_get_theme_info(params: Dictionary) -> Dictionary:
+	var node_path: String = String(params.get("node_path", ""))
+	if node_path.is_empty():
+		return {"error": "Missing required parameter: node_path"}
+	var control: Control = _resolve_control_node(node_path)
+	if not control:
+		return {"error": "Control node at '" + node_path + "' not found"}
+
+	var info: Dictionary = {"node_path": node_path, "class": control.get_class()}
+	var theme: Theme = control.theme
+	if theme:
+		info["theme_path"] = theme.resource_path
+		info["type_list"] = Array(theme.get_type_list())
+
+	var overrides: Dictionary = {"colors": {}, "constants": {}, "font_sizes": {}, "styleboxes": {}}
+	for prop: Dictionary in control.get_property_list():
+		var pname: String = prop["name"]
+		if pname.begins_with("theme_override_colors/"):
+			var key: String = pname.substr(22)
+			var color_val: Variant = control.get(pname)
+			overrides["colors"][key] = "#" + (color_val as Color).to_html() if color_val is Color else str(color_val)
+		elif pname.begins_with("theme_override_constants/"):
+			var key: String = pname.substr(25)
+			overrides["constants"][key] = control.get(pname)
+		elif pname.begins_with("theme_override_font_sizes/"):
+			var key: String = pname.substr(26)
+			overrides["font_sizes"][key] = control.get(pname)
+		elif pname.begins_with("theme_override_styles/"):
+			var key: String = pname.substr(22)
+			var style: Variant = control.get(pname)
+			overrides["styleboxes"][key] = style.get_class() if style else null
+
+	info["overrides"] = overrides
+	return info
+
+# ============================================================================
+# Registration helpers (Batch 8 theme)
+# ============================================================================
+
+func _register_create_theme(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"create_theme",
+		"Create a new Theme resource (.tres) with an optional default font size.",
+		{
+			"type": "object",
+			"properties": {
+				"path": {"type": "string", "description": "Theme resource path (res://..., .tres)."},
+				"default_font_size": {"type": "integer", "description": "Default font size. Default 0 (unset)."}
+			},
+			"required": ["path"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_create_theme"),
+		{
+			"type": "object",
+			"properties": {
+				"path": {"type": "string"},
+				"created": {"type": "boolean"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false},
+		"supplementary", "Media-Theme"
+	)
+
+func _register_set_theme_color(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"set_theme_color",
+		"Set a theme color override on a Control node (undoable).",
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"name": {"type": "string", "description": "Color override name, e.g. 'font_color'."},
+				"color": {"type": "string", "description": "Color value, e.g. '#ff0000' or 'Color(1,0,0)'."}
+			},
+			"required": ["node_path", "name", "color"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_set_theme_color"),
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"name": {"type": "string"},
+				"color": {"type": "string"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Media-Theme"
+	)
+
+func _register_set_theme_constant(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"set_theme_constant",
+		"Set a theme constant override on a Control node (undoable).",
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"name": {"type": "string"},
+				"value": {"type": "integer"}
+			},
+			"required": ["node_path", "name", "value"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_set_theme_constant"),
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"name": {"type": "string"},
+				"value": {"type": "integer"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Media-Theme"
+	)
+
+func _register_set_theme_font_size(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"set_theme_font_size",
+		"Set a theme font size override on a Control node (undoable).",
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"name": {"type": "string", "description": "Font size override name, e.g. 'font_size'."},
+				"size": {"type": "integer", "description": "Font size in pixels. Default 16."}
+			},
+			"required": ["node_path", "name"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_set_theme_font_size"),
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"name": {"type": "string"},
+				"size": {"type": "integer"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Media-Theme"
+	)
+
+func _register_set_theme_stylebox(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"set_theme_stylebox",
+		"Set a StyleBoxFlat theme override on a Control node with background, border, corner radius, and padding (undoable).",
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"name": {"type": "string", "description": "Stylebox override name, e.g. 'panel'."},
+				"bg_color": {"type": "string"},
+				"border_color": {"type": "string"},
+				"border_width": {"type": "integer"},
+				"corner_radius": {"type": "integer"},
+				"padding": {"type": "integer"}
+			},
+			"required": ["node_path", "name"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_set_theme_stylebox"),
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"name": {"type": "string"},
+				"type": {"type": "string"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Media-Theme"
+	)
+
+func _register_setup_control(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"setup_control",
+		"Configure a Control node layout: anchor preset, min size, size flags, margins, separation, and grow direction (undoable).",
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"anchor_preset": {"type": "string", "description": "top_left, top_right, bottom_left, bottom_right, center_left, center_top, center_right, center_bottom, center, left_wide, top_wide, right_wide, bottom_wide, vcenter_wide, hcenter_wide, full_rect."},
+				"min_size": {"type": "string", "description": "Minimum size as 'Vector2(w, h)'."},
+				"size_flags_h": {"type": "string", "description": "fill, expand, fill_expand, shrink_center, shrink_end."},
+				"size_flags_v": {"type": "string"},
+				"margins": {"type": "object", "description": "MarginContainer margins {left, top, right, bottom}."},
+				"separation": {"type": "integer", "description": "BoxContainer separation."},
+				"grow_h": {"type": "string", "description": "begin, end, or both."},
+				"grow_v": {"type": "string"}
+			},
+			"required": ["node_path"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_setup_control"),
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"applied": {"type": "array"},
+				"count": {"type": "integer"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Media-Theme"
+	)
+
+func _register_get_theme_info(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"get_theme_info",
+		"Read a Control node's theme path, type list, and all theme overrides (colors, constants, font sizes, styleboxes).",
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"}
+			},
+			"required": ["node_path"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_get_theme_info"),
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"class": {"type": "string"},
+				"overrides": {"type": "object"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Media-Theme"
 	)

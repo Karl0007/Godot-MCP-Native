@@ -195,5 +195,12 @@
   "set_audio_bus": "Update audio bus properties: volume_db, solo, mute, bypass_effects, send, or rename.",
   "add_audio_bus_effect": "Add an audio effect to a bus. Types: reverb, chorus, delay, compressor, limiter, phaser, distortion, lowpassfilter, highpassfilter, bandpassfilter, amplify, eq.",
   "add_audio_player": "Add an AudioStreamPlayer, AudioStreamPlayer2D, or AudioStreamPlayer3D with stream, volume, bus, and spatial settings.",
-  "get_audio_info": "List audio players under a node with stream, volume, bus, autoplay, and spatial properties."
+  "get_audio_info": "List audio players under a node with stream, volume, bus, autoplay, and spatial properties.",
+  "create_theme": "Create a new Theme resource (.tres) with an optional default font size.",
+  "set_theme_color": "Set a theme color override on a Control node (undoable).",
+  "set_theme_constant": "Set a theme constant override on a Control node (undoable).",
+  "set_theme_font_size": "Set a theme font size override on a Control node (undoable).",
+  "set_theme_stylebox": "Set a StyleBoxFlat theme override on a Control node with background, border, corner radius, and padding (undoable).",
+  "setup_control": "Configure a Control node layout: anchor preset, min size, size flags, margins, separation, and grow direction (undoable).",
+  "get_theme_info": "Read a Control node's theme path, type list, and all theme overrides (colors, constants, font sizes, styleboxes)."
 }
