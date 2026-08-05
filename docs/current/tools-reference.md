@@ -12,7 +12,8 @@
 6. [Debug Tools](#debug-tools)
 7. [Project Tools](#project-tools)
 8. [World Tools](#world-tools)
-9. [通用数据类型](#通用数据类型)
+9. [Media Tools](#media-tools)
+10. [通用数据类型](#通用数据类型)
 10. [错误处理](#错误处理)
 
 ---
@@ -30,6 +31,7 @@ Godot MCP Native 实现了 **161 个工具**，分为 7 大类（含核心和补
 | [Debug Tools](#debug-tools) | 3 | 68 | 71 | `debug_tools_native.gd` | 调试和运行时（日志、断点、栈帧、Profiler、运行时探针、动画、音频、着色器、瓦片地图） |
 | [Project Tools](#project-tools) | 3 | 23 | 26 | `project_tools_native.gd` | 项目配置（信息、设置、测试、输入映射、自动加载、全局类、资源诊断） |
 | [World Tools](#world-tools) | 0 | 22 | 22 | `world_tools_native.gd` | 3D 场景构建、物理、导航与粒子（网格、光照、材质、环境、相机、GridMap、碰撞、物理层、射线、导航区域、寻路代理、GPU 粒子） |
+| [Media Tools](#media-tools) | 0 | 6 | 6 | `media_tools_native.gd` | 动画编辑（创建/轨道/关键帧/信息/删除） |
 
 ### Vibe Coding / 免打扰模式
 
@@ -4239,6 +4241,67 @@ Continue：恢复执行。
 
 **注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
 
+## Media Tools
+
+动画编辑工具（批次 5，共 6 个补充工具），源文件 `media_tools_native.gd`。
+
+### 178. list_animations
+
+列出 AnimationPlayer 上的动画。
+
+**参数**：`node_path`（是）
+
+**返回值**：`node_path`、`animations`（含 length/loop_mode/track_count）、`count`
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 179. create_animation
+
+创建新动画。
+
+**参数**：`node_path`（是）、`name`（是）、`length`（否，默认 1.0）、`loop_mode`（否，0=none/1=linear/2=pingpong）
+
+**返回值**：`name`、`length`、`created`
+
+### 180. add_animation_track
+
+添加动画轨道。
+
+**参数**：`node_path`（是）、`animation`（是）、`track_path`（是，如 `Sprite2D:position`）、`track_type`（否，value/position_2d/rotation_2d/scale_2d/method/bezier/blend_shape）、`update_mode`（否，continuous/discrete/capture）
+
+**返回值**：`track_index`、`track_path`、`track_type`
+
+### 181. set_animation_keyframe
+
+插入/更新关键帧（可撤销，支持原地更新）。
+
+**参数**：`node_path`（是）、`animation`（是）、`track_index`（是）、`time`（是）、`value`（是）、`easing`（否，默认 1.0）
+
+**返回值**：`track_index`、`time`、`key_index`、`easing`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 182. get_animation_info
+
+读取动画详情（长度/循环/步长/轨道关键帧）。
+
+**参数**：`node_path`（是）、`animation`（是）
+
+**返回值**：`name`、`length`、`loop_mode`、`step`、`tracks`（含每轨 keys）
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 183. remove_animation
+
+移除动画（可撤销）。
+
+**参数**：`node_path`（是）、`name`（是）
+
+**返回值**：`name`、`removed`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=true`, `idempotentHint=false`, `openWorldHint=false`
+
+
 ## 通用数据类型
 
 ### Vector2
@@ -4338,7 +4401,7 @@ Continue：恢复执行。
 
 ## 总结
 
-本手册详细说明了 Godot MCP Native 项目的所有核心工具及部分补充工具。项目共 **177 个工具**（30 核心 + 147 补充），所有工具均可通过 MCP 工具管理面板按分组动态启用/禁用。补充工具（`*-Advanced` 分组）默认不启用，需在工具管理面板中手动开启。
+本手册详细说明了 Godot MCP Native 项目的所有核心工具及部分补充工具。项目共 **183 个工具**（30 核心 + 153 补充），所有工具均可通过 MCP 工具管理面板按分组动态启用/禁用。补充工具（`*-Advanced` 分组）默认不启用，需在工具管理面板中手动开启。
 
 **提示**：
 - 使用 `tools/list` 方法获取所有工具的实时列表和完整 JSON Schema

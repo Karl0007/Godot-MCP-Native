@@ -175,5 +175,11 @@
   "set_particle_material": "Configure the ParticleProcessMaterial of a GPUParticles node: direction, spread, velocity, gravity, scale, color, emission shape, damping.",
   "set_particle_color_gradient": "Set a color gradient on a GPUParticles node's material from an array of {offset, color} stops.",
   "apply_particle_preset": "Apply a predefined particle preset: explosion, fire, smoke, sparks, rain, snow, magic, or dust.",
-  "get_particle_info": "Read GPUParticles node state: amount, lifetime, one_shot, explosiveness, randomness, emitting, and material properties."
+  "get_particle_info": "Read GPUParticles node state: amount, lifetime, one_shot, explosiveness, randomness, emitting, and material properties.",
+  "list_animations": "List all animations on an AnimationPlayer node with length, loop mode, and track count.",
+  "create_animation": "Create a new animation on an AnimationPlayer node with length and loop mode.",
+  "add_animation_track": "Add a track to an animation. Track types: value, position_2d, rotation_2d, scale_2d, method, bezier, blend_shape.",
+  "set_animation_keyframe": "Insert or update a keyframe at a given time on an animation track.",
+  "get_animation_info": "Read animation details: length, loop mode, step, and per-track keyframes.",
+  "remove_animation": "Remove an animation from an AnimationPlayer node (undoable)."
 }

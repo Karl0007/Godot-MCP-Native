@@ -187,6 +187,12 @@ func _build_classifications() -> void:
 		{"name": "set_particle_color_gradient", "category": "supplementary", "group": "World"},
 		{"name": "apply_particle_preset", "category": "supplementary", "group": "World"},
 		{"name": "get_particle_info", "category": "supplementary", "group": "World"},
+		{"name": "list_animations", "category": "supplementary", "group": "Media-Animation"},
+		{"name": "create_animation", "category": "supplementary", "group": "Media-Animation"},
+		{"name": "add_animation_track", "category": "supplementary", "group": "Media-Animation"},
+		{"name": "set_animation_keyframe", "category": "supplementary", "group": "Media-Animation"},
+		{"name": "get_animation_info", "category": "supplementary", "group": "Media-Animation"},
+		{"name": "remove_animation", "category": "supplementary", "group": "Media-Animation"},
 	]
 
 	for item in classifications:

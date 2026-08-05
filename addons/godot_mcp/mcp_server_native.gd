@@ -110,7 +110,8 @@ const TOOL_SCRIPT_PATHS: Dictionary = {
 	"EditorToolsNative": "res://addons/godot_mcp/tools/editor_tools_native.gd",
 	"DebugToolsNative": "res://addons/godot_mcp/tools/debug_tools_native.gd",
 	"ProjectToolsNative": "res://addons/godot_mcp/tools/project_tools_native.gd",
-	"WorldToolsNative": "res://addons/godot_mcp/tools/world_tools_native.gd"
+	"WorldToolsNative": "res://addons/godot_mcp/tools/world_tools_native.gd",
+	"MediaToolsNative": "res://addons/godot_mcp/tools/media_tools_native.gd"
 }
 
 # ============================================================================
