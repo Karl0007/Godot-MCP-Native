@@ -114,12 +114,13 @@ func test_register_tools_registers_all_six():
 	server_core.register_tool = func(name: String, desc: String, schema: Dictionary, cb: Callable, out: Dictionary = {}, ann: Dictionary = {}, cat: String = "core", group: String = "") -> void:
 		registered.append(name)
 	_media_tools.register_tools(server_core)
-	assert_eq(registered.size(), 27, "Should register exactly 27 tools")
+	assert_eq(registered.size(), 33, "Should register exactly 33 tools")
 	for name in ["list_animations", "create_animation", "add_animation_track", "set_animation_keyframe", "get_animation_info", "remove_animation",
 			"create_animation_tree", "get_animation_tree_structure", "add_state_machine_state", "remove_state_machine_state",
 			"add_state_machine_transition", "remove_state_machine_transition", "set_blend_tree_node", "set_tree_parameter",
 			"get_audio_bus_layout", "add_audio_bus", "set_audio_bus", "add_audio_bus_effect", "add_audio_player", "get_audio_info",
-			"create_theme", "set_theme_color", "set_theme_constant", "set_theme_font_size", "set_theme_stylebox", "setup_control", "get_theme_info"]:
+			"create_theme", "set_theme_color", "set_theme_constant", "set_theme_font_size", "set_theme_stylebox", "setup_control", "get_theme_info",
+			"create_shader", "read_shader", "edit_shader", "assign_shader_material", "set_shader_param", "get_shader_params"]:
 		assert_true(name in registered, name + " should be registered")
 
 # --- AnimationTree (Batch 6) ---
@@ -335,3 +336,70 @@ func test_validate_theme_path_valid():
 func test_validate_theme_path_invalid_extension():
 	var validation: Dictionary = _media_tools._validate_theme_path("res://themes/my.json")
 	assert_true(not validation.is_empty(), "Wrong extension should fail")
+
+# --- Shader (Batch 9) ---
+
+func test_create_shader_requires_path():
+	var result: Dictionary = _media_tools._tool_create_shader({})
+	assert_true(result.has("error"), "Missing path should error")
+
+func test_create_shader_invalid_extension():
+	var result: Dictionary = _media_tools._tool_create_shader({"path": "res://shader.txt"})
+	assert_true(result.has("error"), "Non-.gdshader path should error")
+
+func test_create_shader_unknown_type():
+	var result: Dictionary = _media_tools._tool_create_shader({"path": "res://s.gdshader", "shader_type": "compute"})
+	assert_true(result.has("error"), "Unknown shader_type should error")
+
+func test_read_shader_requires_path():
+	var result: Dictionary = _media_tools._tool_read_shader({})
+	assert_true(result.has("error"), "Missing path should error")
+
+func test_read_shader_invalid_extension():
+	var result: Dictionary = _media_tools._tool_read_shader({"path": "res://s.txt"})
+	assert_true(result.has("error"), "Non-.gdshader path should error")
+
+func test_read_shader_not_found():
+	var result: Dictionary = _media_tools._tool_read_shader({"path": "res://nonexistent.gdshader"})
+	assert_true(result.has("error"), "Missing file should error")
+
+func test_edit_shader_requires_path():
+	var result: Dictionary = _media_tools._tool_edit_shader({})
+	assert_true(result.has("error"), "Missing path should error")
+
+func test_edit_shader_not_found():
+	var result: Dictionary = _media_tools._tool_edit_shader({"path": "res://nonexistent.gdshader"})
+	assert_true(result.has("error"), "Missing file should error")
+
+func test_assign_shader_material_requires_params():
+	var result: Dictionary = _media_tools._tool_assign_shader_material({})
+	assert_true(result.has("error"), "Missing params should error")
+
+func test_assign_shader_material_missing_shader():
+	var result: Dictionary = _media_tools._tool_assign_shader_material({"node_path": "/root/Main"})
+	assert_true(result.has("error"), "Missing shader_path should error")
+
+func test_assign_shader_material_missing_file():
+	var result: Dictionary = _media_tools._tool_assign_shader_material({"node_path": "/root/Main", "shader_path": "res://nonexistent.gdshader"})
+	assert_true(result.has("error"), "Missing shader file should error")
+
+func test_set_shader_param_requires_params():
+	var result: Dictionary = _media_tools._tool_set_shader_param({})
+	assert_true(result.has("error"), "Missing params should error")
+
+func test_set_shader_param_missing_param():
+	var result: Dictionary = _media_tools._tool_set_shader_param({"node_path": "/root/Main", "value": 1.0})
+	assert_true(result.has("error"), "Missing param should error")
+
+func test_get_shader_params_requires_node_path():
+	var result: Dictionary = _media_tools._tool_get_shader_params({})
+	assert_true(result.has("error"), "Missing node_path should error")
+
+func test_is_shader_resource_path():
+	assert_true(_media_tools._is_shader_resource_path("res://s.gdshader"), ".gdshader should be shader")
+	assert_true(_media_tools._is_shader_resource_path("res://s.gdshaderinc"), ".gdshaderinc should be shader")
+	assert_false(_media_tools._is_shader_resource_path("res://s.gd"), ".gd should not be shader")
+
+func test_guard_shader_path_rejects_non_shader():
+	var guard: Dictionary = _media_tools._guard_shader_path("res://s.gd", "create_shader")
+	assert_true(not guard.is_empty(), "Non-shader path should be guarded")

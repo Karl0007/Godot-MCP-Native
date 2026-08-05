@@ -214,6 +214,12 @@ func _build_classifications() -> void:
 		{"name": "set_theme_stylebox", "category": "supplementary", "group": "Media-Theme"},
 		{"name": "setup_control", "category": "supplementary", "group": "Media-Theme"},
 		{"name": "get_theme_info", "category": "supplementary", "group": "Media-Theme"},
+		{"name": "create_shader", "category": "supplementary", "group": "Media-Shader"},
+		{"name": "read_shader", "category": "supplementary", "group": "Media-Shader"},
+		{"name": "edit_shader", "category": "supplementary", "group": "Media-Shader"},
+		{"name": "assign_shader_material", "category": "supplementary", "group": "Media-Shader"},
+		{"name": "set_shader_param", "category": "supplementary", "group": "Media-Shader"},
+		{"name": "get_shader_params", "category": "supplementary", "group": "Media-Shader"},
 	]
 
 	for item in classifications:

@@ -202,5 +202,11 @@
   "set_theme_font_size": "Set a theme font size override on a Control node (undoable).",
   "set_theme_stylebox": "Set a StyleBoxFlat theme override on a Control node with background, border, corner radius, and padding (undoable).",
   "setup_control": "Configure a Control node layout: anchor preset, min size, size flags, margins, separation, and grow direction (undoable).",
-  "get_theme_info": "Read a Control node's theme path, type list, and all theme overrides (colors, constants, font sizes, styleboxes)."
+  "get_theme_info": "Read a Control node's theme path, type list, and all theme overrides (colors, constants, font sizes, styleboxes).",
+  "create_shader": "Create a shader file (.gdshader) with a template for spatial, canvas_item, particles, or sky, or with provided content.",
+  "read_shader": "Read a shader file's content.",
+  "edit_shader": "Edit a shader file with full content replacement or search-and-replace.",
+  "assign_shader_material": "Create a ShaderMaterial from a shader file and assign it to a CanvasItem or MeshInstance3D node.",
+  "set_shader_param": "Set a shader uniform on a node's ShaderMaterial. Values are auto-parsed from strings.",
+  "get_shader_params": "Read all shader uniforms from a node's ShaderMaterial."
 }

@@ -31,7 +31,7 @@ Godot MCP Native 实现了 **161 个工具**，分为 7 大类（含核心和补
 | [Debug Tools](#debug-tools) | 3 | 68 | 71 | `debug_tools_native.gd` | 调试和运行时（日志、断点、栈帧、Profiler、运行时探针、动画、音频、着色器、瓦片地图） |
 | [Project Tools](#project-tools) | 3 | 23 | 26 | `project_tools_native.gd` | 项目配置（信息、设置、测试、输入映射、自动加载、全局类、资源诊断） |
 | [World Tools](#world-tools) | 0 | 22 | 22 | `world_tools_native.gd` | 3D 场景构建、物理、导航与粒子（网格、光照、材质、环境、相机、GridMap、碰撞、物理层、射线、导航区域、寻路代理、GPU 粒子） |
-| [Media Tools](#media-tools) | 0 | 27 | 27 | `media_tools_native.gd` | 动画、音频与主题编辑（创建/轨道/关键帧/状态机/混合树/音频总线/主题覆盖/控件布局） |
+| [Media Tools](#media-tools) | 0 | 33 | 33 | `media_tools_native.gd` | 动画、音频、主题与着色器编辑（创建/轨道/关键帧/状态机/音频总线/主题覆盖/着色器） |
 
 ### Vibe Coding / 免打扰模式
 
@@ -4243,7 +4243,7 @@ Continue：恢复执行。
 
 ## Media Tools
 
-动画、音频与主题编辑工具（批次 5-8，共 27 个补充工具），源文件 `media_tools_native.gd`。
+动画、音频、主题与着色器编辑工具（批次 5-9，共 33 个补充工具），源文件 `media_tools_native.gd`。
 
 ### 178. list_animations
 
@@ -4496,6 +4496,64 @@ Continue：恢复执行。
 
 **注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
 
+### 205. create_shader
+
+创建着色器文件（.gdshader）。
+
+**参数**：`path`（是）、`content`（否，自定义内容）、`shader_type`（否，spatial/canvas_item/particles/sky）、`force`（否）
+
+**返回值**：`path`、`shader_type`、`created`
+
+### 206. read_shader
+
+读取着色器内容。
+
+**参数**：`path`（是）
+
+**返回值**：`path`、`content`、`size`
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 207. edit_shader
+
+编辑着色器（全量替换或 search-replace）。
+
+**参数**：`path`（是）、`content`（否）、`replacements`（否，`{search, replace}` 数组）、`force`（否）
+
+**返回值**：`path`、`changes_made`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 208. assign_shader_material
+
+创建 ShaderMaterial 并分配给节点。
+
+**参数**：`node_path`（是）、`shader_path`（是）
+
+**返回值**：`node_path`、`shader_path`、`assigned`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 209. set_shader_param
+
+设置着色器 uniform（值自动解析）。
+
+**参数**：`node_path`（是）、`param`（是）、`value`（是）
+
+**返回值**：`node_path`、`param`、`value`
+
+**注解**：`readOnlyHint=false`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
+### 210. get_shader_params
+
+读取所有着色器 uniform。
+
+**参数**：`node_path`（是）
+
+**返回值**：`node_path`、`params`（uniform 字典）
+
+**注解**：`readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false`
+
 ## 通用数据类型
 
 ### Vector2
@@ -4595,7 +4653,7 @@ Continue：恢复执行。
 
 ## 总结
 
-本手册详细说明了 Godot MCP Native 项目的所有核心工具及部分补充工具。项目共 **204 个工具**（30 核心 + 174 补充），所有工具均可通过 MCP 工具管理面板按分组动态启用/禁用。补充工具（`*-Advanced` 分组）默认不启用，需在工具管理面板中手动开启。
+本手册详细说明了 Godot MCP Native 项目的所有核心工具及部分补充工具。项目共 **210 个工具**（30 核心 + 180 补充），所有工具均可通过 MCP 工具管理面板按分组动态启用/禁用。补充工具（`*-Advanced` 分组）默认不启用，需在工具管理面板中手动开启。
 
 **提示**：
 - 使用 `tools/list` 方法获取所有工具的实时列表和完整 JSON Schema

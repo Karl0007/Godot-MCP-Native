@@ -100,6 +100,12 @@ func register_tools(server_core: RefCounted) -> void:
 	_register_set_theme_stylebox(server_core)
 	_register_setup_control(server_core)
 	_register_get_theme_info(server_core)
+	_register_create_shader(server_core)
+	_register_read_shader(server_core)
+	_register_edit_shader(server_core)
+	_register_assign_shader_material(server_core)
+	_register_set_shader_param(server_core)
+	_register_get_shader_params(server_core)
 
 # ============================================================================
 # list_animations
@@ -2394,4 +2400,405 @@ func _register_get_theme_info(server_core: RefCounted) -> void:
 		},
 		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
 		"supplementary", "Media-Theme"
+	)
+
+# ============================================================================
+# Shader tools (Batch 9)
+# ============================================================================
+
+func _is_shader_resource_path(path: String) -> bool:
+	var ext: String = path.get_extension().to_lower()
+	return ext == "gdshader" or ext == "gdshaderinc" or ext == "shader"
+
+func _refresh_loaded_shader(path: String, content: String) -> void:
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if not editor_interface:
+		return
+	var normalized: String = _normalize_path(path)
+	if normalized.is_empty():
+		return
+	if ResourceLoader.has_cached(normalized):
+		var shader := Shader.new()
+		shader.code = content
+		shader.take_over_path(normalized)
+		shader.emit_changed()
+	editor_interface.get_resource_filesystem().update_file(normalized)
+
+func _normalize_path(path: String) -> String:
+	if path.is_empty():
+		return ""
+	if path.begins_with("res://") or path.begins_with("user://"):
+		return path.simplify_path()
+	return ProjectSettings.localize_path(path).simplify_path()
+
+func _guard_shader_path(path: String, operation: String) -> Dictionary:
+	if not _is_shader_resource_path(path):
+		return {"error": operation + " only supports shader files (.gdshader): " + path}
+	return {}
+
+func _guard_text_resource_write(path: String, force: bool) -> Dictionary:
+	if not force and _is_text_resource_open_in_script_editor(path):
+		return {"error": "Refusing to write open text resource '" + path + "' outside the editor state. Pass force=true to overwrite."}
+	return {}
+
+func _is_text_resource_open_in_script_editor(path: String) -> bool:
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if not editor_interface:
+		return false
+	var normalized: String = _normalize_path(path)
+	if normalized.is_empty():
+		return false
+	if _is_shader_resource_path(normalized) and ResourceLoader.has_cached(normalized):
+		return true
+	return false
+
+func _tool_create_shader(params: Dictionary) -> Dictionary:
+	var path: String = String(params.get("path", ""))
+	if path.is_empty():
+		return {"error": "Missing required parameter: path"}
+	var guard := _guard_shader_path(path, "create_shader")
+	if not guard.is_empty():
+		return guard
+
+	var content: String = String(params.get("content", ""))
+	var shader_type: String = String(params.get("shader_type", "spatial"))
+	var force: bool = bool(params.get("force", false))
+	var write_guard: Dictionary = _guard_text_resource_write(path, force)
+	if not write_guard.is_empty():
+		return write_guard
+
+	if content.is_empty():
+		match shader_type:
+			"spatial":
+				content = "shader_type spatial;\n\nvoid vertex() {\n\t// Called for every vertex\n}\n\nvoid fragment() {\n\t// Called for every pixel\n\tALBEDO = vec3(1.0);\n}\n"
+			"canvas_item":
+				content = "shader_type canvas_item;\n\nvoid vertex() {\n\t// Called for every vertex\n}\n\nvoid fragment() {\n\t// Called for every pixel\n\tCOLOR = vec4(1.0);\n}\n"
+			"particles":
+				content = "shader_type particles;\n\nvoid start() {\n\t// Called when particle spawns\n}\n\nvoid process() {\n\t// Called every frame per particle\n}\n"
+			"sky":
+				content = "shader_type sky;\n\nvoid sky() {\n\tCOLOR = vec3(0.3, 0.5, 0.8);\n}\n"
+			_:
+				return {"error": "Unknown shader_type: '" + shader_type + "'. Available: spatial, canvas_item, particles, sky"}
+
+	var dir_path: String = path.get_base_dir()
+	if not dir_path.is_empty() and not DirAccess.dir_exists_absolute(dir_path):
+		DirAccess.make_dir_recursive_absolute(dir_path)
+
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		return {"error": "Cannot create shader: " + error_string(FileAccess.get_open_error())}
+	file.store_string(content)
+	file.close()
+
+	_refresh_loaded_shader(path, content)
+	return {"path": path, "shader_type": shader_type, "created": true}
+
+func _tool_read_shader(params: Dictionary) -> Dictionary:
+	var path: String = String(params.get("path", ""))
+	if path.is_empty():
+		return {"error": "Missing required parameter: path"}
+	var guard := _guard_shader_path(path, "read_shader")
+	if not guard.is_empty():
+		return guard
+	if not FileAccess.file_exists(path):
+		return {"error": "Shader '" + path + "' not found"}
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return {"error": "Cannot read shader: " + error_string(FileAccess.get_open_error())}
+	var content: String = file.get_as_text()
+	file.close()
+	return {"path": path, "content": content, "size": content.length()}
+
+func _tool_edit_shader(params: Dictionary) -> Dictionary:
+	var path: String = String(params.get("path", ""))
+	if path.is_empty():
+		return {"error": "Missing required parameter: path"}
+	var guard := _guard_shader_path(path, "edit_shader")
+	if not guard.is_empty():
+		return guard
+	if not FileAccess.file_exists(path):
+		return {"error": "Shader '" + path + "' not found"}
+	var force: bool = bool(params.get("force", false))
+	var write_guard: Dictionary = _guard_text_resource_write(path, force)
+	if not write_guard.is_empty():
+		return write_guard
+
+	var changes_made := 0
+	var content: String = ""
+	if params.has("content"):
+		content = str(params["content"])
+		changes_made = 1
+	elif params.has("replacements") and params["replacements"] is Array:
+		var file := FileAccess.open(path, FileAccess.READ)
+		if file == null:
+			return {"error": "Cannot read shader"}
+		content = file.get_as_text()
+		file.close()
+		for replacement: Variant in params["replacements"]:
+			if replacement is Dictionary:
+				var search: String = str(replacement.get("search", ""))
+				var replace: String = str(replacement.get("replace", ""))
+				if not search.is_empty() and content.contains(search):
+					content = content.replace(search, replace)
+					changes_made += 1
+
+	if changes_made > 0:
+		var file := FileAccess.open(path, FileAccess.WRITE)
+		if file == null:
+			return {"error": "Cannot write shader: " + error_string(FileAccess.get_open_error())}
+		file.store_string(content)
+		file.close()
+		_refresh_loaded_shader(path, content)
+
+	return {"path": path, "changes_made": changes_made}
+
+func _tool_assign_shader_material(params: Dictionary) -> Dictionary:
+	var scene_root: Node = _get_user_scene_root()
+	if not scene_root:
+		return {"error": "No scene is currently open"}
+	var node_path: String = String(params.get("node_path", ""))
+	if node_path.is_empty():
+		return {"error": "Missing required parameter: node_path"}
+	var shader_path: String = String(params.get("shader_path", ""))
+	if shader_path.is_empty():
+		return {"error": "Missing required parameter: shader_path"}
+	var node: Node = _resolve_node_path(node_path)
+	if not node:
+		return {"error": "Node at '" + node_path + "' not found"}
+	if not ResourceLoader.exists(shader_path):
+		return {"error": "Shader '" + shader_path + "' not found"}
+	var shader: Resource = load(shader_path)
+	if not (shader is Shader):
+		return {"error": "File is not a shader: " + shader_path}
+
+	var material := ShaderMaterial.new()
+	material.shader = shader
+
+	if node is CanvasItem:
+		_set_node_property_with_undo(node, "material", material, "MCP: Assign shader material")
+	elif node is MeshInstance3D:
+		_set_node_property_with_undo(node, "material_override", material, "MCP: Assign shader material")
+	else:
+		if "material" in node:
+			_set_node_property_with_undo(node, "material", material, "MCP: Assign shader material")
+		else:
+			return {"error": "Node '" + node_path + "' (" + node.get_class() + ") does not support materials"}
+
+	return {"node_path": node_path, "shader_path": shader_path, "assigned": true}
+
+func _get_shader_material(node: Node) -> ShaderMaterial:
+	if node is CanvasItem and (node as CanvasItem).material is ShaderMaterial:
+		return (node as CanvasItem).material as ShaderMaterial
+	if node is MeshInstance3D and (node as MeshInstance3D).material_override is ShaderMaterial:
+		return (node as MeshInstance3D).material_override as ShaderMaterial
+	return null
+
+func _tool_set_shader_param(params: Dictionary) -> Dictionary:
+	var scene_root: Node = _get_user_scene_root()
+	if not scene_root:
+		return {"error": "No scene is currently open"}
+	var node_path: String = String(params.get("node_path", ""))
+	if node_path.is_empty():
+		return {"error": "Missing required parameter: node_path"}
+	var param_name: String = String(params.get("param", ""))
+	if param_name.is_empty():
+		return {"error": "Missing required parameter: param"}
+	var node: Node = _resolve_node_path(node_path)
+	if not node:
+		return {"error": "Node at '" + node_path + "' not found"}
+	var material: ShaderMaterial = _get_shader_material(node)
+	if material == null:
+		return {"error": "Node has no ShaderMaterial"}
+
+	var value: Variant = params.get("value", null)
+	if value is String:
+		var expr := Expression.new()
+		if expr.parse(String(value)) == OK:
+			var parsed: Variant = expr.execute()
+			if parsed != null:
+				value = parsed
+	material.set_shader_parameter(param_name, value)
+	return {"node_path": node_path, "param": param_name, "value": str(value)}
+
+func _tool_get_shader_params(params: Dictionary) -> Dictionary:
+	var scene_root: Node = _get_user_scene_root()
+	if not scene_root:
+		return {"error": "No scene is currently open"}
+	var node_path: String = String(params.get("node_path", ""))
+	if node_path.is_empty():
+		return {"error": "Missing required parameter: node_path"}
+	var node: Node = _resolve_node_path(node_path)
+	if not node:
+		return {"error": "Node at '" + node_path + "' not found"}
+	var material: ShaderMaterial = _get_shader_material(node)
+	if material == null:
+		return {"error": "Node has no ShaderMaterial"}
+
+	var shader_params: Dictionary = {}
+	for prop: Dictionary in material.get_property_list():
+		var pname: String = prop["name"]
+		if pname.begins_with("shader_parameter/"):
+			var key: String = pname.substr(17)
+			shader_params[key] = str(material.get(pname))
+	return {"node_path": node_path, "params": shader_params}
+
+# ============================================================================
+# Registration helpers (Batch 9 shader)
+# ============================================================================
+
+func _register_create_shader(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"create_shader",
+		"Create a shader file (.gdshader) with a template for spatial, canvas_item, particles, or sky, or with provided content.",
+		{
+			"type": "object",
+			"properties": {
+				"path": {"type": "string", "description": "Shader path (res://..., .gdshader)."},
+				"content": {"type": "string", "description": "Full shader content. If empty, a template is generated."},
+				"shader_type": {"type": "string", "description": "spatial, canvas_item, particles, or sky. Default 'spatial'."},
+				"force": {"type": "boolean", "description": "Overwrite open resources. Default false."}
+			},
+			"required": ["path"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_create_shader"),
+		{
+			"type": "object",
+			"properties": {
+				"path": {"type": "string"},
+				"shader_type": {"type": "string"},
+				"created": {"type": "boolean"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": false, "openWorldHint": false},
+		"supplementary", "Media-Shader"
+	)
+
+func _register_read_shader(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"read_shader",
+		"Read a shader file's content.",
+		{
+			"type": "object",
+			"properties": {
+				"path": {"type": "string"}
+			},
+			"required": ["path"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_read_shader"),
+		{
+			"type": "object",
+			"properties": {
+				"path": {"type": "string"},
+				"content": {"type": "string"},
+				"size": {"type": "integer"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Media-Shader"
+	)
+
+func _register_edit_shader(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"edit_shader",
+		"Edit a shader file with full content replacement or search-and-replace.",
+		{
+			"type": "object",
+			"properties": {
+				"path": {"type": "string"},
+				"content": {"type": "string", "description": "Full replacement content."},
+				"replacements": {"type": "array", "description": "Array of {search, replace} pairs."},
+				"force": {"type": "boolean"}
+			},
+			"required": ["path"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_edit_shader"),
+		{
+			"type": "object",
+			"properties": {
+				"path": {"type": "string"},
+				"changes_made": {"type": "integer"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Media-Shader"
+	)
+
+func _register_assign_shader_material(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"assign_shader_material",
+		"Create a ShaderMaterial from a shader file and assign it to a CanvasItem or MeshInstance3D node.",
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"shader_path": {"type": "string"}
+			},
+			"required": ["node_path", "shader_path"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_assign_shader_material"),
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"shader_path": {"type": "string"},
+				"assigned": {"type": "boolean"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Media-Shader"
+	)
+
+func _register_set_shader_param(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"set_shader_param",
+		"Set a shader uniform on a node's ShaderMaterial. Values are auto-parsed from strings.",
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"param": {"type": "string"},
+				"value": {"type": "object", "description": "Uniform value (auto-parsed)."}
+			},
+			"required": ["node_path", "param", "value"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_set_shader_param"),
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"param": {"type": "string"},
+				"value": {"type": "string"}
+			}
+		},
+		{"readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Media-Shader"
+	)
+
+func _register_get_shader_params(server_core: RefCounted) -> void:
+	server_core.register_tool(
+		"get_shader_params",
+		"Read all shader uniforms from a node's ShaderMaterial.",
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"}
+			},
+			"required": ["node_path"],
+			"additionalProperties": false
+		},
+		Callable(self, "_tool_get_shader_params"),
+		{
+			"type": "object",
+			"properties": {
+				"node_path": {"type": "string"},
+				"params": {"type": "object"}
+			}
+		},
+		{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false},
+		"supplementary", "Media-Shader"
 	)

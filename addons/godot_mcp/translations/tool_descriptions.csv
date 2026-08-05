@@ -13,6 +13,7 @@ add_state_machine_transition,,Add a transition between two states in an Animatio
 analyze_script,,Analyze a GDScript file and report code quality issues.,分析 GDScript 文件并报告代码质量问题。
 apply_particle_preset,,"Apply a predefined particle preset: explosion, fire, smoke, sparks, rain, snow, magic, or dust.",应用预定义粒子预设：explosion、fire、smoke、sparks、rain、snow、magic 或 dust。
 assert_runtime_condition,,Assert a condition in the running game.,在运行中游戏中断言一个条件。
+assign_shader_material,,Create a ShaderMaterial from a shader file and assign it to a CanvasItem or MeshInstance3D node.,从着色器文件创建 ShaderMaterial 并分配给 CanvasItem 或 MeshInstance3D 节点。
 attach_script,,Attach a script to a node.,将脚本附加到节点。
 audit_project_health,,Audit project health and integrity.,审计项目健康和完整性。
 audit_scene_inheritance,,Audit inherited or instanced scene structure for the current scene. Classifies local nodes, instance roots, inherited instance content, and local additions inside instanced subtrees.,审计当前场景的继承或实例化场景结构。分类本地节点、实例根节点、继承的实例内容以及实例化子树中的本地添加。
@@ -37,6 +38,7 @@ create_resource,,Create a new Godot resource file (.tres). Supports common resou
 create_runtime_node,,Create a node in the running game.,在运行中的游戏中创建节点。
 create_scene,,Create a new Godot scene with a root node. The scene is saved to the specified path.,创建一个新的 Godot 场景并包含根节点。场景保存到指定路径。
 create_script,,Create a new GDScript file with optional template. GDScript files are complete programs, not resource files.,创建新的 GDScript 文件，可选模板。GDScript 文件是完整程序，不是资源文件。
+create_shader,,"Create a shader file (.gdshader) with a template for spatial, canvas_item, particles, or sky, or with provided content.",创建着色器文件（.gdshader），支持 spatial、canvas_item、particles、sky 模板或自定义内容。
 create_theme,,Create a new Theme resource (.tres) with an optional default font size.,创建新的 Theme 资源（.tres），可设置默认字体大小。
 debug_continue,,Continue execution in the debugger.,在调试器中继续执行。
 debug_continue_and_wait,,Continue and wait for the debugger to pause or complete.,继续执行并等待调试器暂停或完成。
@@ -52,6 +54,7 @@ delete_runtime_node,,Delete a node in the running game.,在运行中的游戏中
 detect_broken_scripts,,Detect broken scripts in the project.,检测项目中的损坏脚本。
 disconnect_signal,,Disconnect a signal from one node to another.,断开一个节点到另一个节点的信号连接。
 duplicate_node,,Duplicate a node and its children in the scene tree. Returns the new node path.,在场景树中复制节点及其子节点。返回新节点的路径。
+edit_shader,,Edit a shader file with full content replacement or search-and-replace.,编辑着色器文件，支持全量替换或查找替换。
 evaluate_debug_expression,,Evaluate an expression in the paused script debugger context for a given frame.,在给定帧的暂停脚本调试器上下文中求值表达式。
 evaluate_runtime_expression,,Evaluate an expression in the running game context.,在运行中的游戏上下文中求值表达式。
 execute_editor_script,,Execute a script in the editor with access to editor APIs.,在编辑器中执行脚本，可访问编辑器 API。
@@ -109,6 +112,7 @@ get_runtime_tilemap_cell,,Get a TileMap cell in the running game.,获取运行�
 get_scene_structure,,Get the complete structure of the current scene as a tree. Returns node types, names, and hierarchy.,以树形结构获取当前场景的完整结构。返回节点类型、名称和层级关系。
 get_scene_tree,,Get the complete scene tree hierarchy starting from the scene root. Returns full tree structure with node types.,获取从场景根节点开始的完整场景树层级。返回包含节点类型的完整树结构。
 get_selected_nodes,,Get the list of currently selected nodes in the editor.,获取编辑器中当前选中节点的列表。
+get_shader_params,,Read all shader uniforms from a node's ShaderMaterial.,读取节点 ShaderMaterial 的所有着色器 uniform。
 get_signals,,Get all signals and their connections for a node.,获取节点的所有信号及其连接。
 get_theme_info,,"Read a Control node's theme path, type list, and all theme overrides (colors, constants, font sizes, styleboxes).",读取 Control 节点的主题路径、类型列表和所有主题覆盖（颜色、常量、字体大小、样式盒）。
 inspect_csharp_project_support,,Inspect C# / Mono project support files such as .csproj and .sln, including target frameworks, assembly metadata, and references.,检查 C# / Mono 项目支持文件（如 .csproj 和 .sln），包括目标框架、程序集元数据和引用。
@@ -138,6 +142,7 @@ open_scene,,Open a scene file from the project. Closes the current scene if one 
 open_script_at_line,,Open a script file at a specific line number in the Godot editor.,在 Godot 编辑器中的指定行号打开脚本文件。
 play_runtime_animation,,Play an animation in the running game.,播放运行中游戏中的动画。
 read_script,,Read the content of a GDScript file (.gd). Returns the complete script source code.,读取 GDScript 文件（.gd）的内容。返回完整的脚本源代码。
+read_shader,,Read a shader file's content.,读取着色器文件内容。
 reimport_resources,,Reimport project resources.,重新导入项目资源。
 reload_project,,Rescan the project filesystem and reload scripts. Useful after external file changes.,重新扫描项目文件系统并重新加载脚本。适用于外部文件更改后。
 remove_animation,,Remove an animation from an AnimationPlayer node (undoable).,从 AnimationPlayer 节点移除动画（可撤销）。
@@ -177,6 +182,7 @@ set_runtime_animation_tree_active,,Set an animation tree active/inactive in the 
 set_runtime_shader_parameter,,Set a shader parameter in the running game.,设置运行中游戏中的着色器参数。
 set_runtime_theme_override,,Set a theme override in the running game.,在运行中的游戏中设置主题覆盖。
 set_runtime_tilemap_cell,,Set a TileMap cell in the running game.,设置运行中游戏中的 TileMap 单元格。
+set_shader_param,,Set a shader uniform on a node's ShaderMaterial. Values are auto-parsed from strings.,设置节点 ShaderMaterial 的着色器 uniform。值会自动从字符串解析。
 set_theme_color,,Set a theme color override on a Control node (undoable).,在 Control 节点上设置主题颜色覆盖（可撤销）。
 set_theme_constant,,Set a theme constant override on a Control node (undoable).,在 Control 节点上设置主题常量覆盖（可撤销）。
 set_theme_font_size,,Set a theme font size override on a Control node (undoable).,在 Control 节点上设置主题字体大小覆盖（可撤销）。
