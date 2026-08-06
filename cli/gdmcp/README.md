@@ -8,7 +8,14 @@
 ./cli/gdmcp/scripts/install-dev.sh
 ```
 
-On Windows PowerShell, use `cli/gdmcp/scripts/install-dev.ps1`. The development installer keeps Rustup, Cargo, build artifacts, and the installed binary under the project `.gdmcp/` directory by default. It does not modify persistent PATH or user Cargo configuration. Use `-Offline`/`--offline` to fail instead of downloading a missing toolchain.
+> **Windows prerequisite**: building the Rust binary requires the MSVC C++
+> toolchain ("Desktop development with C++" in Visual Studio Installer, or
+> Build Tools for Visual Studio). A bare Godot install does not include it.
+> Symptoms when missing: `link.exe` from Git/MinGW shadows the MSVC linker and
+> cargo fails with `link: extra operand ... .rcgu.o`. Install the C++ workload
+> (or use a prebuilt release archive from `dist/`, which needs no toolchain).
+
+On Windows PowerShell, use `cli/gdmcp/scripts/install-dev.ps1'. The development installer keeps Rustup, Cargo, build artifacts, and the installed binary under the project `.gdmcp/` directory by default. It does not modify persistent PATH or user Cargo configuration. Use `-Offline`/`--offline` to fail instead of downloading a missing toolchain.
 
 The development workflow is for contributors and runs format, clippy, tests, and a locked release build. `cargo build --manifest-path cli/gdmcp/Cargo.toml --release` remains available when Rust is already configured.
 
