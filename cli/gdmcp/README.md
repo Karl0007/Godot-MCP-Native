@@ -21,7 +21,12 @@ The development workflow is for contributors and runs format, clippy, tests, and
 
 ## Release package
 
-End users should receive a prebuilt archive from `dist/`. Installing a release archive does not require Rust:
+**Download a prebuilt binary from GitHub Releases — no Rust or MSVC needed:**
+`https://github.com/Karl0007/Godot-MCP-Native/releases` (asset
+`gdmcp-<version>-x86_64-pc-windows-msvc.zip`). Extract and run
+`install.ps1` (verifies SHA-256 before copying; PATH unchanged by default).
+
+Building from source is only for contributors or when no release exists:
 
 ```powershell
 .\install.ps1

@@ -12,8 +12,10 @@ By default, invoke the project-local CLI from the project root at `.\.gdmcp\bin\
 
 `gdmcp` is a Rust binary in this repo. Three ways to get it:
 
-1. **Prebuilt archive** (recommended for end users): download from GitHub
-   Releases (`dist/`), extract, run `install.ps1`. No toolchain needed.
+1. **Prebuilt archive** (recommended, no toolchain needed): download
+   `gdmcp-<version>-x86_64-pc-windows-msvc.zip` from
+   `https://github.com/Karl0007/Godot-MCP-Native/releases`, extract, run
+   `install.ps1` (verifies SHA-256, PATH unchanged by default).
 2. **Build from source** (contributors): 
    - Windows needs the **MSVC C++ workload** ("Desktop development with C++"
      in Visual Studio Installer, or Build Tools). Without it, cargo fails

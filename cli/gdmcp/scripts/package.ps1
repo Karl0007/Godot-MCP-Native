@@ -138,7 +138,7 @@ try {
     Copy-Item -LiteralPath (Join-Path $PackagingRoot "LICENSE") -Destination (Join-Path $stagingPath "LICENSE")
 
     $hash = (Get-FileHash -LiteralPath (Join-Path $stagingPath "gdmcp.exe") -Algorithm SHA256).Hash.ToLowerInvariant()
-    Set-Content -LiteralPath (Join-Path $stagingPath "SHA256SUMS") -Value ("{0}  gdmcp.exe" -f $hash) -Encoding utf8NoBOM
+    [IO.File]::WriteAllText((Join-Path $stagingPath "SHA256SUMS"), ("{0}  gdmcp.exe" -f $hash) + "`n", (New-Object System.Text.UTF8Encoding($false)))
     $releaseManifest = [ordered]@{
         schema_version = 1
         package = "gdmcp"
@@ -146,7 +146,7 @@ try {
         target = $Target
         executable = "gdmcp.exe"
     }
-    $releaseManifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $stagingPath "release-manifest.json") -Encoding utf8NoBOM
+    [IO.File]::WriteAllText((Join-Path $stagingPath "release-manifest.json"), ($releaseManifest | ConvertTo-Json -Depth 4) + "`n", (New-Object System.Text.UTF8Encoding($false)))
 
     if (Test-Path -LiteralPath $outputPath) {
         Remove-Item -LiteralPath $outputPath -Force

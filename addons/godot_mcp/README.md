@@ -13,7 +13,7 @@ A powerful Godot Engine plugin that integrates AI assistants (Claude, etc.) via 
 - **Full Project Access**: AI assistants can read and modify scripts, scenes, nodes, and resources
 - **Native Implementation**: No Node.js dependency required - runs entirely within Godot
 - **Real-time Editing**: Apply AI suggestions directly in the editor
-- **Comprehensive Tool Set** (278 tools — 33 core + 245 supplementary):
+- **Comprehensive Tool Set** (278 tools �?33 core + 245 supplementary):
   - **Node Tools** (9 core + 11 advanced): Create, modify, manage scene nodes, duplicate, move, rename, signal connections, anchor presets, group management, batch operations, scene auditing
   - **Script Tools** (7 core + 8 advanced): Edit, analyze, create, attach, validate GDScript and C# files, execute scripts, search in files, symbol indexing, definition & reference lookup
   - **Scene Tools** (4 core + 4 advanced): Manipulate scene structure, save scenes, list/open/close scene tabs, project scene listing
@@ -21,12 +21,12 @@ A powerful Godot Engine plugin that integrates AI assistants (Claude, etc.) via 
   - **Debug Tools** (3 core + 68 advanced): Logging, debugger sessions, breakpoints, stack/variable inspection, profilers, runtime probe, animation/audio/shader/tilemap runtime control, debug execution control, await_scene_ready
   - **Project Tools** (3 core + 23 advanced): Access project settings, list resources, create resources, run tests, manage input mappings, inspect autoloads/global classes, resource diagnostics & health audit
 
-## 🖥️ gdmcp CLI
+## 🖥�?gdmcp CLI
 
 This plugin includes a companion **gdmcp CLI** for coding agents (Codex, Claude Code, etc.)
 that reduces model context usage by ~30,000 tokens compared to MCP. Install it from the
 **CLI Tools** tab in the MCP dock panel, or download from
-[GitHub Releases](https://github.com/yurineko73/Godot-MCP-Native/releases).
+[GitHub Releases](https://github.com/Karl0007/Godot-MCP-Native/releases).
 
 See [CLI README](https://github.com/yurineko73/Godot-MCP-Native/blob/main/cli/gdmcp/README.md) for details.
 
@@ -61,7 +61,7 @@ in the **Tools** list, and the state persists to `user://mcp_tool_state.cfg`.
 
 > Headless note: when editing `mcp_tool_state.cfg` by hand, recompute the
 > `[meta] checksum` (MD5 over `tools/<key>=<value>` lines joined by `\n`) or the
-> changes are ignored. Close the editor first — it rewrites the file on exit.
+> changes are ignored. Close the editor first �?it rewrites the file on exit.
 
 Runtime tools require the `MCPRuntimeProbe` autoload; the plugin adds it to
 `project.godot` automatically when enabled.
@@ -193,7 +193,7 @@ Implement a day/night cycle system with dynamic lighting
 
 ## 📚 Available Commands
 
-**278 tools** — 33 core + 245 supplementary.
+**278 tools** �?33 core + 245 supplementary.
 
 ### Node-Write (6 core)
 - `create-node` - Create a new node in the Godot scene tree. Returns the node path and type.
@@ -517,9 +517,9 @@ Implement a day/night cycle system with dynamic lighting
 
 ## 🔒 Security Recommendations
 
-- ✅ **Production**: Always enable authentication (`auth_enabled = true`)
-- ✅ **Token**: Use a strong token (≥16 characters with letters, numbers, special characters)
-- ✅ **Storage**: Don't commit tokens to version control
+- �?**Production**: Always enable authentication (`auth_enabled = true`)
+- �?**Token**: Use a strong token (�?6 characters with letters, numbers, special characters)
+- �?**Storage**: Don't commit tokens to version control
 - ⚠️ **Remote Access**: Use HTTPS (TLS/SSL) for network access
 
 ## 📋 Requirements

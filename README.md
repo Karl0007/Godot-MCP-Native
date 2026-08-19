@@ -13,7 +13,7 @@ A powerful Godot Engine plugin that integrates AI assistants (Claude, etc.) via 
 - **Full Project Access**: AI assistants can read and modify scripts, scenes, nodes, and resources
 - **Native Implementation**: No Node.js dependency required - runs entirely within Godot
 - **Real-time Editing**: Apply AI suggestions directly in the editor
-- **Comprehensive Tool Set** (278 tools — 33 core + 245 supplementary):
+- **Comprehensive Tool Set** (278 tools �?33 core + 245 supplementary):
   - **Node Tools** (9 core + 17 advanced): Create, modify, manage scene nodes, duplicate, move, rename, signal connections, anchor presets, group management, batch operations, scene auditing
   - **Script Tools** (7 core + 8 advanced): Edit, analyze, create, attach, validate GDScript and C# files, execute scripts, search in files, symbol indexing, definition & reference lookup
   - **Scene Tools** (4 core + 10 advanced): Manipulate scene structure, save scenes, list/open/close scene tabs, project scene listing, play/stop scenes
@@ -24,11 +24,11 @@ A powerful Godot Engine plugin that integrates AI assistants (Claude, etc.) via 
   - **Media Tools** (0 core + 39 advanced): Animation, audio, theme/UI, shader, and TileMap editing (tracks/keyframes/state machines, audio buses, theme overrides, shaders, tilemaps)
   - **Bootstrap Tools** (3 core): Server readiness (godot_status, godot_ensure_ready, get_server_info)
 
-## 🖥️ gdmcp CLI (Agent-First Interface)
+## 🖥�?gdmcp CLI (Agent-First Interface)
 
 For coding agents (Codex, Claude Code, Cursor) that have shell access, the **gdmcp CLI**
 is the recommended way to interact with Godot MCP. Instead of loading all 278 tool
-schemas into model context, the CLI uses progressive discovery — ~33 domain commands
+schemas into model context, the CLI uses progressive discovery �?~33 domain commands
 for common operations, and on-demand schema retrieval for supplementary tools.
 
 ```bash
@@ -39,8 +39,10 @@ gdmcp --json scripts read res://player.gd --lines 1:200
 gdmcp --json nodes properties set /root/Player --property speed --value 300
 ```
 
-**Installation**: Open the Godot editor → MCP dock → **CLI Tools** tab, or download
-from [GitHub Releases](https://github.com/yurineko73/Godot-MCP-Native/releases).
+**Installation**: download a prebuilt binary from
+[GitHub Releases](https://github.com/Karl0007/Godot-MCP-Native/releases)
+(`gdmcp-<version>-x86_64-pc-windows-msvc.zip` - extract, run `install.ps1`,
+no Rust/MSVC needed), or open the Godot editor MCP dock **CLI Tools** tab.
 See the [CLI README](https://github.com/yurineko73/Godot-MCP-Native/blob/main/cli/gdmcp/README.md) and [CLI Reference](https://github.com/yurineko73/Godot-MCP-Native/blob/main/docs/current/gdmcp-cli-reference.md)
 for full documentation.
 
@@ -89,7 +91,7 @@ a PowerShell bootstrap script wraps install / start / doctor:
 (missing Godot exe -> set `-GodotExe`/`GODOT4_BIN`; plugin missing -> run install;
 port free -> run start). Each command is idempotent.
 
-**Godot engine selection**: the scripts use this resolution order — explicit
+**Godot engine selection**: the scripts use this resolution order �?explicit
 `-GodotExe` > persistent config (`~/.godot-mcp-bootstrap.json`, written by
 `install -SaveGodotExe -GodotExe <path>`) > `GODOT4_BIN` > PATH > directory
 scan. The directory scan **prefers the version the project declares** in
@@ -120,7 +122,7 @@ editing, export, analysis, batch ops, etc.) are disabled until explicitly enable
 
 > Headless note: when editing `mcp_tool_state.cfg` by hand, recompute the
 > `[meta] checksum` (MD5 over `tools/<key>=<value>` lines joined by `\n`) or the
-> changes are ignored. Close the editor first — it rewrites the file on exit.
+> changes are ignored. Close the editor first �?it rewrites the file on exit.
 
 **Runtime probe**: runtime tools (play/debug/UI inspection) require the
 `MCPRuntimeProbe` autoload in the game. The plugin adds it to `project.godot`
@@ -145,7 +147,7 @@ Settings changed in the panel persist to `user://mcp_settings.cfg`. Headless
 / auth options configured via the editor UI are respected when running headlessly.
 
 To run **multiple instances in parallel** (several projects, or isolated test
-instances), override the port per launch with command-line flags — the command
+instances), override the port per launch with command-line flags �?the command
 line takes precedence over the persisted config:
 ```bash
 godot --editor --path /path/to/projectA -- --mcp-server --mcp-port=9080
@@ -277,7 +279,7 @@ Implement a day/night cycle system with dynamic lighting
 
 ## 📚 Available Commands
 
-**278 tools** — 33 core + 245 supplementary. Core tools are enabled by default; supplementary tools require enabling in the MCP panel (see [Enabling Supplementary Tools](#enabling-supplementary-tools)).
+**278 tools** �?33 core + 245 supplementary. Core tools are enabled by default; supplementary tools require enabling in the MCP panel (see [Enabling Supplementary Tools](#enabling-supplementary-tools)).
 
 ### Node-Write (6 core)
 - `create-node` - Create a new node in the Godot scene tree
@@ -601,9 +603,9 @@ Implement a day/night cycle system with dynamic lighting
 
 ## 🔒 Security Recommendations
 
-- ✅ **Production**: Always enable authentication (`auth_enabled = true`)
-- ✅ **Token**: Use a strong token (≥16 characters with letters, numbers, special characters)
-- ✅ **Storage**: Don't commit tokens to version control
+- �?**Production**: Always enable authentication (`auth_enabled = true`)
+- �?**Token**: Use a strong token (�?6 characters with letters, numbers, special characters)
+- �?**Storage**: Don't commit tokens to version control
 - ⚠️ **Remote Access**: Use HTTPS (TLS/SSL) for network access
 
 ## 📋 Requirements

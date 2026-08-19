@@ -21,6 +21,7 @@
 param(
     [Parameter(Mandatory=$true)]
     [string]$Version,
+    [string]$Repo = "Karl0007/Godot-MCP-Native",
     [switch]$SkipTests,
     [switch]$DryRun
 )
@@ -43,19 +44,19 @@ Write-Step "Step 1: Bump version to $Version"
 if (-not $DryRun) {
     $cfg = Get-Content $PluginCfg -Raw
     $cfg = $cfg -replace '(?m)^version="[^"]*"', "version=`"$Version`""
-    Set-Content $PluginCfg $cfg -NoNewline
+    [IO.File]::WriteAllText($PluginCfg, $cfg, (New-Object System.Text.UTF8Encoding($false)))
 
     $json = Get-Content $CliReleaseJson -Raw | ConvertFrom-Json
     $json.version = $Version
-    $json | ConvertTo-Json -Depth 4 | Set-Content $CliReleaseJson -NoNewline
+    [IO.File]::WriteAllText($CliReleaseJson, ($json | ConvertTo-Json -Depth 4), (New-Object System.Text.UTF8Encoding($false)))
 
     $types = Get-Content $McpTypesGd -Raw
     $types = $types -replace 'const PLUGIN_VERSION\s*=\s*"[^"]*"', "const PLUGIN_VERSION = `"$Version`""
-    Set-Content $McpTypesGd $types -NoNewline
+    [IO.File]::WriteAllText($McpTypesGd, $types, (New-Object System.Text.UTF8Encoding($false)))
 
     $cargo = Get-Content $CargoToml -Raw
     $cargo = $cargo -replace '(?m)^version\s*=\s*"[^"]*"', "version = `"$Version`""
-    Set-Content $CargoToml $cargo -NoNewline
+    [IO.File]::WriteAllText($CargoToml, $cargo, (New-Object System.Text.UTF8Encoding($false)))
 
     # Update README version badges
     $readmes = @(
@@ -68,7 +69,7 @@ if (-not $DryRun) {
         if (Test-Path $rm) {
             $rmContent = Get-Content $rm -Raw
             $rmContent = $rmContent -replace 'Version-\d+\.\d+\.\d+', "Version-$Version"
-            Set-Content $rm $rmContent -NoNewline
+            [IO.File]::WriteAllText($rm, $rmContent, (New-Object System.Text.UTF8Encoding($false)))
         }
     }
 
@@ -123,7 +124,7 @@ if (-not $DryRun) {
     if (Test-Path $staging) { Remove-Item -Recurse -Force $staging }
     New-Item -Path "$staging\addons" -ItemType Directory -Force | Out-Null
     Copy-Item -Recurse -Force "$RepoRoot\addons\godot_mcp" "$staging\addons\godot_mcp"
-    Compress-Archive -Path "$staging\godot-mcp-native-$Version" -DestinationPath $PluginZip -Force
+    Compress-Archive -Path "$staging\addons" -DestinationPath $PluginZip -Force
     Remove-Item -Recurse -Force $staging
     Write-Host "  $PluginZip"
 } else {
@@ -135,10 +136,10 @@ Write-Step "Step 5: Create GitHub Release (draft)"
 if (-not $DryRun) {
     $tag = "v$Version"
     $notes = "Plugin: godot-mcp-native-$Version.zip`nCLI: gdmcp-$Version-x86_64-pc-windows-msvc.zip"
-    gh release create $tag --repo yurineko73/Godot-MCP-Native --draft --title "v$Version" --notes $notes `
+    gh release create $tag --repo $Repo --draft --title "v$Version" --notes $notes `
         $PluginZip (Join-Path $DistDir "gdmcp-$Version-x86_64-pc-windows-msvc.zip")
     if ($LASTEXITCODE -ne 0) { throw "GitHub release creation failed" }
-    Write-Host "  Draft created: https://github.com/yurineko73/Godot-MCP-Native/releases"
+    Write-Host "  Draft created: https://github.com/$Repo/releases"
 } else {
     Write-Host "  [DRY RUN] Would create GitHub Release draft"
 }
