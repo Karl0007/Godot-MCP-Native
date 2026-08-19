@@ -1,5 +1,28 @@
 # gdmcp Command Workflows
 
+## From zero to running (first-time onboarding)
+
+```powershell
+# 1. Install the plugin into the target project (copies addons/, writes
+#    [editor_plugins], records port). Requires this repo's scripts dir.
+.\scripts\gdmcp-bootstrap.ps1 install -ProjectPath C:\MyGame -Port 9080
+
+# 2. Launch the editor with the MCP server (auto-detects Godot exe;
+#    pass -GodotExe if not found by doctor).
+.\scripts\gdmcp-bootstrap.ps1 start -ProjectPath C:\MyGame -Port 9080
+
+# 3. Verify: doctor should report plugin version + listening port.
+.\scripts\gdmcp-bootstrap.ps1 doctor -ProjectPath C:\MyGame -Port 9080
+
+# 4. From inside the project dir, gdmcp auto-discovers the port:
+gdmcp --json doctor
+gdmcp --json editor state
+```
+
+If `gdmcp` is not installed, see SKILL.md "Installation" (build with
+`cli/gdmcp/scripts/install-dev.ps1`, needs MSVC C++ workload on Windows) or
+fall back to curl on the `/cli/v1` endpoints.
+
 ## Diagnose editor state
 
 ```bash

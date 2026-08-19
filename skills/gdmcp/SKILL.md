@@ -8,6 +8,28 @@ description: Use the installed gdmcp CLI to inspect, edit, run, and debug a Godo
 Use `gdmcp` from the shell for operations that require the running Godot editor.
 By default, invoke the project-local CLI from the project root at `.\.gdmcp\bin\gdmcp.exe` in PowerShell; the `gdmcp` command in the examples below is shorthand for this path. Use a PATH-installed `gdmcp` only as an explicit fallback when the local executable is unavailable.
 
+## Installation (first time only)
+
+`gdmcp` is a Rust binary in this repo. Three ways to get it:
+
+1. **Prebuilt archive** (recommended for end users): download from GitHub
+   Releases (`dist/`), extract, run `install.ps1`. No toolchain needed.
+2. **Build from source** (contributors): 
+   - Windows needs the **MSVC C++ workload** ("Desktop development with C++"
+     in Visual Studio Installer, or Build Tools). Without it, cargo fails
+     with `link: extra operand ... .rcgu.o` (Git's `link.exe` shadows the
+     MSVC linker).
+   - Then: `powershell -File cli/gdmcp/scripts/install-dev.ps1`
+     (bootstraps a project-local Rust toolchain under `.gdmcp/`, runs
+     checks, installs to `.gdmcp/bin/gdmcp.exe`).
+3. **Server-side fallback**: if no binary is available, the same endpoints
+   are reachable via curl at `http://<host>:<port>/cli/v1/...`
+   (`doctor`, `catalog`, `tools/search?q=...`, `tools/<name>`,
+   `tools/<name>/execute`). See `docs/current/gdmcp-cli-reference.md`.
+
+The skill assumes the binary exists at `.gdmcp/bin/gdmcp.exe` (project-local
+install). If `gdmcp: command not found`, run the install steps above.
+
 ## Project directory and configuration discovery
 
 Run the CLI from the Godot project root when possible. The CLI uses the
