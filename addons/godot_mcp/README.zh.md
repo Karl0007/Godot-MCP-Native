@@ -188,178 +188,327 @@ url = "http://localhost:9080/mcp"
 
 ## 📚 可用命令
 
-### Node-Write (6)
-- `create-node` - 创建新节点
-- `delete-node` - 删除节点
-- `update-node-property` - 更新节点属性
-- `duplicate-node` - 复制节点及子节点
-- `move-node` - 移动节点到新父节点
-- `rename-node` - 重命名节点
+**278 tools** — 33 core + 245 supplementary.
 
-### Node-Read (3)
-- `get-scene-tree` - 获取场景树结构
-- `get-node-properties` - 获取特定节点的属性
-- `list-nodes` - 列出父节点下的所有节点
+### Node-Write（6 核心）
+- `create-node` - 在 Godot 场景树中创建新节点。返回节点路径和类型。
+- `delete-node` - 从 Godot 场景树中删除节点。此操作是破坏性的，无法撤销。
+- `update-node-property` - 更新特定节点的属性。支持常见属性类型并自动进行类型转换。
+- `duplicate-node` - 在场景树中复制节点及其子节点。返回新节点的路径。
+- `move-node` - 将节点移动到场景树中的新父节点下。可选择保留全局变换。
+- `rename-node` - 重命名场景树中的节点。新名称必须在同级节点中唯一。
 
-### Node-Write-Advanced (5)
-- `set-anchor-preset` - 设置 Control 节点锚点预设
-- `connect-signal` - 连接节点间的信号
-- `disconnect-signal` - 断开信号连接
-- `set-node-groups` - 设置节点的组成员关系
-- `add-resource` - 向节点添加资源子节点（碰撞形状、网格等）
+### Node-Read（3 核心）
+- `get-node-properties` - 获取场景树中特定节点的所有属性。
+- `list-nodes` - 列出当前场景或特定父节点下的所有节点。
+- `get-scene-tree` - 获取从场景根节点开始的完整场景树层级。返回包含节点类型的完整树结构。
 
-### Node-Advanced (6)
-- `get-node-groups` - 获取节点所属的组
-- `find-nodes-in-group` - 查找组中的所有节点
-- `batch-update-node-properties` - 在单个 UndoRedo 动作中批量更新节点属性
-- `batch-scene-node-edits` - 在单个 UndoRedo 动作中批量执行场景节点编辑
-- `audit-scene-node-persistence` - 审计节点 owner 和持久化状态
-- `audit-scene-inheritance` - 审计场景继承/实例化结构
+### Node-Write-Advanced（5 补充）
+- `add-resource` - 向目标节点添加资源子节点。
+- `set-anchor-preset` - 为 Control 节点设置锚点预设。
+- `connect-signal` - 将一个节点的信号连接到另一个节点。
+- `disconnect-signal` - 断开一个节点到另一个节点的信号连接。
+- `set-node-groups` - 设置节点所属的组。
 
-### Script (7)
-- `list-project-scripts` - 列出所有脚本
-- `read-script` - 读取特定脚本
-- `modify-script` - 更新脚本内容
-- `create-script` - 创建新脚本
-- `get-current-script` - 获取当前正在编辑的脚本
-- `attach-script` - 将已有脚本附加到节点
-- `execute-script` - 执行 GDScript 表达式
+### Node-Advanced（12 补充）
+- `get-node-groups` - 获取节点所属的组。
+- `find-nodes-in-group` - 查找特定组中的所有节点。
+- `batch-update-node-properties` - 在一个编辑器 UndoRedo 操作中更新多个节点属性。适用于需要在单步中撤销的事务式场景编辑。
+- `batch-scene-node-edits` - 在单个编辑器 UndoRedo 操作中应用多个创建/删除场景节点编辑，使整个结构变更可在单步中撤销。
+- `audit-scene-node-persistence` - 审计当前编辑场景的节点所有者和持久化状态。报告影响场景保存和继承的缺失或无效的所有者关系。
+- `audit-scene-inheritance` - instance roots
+- `batch-add-nodes` - 在一个 UndoRedo 操作中创建多个节点。每个条目：{type, name, parent_path, properties}。
+- `batch-set-property` - 在当前场景中为所有指定类型的节点设置属性（一个 UndoRedo 操作）。
+- `find-nodes-by-type` - 查找当前场景中所有指定类的节点。
+- `find-signal-connections` - 查找当前场景中的所有信号连接，可按信号或节点过滤。
+- `find-node-references` - 在所有 .tscn/.gd/.tres/.gdshader 文件中搜索对模式的引用。
+- `cross-scene-set-property` - 在多个场景文件中为指定类型的节点设置属性。需要 force=true 才能应用；dry_run 预览更改。
 
-### Script-Advanced (8)
-- `analyze-script` - 分析脚本结构
-- `validate-script` - 验证 GDScript 语法
-- `search-in-files` - 搜索项目文件
-- `list-project-script-symbols` - 索引 GDScript 和 C# 文件的脚本符号
-- `find-script-symbol-definition` - 查找脚本符号的定义位置
-- `find-script-symbol-references` - 查找脚本符号的文本引用
-- `rename-script-symbol` - 跨文件重命名脚本符号
-- `open-script-at-line` - 在编辑器中打开脚本到指定行
+### Script（7 核心）
+- `list-project-scripts` - 列出项目中所有 GDScript 文件（.gd）。返回相对于 res:// 的路径。
+- `read-script` - 读取 GDScript 文件（.gd）的内容。返回完整的脚本源代码。
+- `create-script` - not resource files.
+- `modify-script` - 修改现有 GDScript 文件的内容。可以替换整个内容或特定行。
+- `get-current-script` - 获取 Godot 编辑器中当前正在编辑的脚本。
+- `attach-script` - 将脚本附加到节点。
+- `execute-script` - 在编辑器上下文中执行脚本。
 
-### Scene (4)
-- `create-scene` - 创建新场景
-- `save-scene` - 保存当前场景
-- `open-scene` - 打开场景
-- `get-current-scene` - 获取当前场景信息
+### Script-Advanced（8 补充）
+- `analyze-script` - 分析 GDScript 文件并报告代码质量问题。
+- `validate-script` - 验证脚本文件的语法错误。
+- `search-in-files` - 在项目文件中搜索文本。
+- `list-project-script-symbols` - extends
+- `find-script-symbol-definition` - 在 GDScript 和 C# 项目文件中查找脚本符号的定义位置。
+- `find-script-symbol-references` - C#
+- `rename-script-symbol` - 使用标识符边界文本替换在项目文件中重命名脚本符号。支持在应用更改前进行试运行预览。
+- `open-script-at-line` - 在 Godot 编辑器中的指定行号打开脚本文件。
 
-### Scene-Advanced (4)
-- `list-project-scenes` - 列出所有场景
-- `get-scene-structure` - 获取场景结构详情
-- `list-open-scenes` - 列出当前打开的场景标签页
-- `close-scene-tab` - 关闭场景标签页
+### Scene（4 核心）
+- `create-scene` - 创建一个新的 Godot 场景并包含根节点。场景保存到指定路径。
+- `save-scene` - saves to the current scene's path.
+- `open-scene` - 从项目中打开场景文件。如果当前有打开的场景，则先关闭它。
+- `get-current-scene` - including name
 
-### Editor (4)
-- `get-editor-state` - 获取当前编辑器状态
-- `run-project` - 运行项目
-- `stop-project` - 停止运行中的项目
-- `execute-editor-script` - 执行 GDScript 脚本
+### Scene-Advanced（10 补充）
+- `get-scene-structure` - names
+- `list-project-scenes` - 列出项目中所有场景文件（.tscn）。返回相对于 res:// 的路径。
+- `list-open-scenes` - 列出 Godot 编辑器中当前打开的场景标签页。
+- `close-scene-tab` - or activate a specified scene tab and close it.
+- `delete-scene` - 删除项目的场景文件（.tscn）及其 .import 附加文件。
+- `add-scene-instance` - 将场景（.tscn）实例化为节点的子节点。
+- `play-scene` - 播放主场景、当前场景或指定场景路径。
+- `stop-scene` - 停止正在运行的游戏场景。
+- `get-scene-file-content` - 读取场景文件的原始文本内容。
+- `get-scene-exports` - 列出场景文件中每个脚本节点的所有 @export 属性。
 
-### Editor-Advanced (12)
-- `get-selected-nodes` - 获取选中的节点
-- `set-editor-setting` - 修改编辑器设置
-- `get-editor-screenshot` - 截取编辑器视口截图
-- `get-signals` - 检查节点信号和连接
-- `reload-project` - 重新扫描项目文件系统
-- `select-node` - 在场景中选择节点并聚焦检查器
-- `select-file` - 在文件系统面板中选择文件
-- `get-inspector-properties` - 检查节点/资源的属性元数据
-- `list-export-presets` - 列出导出预设
-- `inspect-export-templates` - 检查已安装的导出模板
-- `validate-export-preset` - 验证导出预设
-- `run-export` - 运行 Godot CLI 导出
+### Editor（4 核心）
+- `get-editor-state` - including active scene and selection info.
+- `run-project` - 运行当前项目或指定场景。以运行模式启动游戏。
+- `stop-project` - 停止当前正在运行的项目并返回编辑器模式。
+- `execute-editor-script` - 在编辑器中执行脚本，可访问编辑器 API。
 
-### Debug (3 核心 + 68 高级)
-- `get-editor-logs` - 获取编辑器/运行时日志
-- `debug-print` - 打印调试信息
-- `clear-output` - 清除 MCP/编辑器输出缓冲
-- `get-performance-metrics` - 获取性能数据
-- `get-debugger-sessions` - 列出编辑器调试会话和 active/break 状态
-- `set-debugger-breakpoint` - 启用或禁用调试断点
-- `send-debugger-message` - 向运行中的游戏调试器发送自定义消息
-- `toggle-debugger-profiler` - 在活动会话中切换 EngineProfiler 通道
-- `get-debugger-messages` - 读取 bridge 捕获的运行时自定义消息
-- `add-debugger-capture-prefix` - 捕获更多 EngineDebugger 消息前缀
-- `get-debug-stack-frames` - 读取已暂停会话捕获到的脚本栈帧
-- `get-debug-stack-variables` - 读取指定栈帧的局部变量、成员变量和全局变量
-- `install-runtime-probe` - 向当前场景添加 MCP 运行时探针节点
-- `remove-runtime-probe` - 从当前场景移除 MCP 运行时探针节点
-- `request-debug-break` - 请求运行时探针进入 Godot 调试暂停循环
-- `send-debug-command` - 向已暂停会话发送 step/next/out/continue/stack 调试命令
-- `get-runtime-info` - 通过探针查询运行时指标（FPS、节点数等）
-- `await-scene-ready` - 通过探针等待指定场景加载就绪
-- `get-runtime-scene-tree` - 从运行中的游戏读取实时场景树
-- `inspect-runtime-node` - 检查运行时节点及其可序列化属性
-- `update-runtime-node-property` - 修改运行时节点上的属性
-- `call-runtime-node-method` - 调用运行时节点上的方法
-- `evaluate-runtime-expression` - 在运行中的游戏计算 GDScript 表达式
-- `await-runtime-condition` - 轮询运行时表达式直到为真或超时
-- `assert-runtime-condition` - 断言运行时表达式在超时内变为真
-- `get-debug-threads` - 返回 DAP 样式调试器线程
-- `get-debug-state-events` - 读取记录的调试器状态转换
-- `get-debug-output` - 读取分类的运行时调试器输出
-- `get-debug-scopes` - 将栈变量分组为 DAP 风格的 scope
-- `get-debug-variables` - 解析 DAP 风格的变量引用
-- `expand-debug-variable` - 通过 scope 和路径展开调试变量
-- `evaluate-debug-expression` - 在调试上下文评估表达式
-- `debug-step-into / debug-step-over / debug-step-out / debug-continue` - 调试执行控制
-- `debug-step-into-and-wait / debug-step-over-and-wait / debug-step-out-and-wait / debug-continue-and-wait` - 调试执行控制（等待状态）
-- `await-debugger-state` - 检查调试器会话执行状态
-- `get-runtime-performance-snapshot` - 捕获运行时性能快照
-- `get-runtime-memory-trend` - 捕获运行时内存趋势
-- `create-runtime-node` - 在运行中游戏创建节点
-- `delete-runtime-node` - 从运行中游戏删除节点
-- `simulate-runtime-input-event` - 注入结构化 InputEvent
-- `simulate-runtime-input-action` - 注入 InputEventAction
-- `list-runtime-input-actions` - 列出运行时 InputMap 动作
-- `upsert-runtime-input-action` - 创建或更新运行时 InputMap 动作
-- `remove-runtime-input-action` - 移除运行时 InputMap 动作
-- `list-runtime-animations` - 列出运行时动画
-- `play-runtime-animation` - 播放运行时动画
-- `stop-runtime-animation` - 停止运行时动画
-- `get-runtime-animation-state` - 获取运行时动画播放状态
-- `get-runtime-animation-tree-state` - 获取运行时 AnimationTree 状态
-- `set-runtime-animation-tree-active` - 启用/禁用 AnimationTree
-- `travel-runtime-animation-tree` - 转移运行时动画状态机
-- `get-runtime-material-state` - 解析运行时节点材质绑定
-- `get-runtime-theme-item` - 解析运行时 Control 主题项
-- `set-runtime-theme-override` - 应用运行时主题覆盖
-- `clear-runtime-theme-override` - 移除运行时主题覆盖
-- `get-runtime-shader-parameters` - 列出运行时着色器参数
-- `set-runtime-shader-parameter` - 更新运行时着色器 uniform
-- `list-runtime-tilemap-layers` - 列出运行时 TileMap 层
-- `get-runtime-tilemap-cell` - 获取运行时 TileMap 单元格数据
-- `set-runtime-tilemap-cell` - 写入/擦除运行时 TileMap 单元格
-- `list-runtime-audio-buses` - 列出运行时音频总线
-- `get-runtime-audio-bus` - 获取运行时音频总线状态
-- `update-runtime-audio-bus` - 更新运行时音频总线
-- `get-runtime-screenshot` - 捕获运行时视口截图
+### Editor-Advanced（26 补充）
+- `get-selected-nodes` - 获取编辑器中当前选中节点的列表。
+- `set-editor-setting` - 设置编辑器设置值。某些设置需要重启编辑器才能生效。
+- `get-editor-screenshot` - 截取编辑器视口的屏幕截图并保存到文件。
+- `get-signals` - 获取节点的所有信号及其连接。
+- `reload-project` - 重新扫描项目文件系统并重新加载脚本。适用于外部文件更改后。
+- `select-node` - 在当前编辑的场景中选择一个节点并在检查器中聚焦它。
+- `select-file` - 在 Godot 文件系统面板中选择一个项目文件。
+- `get-inspector-properties` - 检查节点或资源并返回与检查器类似的属性元数据和序列化值。
+- `list-export-presets` - 列出 export_presets.cfg 中的导出预设。
+- `inspect-export-templates` - 检查本地安装的适用于当前编辑器版本的 Godot 导出模板。
+- `validate-export-preset` - 根据 export_presets.cfg 和本地模板可用性验证导出预设。
+- `run-export` - 为配置的预设运行 Godot CLI 导出。
+- `get-editor-errors` - 从输出面板、脚本编辑器分析面板、调试器错误标签页和日志文件收集编辑器错误和警告。
+- `get-output-log` - 读取编辑器输出面板或日志文件，可选过滤。
+- `set-auto-dismiss` - 启用或禁用阻塞编辑器对话框的自动关闭。
+- `get-editor-camera` - 读取 3D 编辑器视口相机的位置、旋转、FOV 和裁剪面。
+- `set-editor-camera` - 移动或旋转 3D 编辑器视口相机，可选择注视目标和设置 FOV。
+- `get-editor-selection` - 读取当前编辑器选区（顶层或所有选中节点）。
+- `select-nodes` - 在场景树中选择一个或多个节点。模式：replace、add、remove。可选聚焦/检查单个节点。
+- `clear-editor-selection` - 清除当前编辑器节点选区。
+- `reload-plugin` - 通过禁用再启用重新加载 Godot MCP 插件。MCP 连接会短暂断开后重连。
+- `export-project` - 为预设生成 Godot CLI 导出命令（debug 或 release）。Godot 4 不支持从编辑器插件直接导出。
+- `get-export-info` - 读取导出配置：导出预设是否存在、Godot 可执行文件路径和模板安装情况。
+- `list-android-devices` - 列出 adb 可见的 Android 设备（从编辑器设置或 PATH）。
+- `get-android-preset-info` - 从 export_presets.cfg 读取 Android 导出预设的配置。
+- `deploy-to-android` - 导出 Android 预设并通过 adb 将 APK 安装到连接的设备。
 
-### Project (3 核心 + 23 高级)
-- `get-project-info` - 获取项目信息
-- `get-project-settings` - 获取项目设置
-- `list-project-resources` - 列出项目资源
-- `create-resource` - 创建新资源
-- `get-project-structure` - 获取项目目录结构
-- `list-project-tests` - 发现和列出可运行的项目测试
-- `run-project-test` - 运行单个项目测试
-- `run-project-tests` - 运行多个项目测试
-- `list-project-input-actions` - 列出项目 InputMap 动作
-- `upsert-project-input-action` - 创建或更新项目 InputMap 动作
-- `remove-project-input-action` - 移除项目 InputMap 动作
-- `list-project-autoloads` - 列出项目自动加载条目
-- `list-project-global-classes` - 列出项目全局脚本类
-- `get-class-api-metadata` - 获取 ClassDB 或全局类 API 元数据
-- `inspect-csharp-project-support` - 检查 C# 项目支持文件
-- `compare-render-screenshots` - 比较两张截图并报告差异
-- `inspect-tileset-resource` - 检查 TileSet 资源
-- `reimport-resources` - 通过导入管线重新导入资源
-- `get-import-metadata` - 获取资源导入元数据
-- `get-resource-uid-info` - 检查 ResourceUID 映射
-- `fix-resource-uid` - 确保资源有持久化 UID
-- `get-resource-dependencies` - 列出资源依赖
-- `scan-missing-resource-dependencies` - 查找破损的依赖引用
-- `scan-cyclic-resource-dependencies` - 查找循环依赖链
-- `detect-broken-scripts` - 扫描脚本语法错误
-- `audit-project-health` - 运行项目健康审计
+### Debug（3 核心）
+- `get-editor-logs` - type
+- `debug-print` - 向编辑器控制台输出调试消息。
+- `clear-output` - 清除编辑器输出面板。
+
+### Debug-Advanced（82 补充）
+- `get-performance-metrics` - 从编辑器或运行中的游戏获取性能指标。
+- `get-debugger-sessions` - 列出 Godot 编辑器调试器会话及其活动/断点状态。
+- `set-debugger-breakpoint` - 在活动的 Godot 调试器会话中启用或禁用断点。
+- `send-debugger-message` - 向活动的 Godot 调试器会话发送自定义调试器消息。
+- `toggle-debugger-profiler` - 在活动的 Godot 调试器会话中切换引擎性能分析器。
+- `get-debugger-messages` - 读取由 Godot 调试器桥捕获的自定义消息。
+- `add-debugger-capture-prefix` - 允许调试器桥捕获具有给定前缀的自定义 EngineDebugger 消息。
+- `get-debug-stack-frames` - 返回最新捕获的脚本堆栈帧，并从已断点的会话请求新的堆栈转储。
+- `get-debug-stack-variables` - 返回堆栈帧的最新捕获的局部/成员/全局变量，并请求新的变量转储。
+- `install-runtime-probe` - 安装用于调试的运行时探针。
+- `remove-runtime-probe` - 移除运行时探针。
+- `request-debug-break` - 请求调试器在当前执行点断点。
+- `send-debug-command` - 向调试器发送命令。
+- `get-runtime-info` - 获取运行中游戏的运行时信息。
+- `await-scene-ready` - 轮询运行时直到指定场景加载就绪。
+- `get-runtime-scene-tree` - 从运行中的游戏获取场景树。
+- `inspect-runtime-node` - 检查运行中游戏中的节点。
+- `update-runtime-node-property` - 更新运行中游戏中的节点属性。
+- `call-runtime-node-method` - 调用运行中游戏中节点的方法。
+- `evaluate-runtime-expression` - 在运行中的游戏上下文中求值表达式。
+- `await-runtime-condition` - 在运行中游戏中等待条件为真。
+- `assert-runtime-condition` - 在运行中游戏中断言一个条件。
+- `get-debug-threads` - 从活动的 Godot 调试会话返回 DAP 风格的调试器线程。
+- `get-debug-state-events` - 从桥读取记录的调试器断点/恢复/停止状态转换。
+- `get-debug-output` - 读取由编辑器桥捕获的分类运行时调试器输出。
+- `get-debug-scopes` - 将最新捕获的堆栈变量分组为帧的 DAP 风格作用域。
+- `get-debug-variables` - with optional pagination for large arrays and dictionaries.
+- `expand-debug-variable` - with pagination for arrays and dictionaries.
+- `evaluate-debug-expression` - 在给定帧的暂停脚本调试器上下文中求值表达式。
+- `debug-step-into` - 在调试器中步入下一个函数调用。
+- `debug-step-over` - 在调试器中步过下一行。
+- `debug-step-out` - 在调试器中步出当前函数。
+- `debug-continue` - 在调试器中继续执行。
+- `debug-step-into-and-wait` - 步入并等待调试器暂停。
+- `debug-step-over-and-wait` - 步过并等待调试器暂停。
+- `debug-step-out-and-wait` - 步出并等待调试器暂停。
+- `debug-continue-and-wait` - 继续执行并等待调试器暂停或完成。
+- `await-debugger-state` - 等待特定的调试器状态。
+- `get-runtime-performance-snapshot` - 从运行中的游戏获取性能快照。
+- `get-runtime-memory-trend` - 从运行中的游戏获取内存使用趋势。
+- `create-runtime-node` - 在运行中的游戏中创建节点。
+- `delete-runtime-node` - 在运行中的游戏中删除节点。
+- `simulate-runtime-input-event` - 在运行中的游戏中模拟输入事件。
+- `simulate-runtime-input-action` - 在运行中的游戏中模拟输入动作。
+- `list-runtime-input-actions` - 列出运行中游戏中可用的输入动作。
+- `upsert-runtime-input-action` - 在运行中的游戏中创建或更新输入动作。
+- `remove-runtime-input-action` - 从运行中的游戏中移除输入动作。
+- `list-runtime-animations` - 列出运行中游戏中可用的动画。
+- `play-runtime-animation` - 播放运行中游戏中的动画。
+- `stop-runtime-animation` - 停止运行中游戏中的动画。
+- `get-runtime-animation-state` - 获取运行中游戏中动画的状态。
+- `get-runtime-animation-tree-state` - 获取运行中游戏中动画树的状态。
+- `set-runtime-animation-tree-active` - 设置运行中游戏中动画树的活动/非活动状态。
+- `travel-runtime-animation-tree` - 在运行中游戏中导航到动画树的新状态。
+- `get-runtime-material-state` - 获取运行中游戏中材质的状态。
+- `get-runtime-theme-item` - 获取运行中游戏中的主题项。
+- `set-runtime-theme-override` - 在运行中的游戏中设置主题覆盖。
+- `clear-runtime-theme-override` - 在运行中的游戏中清除主题覆盖。
+- `get-runtime-shader-parameters` - 获取运行中游戏中的着色器参数。
+- `set-runtime-shader-parameter` - 设置运行中游戏中的着色器参数。
+- `list-runtime-tilemap-layers` - 列出运行中游戏中的 TileMap 图层。
+- `get-runtime-tilemap-cell` - 获取运行中游戏中的 TileMap 单元格。
+- `set-runtime-tilemap-cell` - 设置运行中游戏中的 TileMap 单元格。
+- `list-runtime-audio-buses` - 列出运行中游戏中的音频总线。
+- `get-runtime-audio-bus` - 获取运行中游戏中的音频总线。
+- `update-runtime-audio-bus` - 更新运行中游戏中的音频总线。
+- `get-runtime-screenshot` - 截取运行中游戏的屏幕截图。
+- `run-test-scenario` - 执行测试场景：可选播放场景，运行步骤（输入、等待、断言、截图），返回通过/失败结果。
+- `assert-node-state` - 用运算符（eq、neq、gt、lt、gte、lte、contains）断言运行时节点属性与期望值。
+- `assert-screen-text` - 断言文本字符串出现在运行时 UI 元素中（需要带文本的可见 Control 节点）。
+- `run-stress-test` - 向运行中的游戏发送 N 秒随机输入并检查崩溃。
+- `get-test-report` - 将累积断言的测试结果收集并格式化为测试报告。
+- `start-recording` - 开始录制运行中游戏的输入事件（键盘、鼠标、动作）。
+- `stop-recording` - 停止录制输入事件并返回捕获的事件序列。
+- `replay-recording` - 以指定速度在运行中的游戏里回放录制的输入事件序列。
+- `find-ui-elements` - 列出运行中游戏的可见 UI 元素（Button、Label、LineEdit、TextEdit、OptionButton、CheckBox）。
+- `click-button-by-text` - 按文本点击运行中游戏的可见按钮。
+- `wait-for-node` - 检查运行中游戏场景树中是否存在节点。
+- `find-nearby-nodes` - 查找运行中游戏某个位置半径内的节点（2D/3D）。
+- `navigate-to` - 计算导航建议（按键、相机旋转、时长）以将 3D 玩家移向运行中游戏的目标。
+- `move-to` - 通过注入移动按键将 3D 玩家移向运行中游戏的目标。到达或超时后返回。
+- `watch-signals` - 在一段时间内监听运行时节点的信号发射。需要通过探针进行运行时场景检查。
+
+### Project（3 核心）
+- `get-project-info` - including name
+- `get-project-settings` - 获取项目设置。可选择按前缀过滤。
+- `list-project-resources` - .res
+
+### Project-Advanced（41 补充）
+- `create-resource` - 创建新的 Godot 资源文件（.tres）。支持常见的资源类型。
+- `get-project-structure` - 获取项目结构和文件组织。
+- `list-project-tests` - including whether each test is currently runnable.
+- `run-project-test` - 运行单个项目测试脚本。Python 集成测试使用 python 执行。GUT 单元测试在 addons/gut 可用时通过 Godot 无头模式执行。
+- `run-project-tests` - 从目录中发现并运行多个项目测试。使用与 list_project_tests 相同的框架过滤器，并汇总通过/失败计数。
+- `list-project-input-actions` - including serialized input events.
+- `upsert-project-input-action` - 在 ProjectSettings 中创建或更新项目 InputMap 动作并保存 project.godot。
+- `remove-project-input-action` - 从 ProjectSettings 中移除项目 InputMap 动作并保存 project.godot。
+- `list-project-autoloads` - singleton flag
+- `list-project-global-classes` - 列出通过 class_name 元数据注册的项目全局脚本类。
+- `get-class-api-metadata` - 获取引擎 ClassDB 类或项目全局脚本类的类型化 API 元数据。
+- `inspect-csharp-project-support` - including target frameworks
+- `compare-render-screenshots` - RMSE
+- `inspect-tileset-resource` - atlas tiles
+- `reimport-resources` - 重新导入项目资源。
+- `get-import-metadata` - 获取资源导入元数据。
+- `get-resource-uid-info` - 获取资源 UID 信息。
+- `fix-resource-uid` - 修复资源 UID 问题。
+- `get-resource-dependencies` - 获取资源依赖关系。
+- `scan-missing-resource-dependencies` - 扫描缺失的资源依赖。
+- `scan-cyclic-resource-dependencies` - 扫描循环资源依赖。
+- `detect-broken-scripts` - 检测项目中的损坏脚本。
+- `audit-project-health` - 审计项目健康和完整性。
+- `get-filesystem-tree` - 返回项目文件系统树，可选 glob 过滤和深度限制。
+- `search-files` - 按名称（模糊或 glob）搜索路径下的文件。
+- `set-project-setting` - 设置 ProjectSettings 值并保存 project.godot。字符串自动推断类型。
+- `uid-to-project-path` - 将资源 UID 字符串转换为项目路径。
+- `project-path-to-uid` - 将项目路径转换为资源 UID 字符串。
+- `add-autoload` - 向 ProjectSettings 添加自动加载单例。
+- `remove-autoload` - 从 ProjectSettings 移除自动加载单例。
+- `get-project-statistics` - 收集项目统计：按扩展名统计脚本、场景、资源和图像文件数量。
+- `get-autoload` - 读取项目自动加载单例的属性和脚本路径。
+- `read-resource` - 读取资源文件（.tres/.res）并返回其编辑器可见属性。
+- `edit-resource` - 修改资源文件的属性并保存。
+- `get-resource-preview` - 生成资源的 PNG 预览（base64）：图像、纹理或任何有视觉表示的资源。
+- `get-input-actions` - 列出项目 InputMap 动作及其绑定的输入事件和死区。
+- `set-input-action` - 创建或更新 InputMap 动作及其绑定事件，保存到 ProjectSettings 并更新运行时 InputMap。
+- `analyze-signal-flow` - 分析当前场景中的信号连接：源、目标和连接数。
+- `analyze-scene-complexity` - 分析场景复杂度：节点数、深度、节点类型、脚本和潜在问题。
+- `detect-circular-dependencies` - 使用 DFS 循环检测检测循环场景依赖（.tscn 文件互相引用）。
+- `find-unused-resources` - 扫描项目中未被任何场景、脚本或资源文件引用的资源文件。
+
+### World（22 补充）
+- `add-mesh-instance` - 创建 MeshInstance3D，支持基本体网格（box/sphere/cylinder/capsule/plane/quad/prism/torus）或从 .glb/.gltf/.obj 文件加载
+- `setup-lighting` - 添加 DirectionalLight3D、OmniLight3D 或 SpotLight3D，支持颜色、能量和阴影设置。
+- `set-material-3d` - 在 MeshInstance3D 表面创建或更新 StandardMaterial3D，支持 PBR 参数（albedo/metallic/roughness/emission/transparenc
+- `setup-environment` - 创建或更新 WorldEnvironment，支持背景模式、程序化天空、环境光和色调映射设置。
+- `setup-camera-3d` - 创建或配置 Camera3D，支持位置、旋转、FOV、近远裁剪面和当前相机标志。
+- `add-gridmap` - 创建 GridMap 节点，可指定 MeshLibrary 资源并设置单元格大小。
+- `setup-collision` - 向物理体或区域节点添加 CollisionShape2D 或 CollisionShape3D。支持 2D（rectangle/circle/capsule/segment/convex）和 3D（b
+- `set-physics-layers` - 设置物理节点的 collision_layer 和/或 collision_mask。接受整数位掩码或层号数组（1-32）。
+- `get-physics-layers` - 读取物理节点的 collision_layer 和 collision_mask，包括解析后的层名称。
+- `add-raycast` - 向节点添加 RayCast2D 或 RayCast3D，支持目标位置、碰撞掩码和命中设置。
+- `setup-physics-body` - 配置物理体属性。CharacterBody：motion_mode、floor 设置、max_slides、slide_on_ceiling。RigidBody：mass、gravity_scale、
+- `get-collision-info` - 读取物理节点的碰撞形状、射线、层和物理体设置（含子节点）。
+- `setup-navigation-region` - 创建 NavigationRegion2D 或 NavigationRegion3D，支持配置代理和单元格属性。
+- `bake-navigation-mesh` - 烘焙 NavigationRegion3D 导航网格，或从轮廓/源几何构建 NavigationRegion2D 多边形。
+- `setup-navigation-agent` - 创建 NavigationAgent2D 或 NavigationAgent3D，支持寻路和避障设置。
+- `set-navigation-layers` - 设置导航区域或代理的 navigation_layers。接受位掩码、层号数组或 ProjectSettings 中的命名层。
+- `get-navigation-info` - 列出节点下的导航区域和代理，包括其属性和命名层。
+- `create-particles` - 创建 GPUParticles2D 或 GPUParticles3D 节点，支持数量、寿命、one_shot、爆发力和随机性设置。
+- `set-particle-material` - 配置 GPUParticles 节点的 ParticleProcessMaterial：方向、扩散、速度、重力、缩放、颜色、发射形状、阻尼。
+- `set-particle-color-gradient` - 从 {offset, color} 停止点数组设置 GPUParticles 节点材质的颜色渐变。
+- `apply-particle-preset` - 应用预定义粒子预设：explosion、fire、smoke、sparks、rain、snow、magic 或 dust。
+- `get-particle-info` - 读取 GPUParticles 节点状态：数量、寿命、one_shot、爆发力、随机性、发射状态和材质属性。
+
+### Media-Animation（14 补充）
+- `list-animations` - 列出 AnimationPlayer 节点上的所有动画，包括长度、循环模式和轨道数。
+- `create-animation` - 在 AnimationPlayer 节点上创建新动画，支持长度和循环模式。
+- `add-animation-track` - 向动画添加轨道。轨道类型：value、position_2d、rotation_2d、scale_2d、method、bezier、blend_shape。
+- `set-animation-keyframe` - 在动画轨道的指定时间插入或更新关键帧。
+- `get-animation-info` - 读取动画详情：长度、循环模式、步长和每个轨道的关键帧。
+- `remove-animation` - 从 AnimationPlayer 节点移除动画（可撤销）。
+- `create-animation-tree` - 创建 AnimationTree 节点，根为 AnimationNodeStateMachine，可链接 AnimationPlayer。
+- `get-animation-tree-structure` - 读取 AnimationTree 结构：根节点类型、状态机状态/过渡或混合树节点。
+- `add-state-machine-state` - 向 AnimationNodeStateMachine 添加状态。状态类型：animation、blend_tree 或 state_machine。
+- `remove-state-machine-state` - 从 AnimationNodeStateMachine 移除状态（可撤销）。
+- `add-state-machine-transition` - 在 AnimationNodeStateMachine 中两个状态之间添加过渡。
+- `remove-state-machine-transition` - 移除 AnimationNodeStateMachine 中两个状态之间的过渡（可撤销）。
+- `set-blend-tree-node` - 在 AnimationNodeBlendTree 中添加或替换节点。类型：Animation、Add2、Blend2、Add3、Blend3、TimeScale、TimeSeek、Transition
+- `set-tree-parameter` - 设置 AnimationTree 参数（自动添加 'parameters/' 前缀）。
+
+### Media-Audio（6 补充）
+- `get-audio-bus-layout` - 读取完整的 AudioServer 总线布局：名称、音量、solo/mute、send 和每条总线的效果及参数。
+- `add-audio-bus` - 向 AudioServer 添加新音频总线，支持音量、send、solo 和 mute 设置。
+- `set-audio-bus` - 更新音频总线属性：volume_db、solo、mute、bypass_effects、send 或重命名。
+- `add-audio-bus-effect` - 向总线添加音频效果。类型：reverb、chorus、delay、compressor、limiter、phaser、distortion、lowpassfilter、highpassfilter、b
+- `add-audio-player` - 添加 AudioStreamPlayer、AudioStreamPlayer2D 或 AudioStreamPlayer3D，支持流、音量、总线和空间设置。
+- `get-audio-info` - 列出节点下的音频播放器，包括流、音量、总线、自动播放和空间属性。
+
+### Media-Theme（7 补充）
+- `create-theme` - 创建新的 Theme 资源（.tres），可设置默认字体大小。
+- `set-theme-color` - 在 Control 节点上设置主题颜色覆盖（可撤销）。
+- `set-theme-constant` - 在 Control 节点上设置主题常量覆盖（可撤销）。
+- `set-theme-font-size` - 在 Control 节点上设置主题字体大小覆盖（可撤销）。
+- `set-theme-stylebox` - 在 Control 节点上设置 StyleBoxFlat 主题覆盖，支持背景、边框、圆角和内边距（可撤销）。
+- `setup-control` - 配置 Control 节点布局：锚点预设、最小尺寸、尺寸标志、边距、间距和增长方向（可撤销）。
+- `get-theme-info` - 读取 Control 节点的主题路径、类型列表和所有主题覆盖（颜色、常量、字体大小、样式盒）。
+
+### Media-Shader（6 补充）
+- `create-shader` - 创建着色器文件（.gdshader），支持 spatial、canvas_item、particles、sky 模板或自定义内容。
+- `read-shader` - 读取着色器文件内容。
+- `edit-shader` - 编辑着色器文件，支持全量替换或查找替换。
+- `assign-shader-material` - 从着色器文件创建 ShaderMaterial 并分配给 CanvasItem 或 MeshInstance3D 节点。
+- `set-shader-param` - 设置节点 ShaderMaterial 的着色器 uniform。值会自动从字符串解析。
+- `get-shader-params` - 读取节点 ShaderMaterial 的所有着色器 uniform。
+
+### Media-TileMap（6 补充）
+- `tilemap-set-cell` - 在 TileMapLayer 或旧版 TileMap 节点上设置单元格（可撤销）。
+- `tilemap-fill-rect` - 用瓦片填充 TileMapLayer 或旧版 TileMap 的矩形区域（可撤销）。
+- `tilemap-get-cell` - 从 TileMapLayer 或旧版 TileMap 读取单元格。
+- `tilemap-clear` - 清空 TileMapLayer 或旧版 TileMap（可选单层），可撤销。
+- `tilemap-get-info` - 读取 TileMapLayer/TileMap 信息：图层、已用单元格、TileSet 源和瓦片大小。
+- `tilemap-get-used-cells` - 列出 TileMapLayer 或旧版 TileMap 图层的已用单元格及其源 ID。
+
+### Bootstrap（3 核心）
+- `godot-status` - 报告 MCP 服务器就绪状态：传输、端口、认证、工具数量和运行时探针状态。首先调用以了解服务器状态。
+- `godot-ensure-ready` - 确保 MCP 服务器就绪：修复缺失的运行时探针自动加载并报告服务器状态。
+- `get-server-info` - 读取 MCP 服务器基础设施信息：插件版本、传输、端口、认证、工具注册数量和探针状态。
 
 ## 🔒 安全建议
 
