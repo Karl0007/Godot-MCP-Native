@@ -89,6 +89,14 @@ a PowerShell bootstrap script wraps install / start / doctor:
 (missing Godot exe -> set `-GodotExe`/`GODOT4_BIN`; plugin missing -> run install;
 port free -> run start). Each command is idempotent.
 
+**Godot engine selection**: the scripts use this resolution order — explicit
+`-GodotExe` > persistent config (`~/.godot-mcp-bootstrap.json`, written by
+`install -SaveGodotExe -GodotExe <path>`) > `GODOT4_BIN` > PATH > directory
+scan. The directory scan **prefers the version the project declares** in
+`config/features` (e.g. a project declaring `"4.7"` picks `Godot_v4.7.*.exe`),
+and `start`/`doctor` print a note when the launched engine does not match the
+project's declared version.
+
 **Multiple Godot instances in parallel**: give each project its own port. Each
 editor keeps its own `user://` state (settings, tool states) and binds its own
 port, so projects and even different Godot versions run side by side:

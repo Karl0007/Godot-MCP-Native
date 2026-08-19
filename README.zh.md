@@ -84,6 +84,8 @@ gdmcp --json nodes properties set /root/Player --property speed --value 300
 
 `doctor` 逐项输出通过/失败及失败时的下一步指引（Godot 缺失 → 设置 `-GodotExe`/`GODOT4_BIN`；插件缺失 → 运行 install；端口空闲 → 运行 start）。所有命令幂等。
 
+**Godot 引擎选择**：脚本按此顺序解析——显式 `-GodotExe` > 持久化配置（`~/.godot-mcp-bootstrap.json`，由 `install -SaveGodotExe -GodotExe <路径>` 写入）> `GODOT4_BIN` > PATH > 目录扫描。目录扫描会**优先匹配项目声明的版本**（`config/features` 中的 `"4.x"`，例如声明 `"4.7"` 的项目会选择 `Godot_v4.7.*.exe`），`start`/`doctor` 在引擎与项目声明版本不一致时输出提示。
+
 **多 Godot 实例并行**：每个项目使用独立端口。每个编辑器持有自己的 `user://` 状态（设置、工具状态）并绑定自己的端口，因此不同项目甚至不同 Godot 版本可以并行运行：
 
 ```powershell

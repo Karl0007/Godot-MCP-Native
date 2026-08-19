@@ -53,7 +53,9 @@ param(
 
     [string]$GodotExe = '',
 
-    [switch]$EditorMode = $true
+    [switch]$EditorMode = $true,
+
+    [switch]$SaveGodotExe
 )
 
 $ErrorActionPreference = 'Stop'
@@ -77,25 +79,82 @@ function Resolve-Project {
     }
 }
 
+function Get-ProjectGodotVersion {
+    # Read the major.minor version the project declares in config/features
+    # (e.g. PackedStringArray("4.7", "Mobile")). Returns "" when absent.
+    $projectFile = Join-Path $script:Project 'project.godot'
+    if (-not (Test-Path -LiteralPath $projectFile -PathType Leaf)) { return '' }
+    $content = [IO.File]::ReadAllText($projectFile)
+    $m = [regex]::Match($content, 'config/features\s*=\s*PackedStringArray\([^)]*"(4\.[0-9]+)"')
+    if ($m.Success) { return $m.Groups[1].Value }
+    # Fall back to a lone quoted version in features
+    $m2 = [regex]::Match($content, 'PackedStringArray\([^)]*"(4\.[0-9]+)"')
+    if ($m2.Success) { return $m2.Groups[1].Value }
+    return ''
+}
+
+function Get-GodotConfigPath {
+    return Join-Path $env:USERPROFILE '.godot-mcp-bootstrap.json'
+}
+
+function Read-GodotConfig {
+    $cfgPath = Get-GodotConfigPath
+    if (Test-Path -LiteralPath $cfgPath -PathType Leaf) {
+        try { return (Get-Content -LiteralPath $cfgPath -Raw | ConvertFrom-Json) } catch { }
+    }
+    return $null
+}
+
+function Write-GodotConfig([string]$ExePath) {
+    $cfgPath = Get-GodotConfigPath
+    $existing = Read-GodotConfig
+    $cfg = [ordered]@{ godot_exe = $ExePath }
+    if ($existing -and $existing.PSObject.Properties['godot_versions']) {
+        $cfg.godot_versions = $existing.godot_versions
+    }
+    [IO.File]::WriteAllText($cfgPath, ($cfg | ConvertTo-Json), (New-Object System.Text.UTF8Encoding($false)))
+    Write-Ok "saved Godot path to $cfgPath"
+}
+
 function Find-GodotExecutable {
+    # Resolution order:
+    # 1. Explicit -GodotExe
+    # 2. Persistent config (~/.godot-mcp-bootstrap.json)
+    # 3. GODOT4_BIN env var
+    # 4. PATH (godot / godot4)
+    # 5. Directory scan; prefer the version the project declares
+    #    (config/features "4.x"), otherwise the first match.
     if ($GodotExe) {
         if (-not (Test-Path -LiteralPath $GodotExe -PathType Leaf)) { Fail "Godot executable not found: $GodotExe" }
         return [IO.Path]::GetFullPath($GodotExe)
     }
+    $cfg = Read-GodotConfig
+    if ($cfg -and $cfg.PSObject.Properties['godot_exe'] -and (Test-Path -LiteralPath $cfg.godot_exe -PathType Leaf)) {
+        return [IO.Path]::GetFullPath($cfg.godot_exe)
+    }
+    $envBin = $env:GODOT4_BIN
+    if ($envBin -and (Test-Path -LiteralPath $envBin -PathType Leaf)) { return $envBin }
     foreach ($candidate in @(
         (Get-Command 'godot' -ErrorAction SilentlyContinue),
         (Get-Command 'godot4' -ErrorAction SilentlyContinue)
     )) {
         if ($candidate) { return $candidate.Source }
     }
-    $envBin = $env:GODOT4_BIN
-    if ($envBin -and (Test-Path -LiteralPath $envBin -PathType Leaf)) { return $envBin }
+    $projectVersion = Get-ProjectGodotVersion
     $roots = @('C:\Godot', 'F:\Godot', 'D:\Godot', 'C:\Program Files', "$env:LOCALAPPDATA\Programs")
+    $all = @()
     foreach ($root in $roots) {
-        $matches = @(Get-ChildItem -LiteralPath $root -Filter 'Godot*.exe' -File -Recurse -Depth 3 -ErrorAction SilentlyContinue | Where-Object { $_.Name -notmatch 'console' } | Select-Object -First 1)
-        if ($matches.Count -gt 0) { return $matches[0].FullName }
+        $all += @(Get-ChildItem -LiteralPath $root -Filter 'Godot*.exe' -File -Recurse -Depth 3 -ErrorAction SilentlyContinue | Where-Object { $_.Name -notmatch 'console' })
     }
-    return ''
+    if ($all.Count -eq 0) { return '' }
+    if ($projectVersion) {
+        # Prefer an executable whose name embeds the declared version (e.g. 4.7)
+        $majorMinor = $projectVersion.Split('.') | Select-Object -First 2
+        $verTag = ($majorMinor -join '.')
+        $versionMatch = @($all | Where-Object { $_.Name -match [regex]::Escape($verTag) })
+        if ($versionMatch.Count -gt 0) { return $versionMatch[0].FullName }
+    }
+    return $all[0].FullName
 }
 
 function Get-PluginEntry {
@@ -144,6 +203,9 @@ function Install-Plugin {
     # Persist port for later commands
     $stateDir = Join-Path $script:Project '.godot-mcp'
     New-Item -ItemType Directory -Path $stateDir -Force | Out-Null
+    if ($SaveGodotExe -and $GodotExe) {
+        Write-GodotConfig $GodotExe
+    }
     $state = [ordered]@{
         port = $Port
         project_path = $script:Project
@@ -157,6 +219,10 @@ function Start-Server {
     $exe = Find-GodotExecutable
     if (-not $exe) { Fail 'No Godot executable found. Pass -GodotExe or set GODOT4_BIN.' }
     Write-Ok "using Godot: $exe"
+    $projectVersion = Get-ProjectGodotVersion
+    if ($projectVersion -and $exe -notmatch [regex]::Escape($projectVersion)) {
+        Write-Info "note: project declares Godot $projectVersion but launching $([IO.Path]::GetFileName($exe))"
+    }
 
     # Port: CLI arg wins, else bootstrap.json, else default
     $stateFile = Join-Path $script:Project '.godot-mcp\bootstrap.json'
@@ -222,6 +288,17 @@ function Run-Doctor {
         Write-Ok "Godot executable: $exe"
         $ver = & $exe --version 2>$null
         if ($ver) { Write-Info "version: $($ver -join ' ')" }
+        $projectVersion = Get-ProjectGodotVersion
+        if ($projectVersion) {
+            if ($exe -match [regex]::Escape($projectVersion)) {
+                Write-Ok "project declares Godot $projectVersion - matches"
+            } else {
+                Write-Info "MISMATCH: project declares Godot $projectVersion but executable is $([IO.Path]::GetFileName($exe))"
+            }
+        }
+        $cfgPath = Get-GodotConfigPath
+        if (Test-Path -LiteralPath $cfgPath -PathType Leaf) { Write-Info "configured path: $cfgPath" }
+        else { Write-Info "no persistent Godot path configured (run install -SaveGodotExe -GodotExe <path>)" }
     } else {
         Write-Fail 'No Godot executable found (set -GodotExe, GODOT4_BIN, or PATH)'
         $failures++
