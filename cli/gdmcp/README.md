@@ -55,6 +55,28 @@ gdmcp --json tools search "runtime scene tree" --limit 5
 gdmcp --json tools schema get_runtime_scene_tree
 ```
 
+## Connecting
+
+From inside a Godot project directory, `gdmcp` auto-discovers the MCP port from
+`mcp_settings.cfg` — no flags needed:
+
+```powershell
+gdmcp --json doctor
+```
+
+If the editor runs on a non-default port, or you are outside the project dir:
+
+```powershell
+# --url is the SERVER BASE URL - do NOT append /mcp
+gdmcp --json doctor --url http://127.0.0.1:9091
+gdmcp --json scenes tree --url http://127.0.0.1:9091
+# or via environment
+$env:GODOT_MCP_URL = "http://127.0.0.1:9091"
+```
+
+Write/destructive operations need `--apply` (the server enforces an explicit
+permission gate; `PERMISSION_REQUIRED` in the response means add `--apply`).
+
 ## Common commands
 
 ```bash
