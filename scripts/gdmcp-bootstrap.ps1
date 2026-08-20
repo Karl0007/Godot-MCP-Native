@@ -43,8 +43,7 @@
 
 [CmdletBinding()]
 param(
-    [Parameter(Position = 0, Mandatory = $true)]
-    [ValidateSet('install', 'start', 'doctor')]
+    [Parameter(Position = 0)]
     [string]$Command,
 
     [string]$ProjectPath = (Get-Location).Path,
@@ -350,6 +349,15 @@ function Run-Doctor {
         exit 1
     }
     Write-Ok 'doctor: all checks passed'
+}
+
+if ($Command -notin @('install', 'start', 'doctor')) {
+    Write-Fail "Unknown or missing command: '$Command'"
+    Write-Info "Usage: .\scripts\gdmcp-bootstrap.ps1 <install|start|doctor> [-ProjectPath <dir>] [-Port <N>] [-GodotExe <path>]"
+    Write-Info "  install - copy plugin into project and enable it"
+    Write-Info "  start   - launch Godot editor with MCP server"
+    Write-Info "  doctor  - check environment, plugin, and server state"
+    exit 2
 }
 
 switch ($Command) {
