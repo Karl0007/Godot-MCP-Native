@@ -42,21 +42,28 @@ function Write-Step { param([string]$Text) Write-Host ">>> $Text" -ForegroundCol
 Write-Step "Step 1: Bump version to $Version"
 
 if (-not $DryRun) {
-    $cfg = Get-Content $PluginCfg -Raw
+    $cfg = [IO.File]::ReadAllText($PluginCfg, [System.Text.Encoding]::UTF8)
     $cfg = $cfg -replace '(?m)^version="[^"]*"', "version=`"$Version`""
     [IO.File]::WriteAllText($PluginCfg, $cfg, (New-Object System.Text.UTF8Encoding($false)))
 
-    $json = Get-Content $CliReleaseJson -Raw | ConvertFrom-Json
+    $json = [IO.File]::ReadAllText($CliReleaseJson, [System.Text.Encoding]::UTF8) | ConvertFrom-Json
     $json.version = $Version
     [IO.File]::WriteAllText($CliReleaseJson, ($json | ConvertTo-Json -Depth 4), (New-Object System.Text.UTF8Encoding($false)))
 
-    $types = Get-Content $McpTypesGd -Raw
+    $types = [IO.File]::ReadAllText($McpTypesGd, [System.Text.Encoding]::UTF8)
     $types = $types -replace 'const PLUGIN_VERSION\s*=\s*"[^"]*"', "const PLUGIN_VERSION = `"$Version`""
     [IO.File]::WriteAllText($McpTypesGd, $types, (New-Object System.Text.UTF8Encoding($false)))
 
-    $cargo = Get-Content $CargoToml -Raw
+    $cargo = [IO.File]::ReadAllText($CargoToml, [System.Text.Encoding]::UTF8)
     $cargo = $cargo -replace '(?m)^version\s*=\s*"[^"]*"', "version = `"$Version`""
     [IO.File]::WriteAllText($CargoToml, $cargo, (New-Object System.Text.UTF8Encoding($false)))
+
+    # Keep Cargo.lock in sync (cargo --locked refuses to build otherwise)
+    $CargoLock = Join-Path $RepoRoot "cli\gdmcp\Cargo.lock"
+    $lock = [IO.File]::ReadAllText($CargoLock, [System.Text.Encoding]::UTF8)
+    $lock = $lock -replace '(?m)^(name = "gdmcp"\r?\nversion = ")[^"]*"', "`${1}$Version`""
+    [IO.File]::WriteAllText($CargoLock, $lock, (New-Object System.Text.UTF8Encoding($false)))
+    Write-Host "  Updated: Cargo.lock"
 
     # Update README version badges
     $readmes = @(
@@ -67,7 +74,7 @@ if (-not $DryRun) {
     )
     foreach ($rm in $readmes) {
         if (Test-Path $rm) {
-            $rmContent = Get-Content $rm -Raw
+            $rmContent = [IO.File]::ReadAllText($rm, [System.Text.Encoding]::UTF8)
             $rmContent = $rmContent -replace 'Version-\d+\.\d+\.\d+', "Version-$Version"
             [IO.File]::WriteAllText($rm, $rmContent, (New-Object System.Text.UTF8Encoding($false)))
         }
