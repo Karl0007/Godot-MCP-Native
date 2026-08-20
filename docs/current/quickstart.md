@@ -24,7 +24,7 @@
 ## 步骤 1: 克隆项目
 
 ```bash
-git clone https://github.com/yurineko73/Godot-MCP-Native.git
+git clone https://github.com/Karl0007/Godot-MCP-Native.git
 cd Godot-MCP-Native
 ```
 
