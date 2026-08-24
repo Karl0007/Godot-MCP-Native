@@ -3752,6 +3752,82 @@ func _find_editor_log_panel(base: Node, panel_kind: String) -> Node:
 			pending.append(child)
 	return null
 
+## 读取 ScriptEditorDebugger 的错误/警告 tab（Tree 控件）。
+## 编辑器脚本加载警告（GDScript::reload 等）只出现在这两个 tab。
+func _append_script_debugger_tabs(base_control: Control, parsed_lines: Array[Dictionary]) -> bool:
+	var script_debugger: Node = _find_script_debugger_node(base_control)
+	if script_debugger == null:
+		return false
+	var found: bool = false
+	for child in script_debugger.get_children():
+		if not (child is TabContainer):
+			continue
+		var tabs: TabContainer = child
+		for i in range(tabs.get_tab_count()):
+			var title := str(tabs.get_tab_title(i))
+			var normalized_title := _normalize_editor_panel_name(title)
+			var log_type := ""
+			for token: String in _get_editor_panel_label_tokens("error"):
+				if normalized_title.contains(token):
+					log_type = "Error"
+					break
+			if log_type == "":
+				for token: String in _get_editor_panel_label_tokens("warning"):
+					if normalized_title.contains(token):
+						log_type = "Warning"
+						break
+			if log_type == "":
+				continue
+			found = _append_script_debugger_tree(tabs.get_tab_control(i), log_type, parsed_lines) or found
+	return found
+
+func _find_script_debugger_node(base: Node) -> Node:
+	var pending: Array[Node] = [base]
+	while not pending.is_empty():
+		var node: Node = pending.pop_back()
+		if node.get_class() == "ScriptEditorDebugger":
+			return node
+		for child in node.get_children():
+			pending.append(child)
+	return null
+
+func _append_script_debugger_tree(tab: Node, log_type: String, parsed_lines: Array[Dictionary]) -> bool:
+	var trees: Array = []
+	_collect_child_trees(tab, trees)
+	if trees.is_empty():
+		return false
+	var tree: Tree = trees[0]
+	var root: TreeItem = tree.get_root()
+	if root == null:
+		return false
+	var found: bool = false
+	var item: TreeItem = root.get_first_child()
+	while item:
+		var row_text := ""
+		for col in range(tree.columns):
+			var col_text := item.get_text(col)
+			if col_text.is_empty():
+				continue
+			row_text = col_text if row_text == "" else row_text + " | " + col_text
+		if not row_text.is_empty():
+			parsed_lines.append({
+				"index": parsed_lines.size(),
+				"message": row_text,
+				"type": log_type,
+				"panel": "script_debugger",
+				"tab": str(tree.get_meta("tab_title", "")),
+			})
+			found = true
+		item = item.get_next()
+	return found
+
+func _collect_child_trees(node: Node, out: Array) -> void:
+	if node is Tree:
+		out.append(node)
+		return
+	for child in node.get_children():
+		_collect_child_trees(child, out)
+
 func _append_editor_tree_logs(panel: Node, log_type: String, parsed_lines: Array[Dictionary]) -> bool:
 	var error_tree: Tree = _find_tree_control(panel)
 	if not error_tree:
@@ -3811,6 +3887,9 @@ func _get_editor_panel_logs(types: Array, count: int, offset: int, order: String
 		var script_debugger: Node = _find_script_editor_debugger(base_control)
 		if script_debugger:
 			tree_logs_found = _append_editor_tree_logs(script_debugger, "Error", parsed_lines)
+	# ScriptEditorDebugger 错误/警告 tab（编辑器脚本加载警告只出现在这里，
+	# 不进 Output、不落 godot.log，headless 模式也不产生）。
+	tree_logs_found = _append_script_debugger_tabs(base_control, parsed_lines) or tree_logs_found
 	# Fallback: try reading the editor log file directly when UI panels have no data
 	var requests_error_logs: bool = types.is_empty() or types.has("Error") or types.has("Warning")
 	if parsed_lines.is_empty() or (requests_error_logs and not tree_logs_found):
