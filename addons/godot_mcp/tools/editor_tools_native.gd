@@ -1581,6 +1581,20 @@ func _find_code_edit(node: Node, depth: int = 0) -> CodeEdit:
 			return found
 	return null
 
+
+## 脚本页行背景色（错误/告警）出处：与 ScriptEditor 写进去的是同一个编辑器设置键；
+## 取不到（旧版本/未配置）时回落到该键的默认值。
+func _highlight_color(setting: String, fallback: Color) -> Color:
+	var editor_interface: EditorInterface = _get_editor_interface()
+	if editor_interface == null:
+		return fallback
+	var settings: EditorSettings = editor_interface.get_editor_settings()
+	if settings != null and settings.has_setting(setting):
+		var value: Variant = settings.get_setting(setting)
+		if value is Color:
+			return value as Color
+	return fallback
+
 func _tool_get_editor_errors(params: Dictionary) -> Dictionary:
 	var errors: Array = []
 	var max_lines: int = int(params.get("max_lines", 50))
@@ -1601,18 +1615,30 @@ func _tool_get_editor_errors(params: Dictionary) -> Dictionary:
 				if line.contains("ERROR") or line.contains("SCRIPT ERROR") or line.contains("Parse Error") or line.contains("WARNING"):
 					errors.append(line.strip_edges())
 
+	# 行背景高亮：文件名与 CodeEdit 必须取自**同一个脚本页**——用 get_current_script()
+	# 配 _find_code_edit(script_editor)（后者深度优先，可能落在别的页上）会把 A 脚本的
+	# 路径配到 B 脚本的代码行。另：只有「错误行」色算 COMPILE ERROR——引擎给错误行刷的是
+	# mark_color (1.0,0.47,0.42,0.3)、给告警行刷的是 warning_color (0.83,…)，旧的
+	# `bg.r > 0.8` 把两者都匹配 → 告警行被误报成编译错误（告警文案另有分析器面板通道）。
 	var script_errors: Array = []
 	var script_editor: ScriptEditor = editor_interface.get_script_editor()
 	if script_editor:
-		var current_script: Script = script_editor.get_current_script()
-		var ce: CodeEdit = _find_code_edit(script_editor)
-		if ce and current_script:
-			var script_path: String = current_script.resource_path
+		var error_color: Color = _highlight_color("text_editor/theme/highlighting/mark_color", Color(1.0, 0.47, 0.42, 0.3))
+		var open_editors: Array = script_editor.get_open_script_editors()
+		var open_scripts: Array = script_editor.get_open_scripts()
+		for ei in range(open_editors.size()):
+			var script_path: String = ""
+			if ei < open_scripts.size() and open_scripts[ei] != null:
+				script_path = (open_scripts[ei] as Resource).resource_path
+			var ce: CodeEdit = _find_code_edit(open_editors[ei])
+			if ce == null:
+				continue
 			for i in range(ce.get_line_count()):
 				var bg: Color = ce.get_line_background_color(i)
-				if bg.r > 0.8 and bg.a > 0:
-					var line_text: String = ce.get_line(i).strip_edges()
-					script_errors.append("COMPILE ERROR: %s:%d - %s" % [script_path, i + 1, line_text])
+				if bg.a <= 0.0 or not bg.is_equal_approx(error_color):
+					continue
+				var line_text: String = ce.get_line(i).strip_edges()
+				script_errors.append("COMPILE ERROR: %s:%d - %s" % [script_path, i + 1, line_text])
 
 	var analyzer_errors: Array = []
 	if script_editor:
