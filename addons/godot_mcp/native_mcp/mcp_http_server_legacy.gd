@@ -44,8 +44,17 @@ var _port: int = 9080
 ## 是否正在运行
 var _active: bool = false
 
-## HTTP 服务器线程
-var _thread: Thread = null
+## 主循环帧泵（HTTP 服务完全跑在主线程上，见 _connect_frame_pump）
+var _frame_tree: SceneTree = null
+
+## 每连接已收字节（非阻塞累积，凑齐整请求才处理）
+var _pending_requests: Dictionary = {}  # peer -> PackedByteArray
+
+## 每连接收到首字节的时刻（REQUEST_TIMEOUT 判据）
+var _request_started_ms: Dictionary = {}  # peer -> int
+
+## SSE 心跳计时
+var _last_keepalive_ms: int = 0
 
 ## 活跃连接列表
 var _connections: Array[StreamPeerTCP] = []
@@ -113,8 +122,8 @@ func start() -> bool:
 		return false
 	
 	_active = true
-	_thread = Thread.new()
-	_thread.start(_http_server_loop)
+	_last_keepalive_ms = Time.get_ticks_msec()
+	_connect_frame_pump()
 	
 	server_started.emit()
 	if _log_callback.is_valid():
@@ -219,17 +228,17 @@ func stop() -> void:
 		_tcp_server.stop()
 		_tcp_server = null
 	
-	# 等待线程结束（必须在线程退出后再修改共享数据）
-	if _thread and _thread.is_alive():
-		_thread.wait_to_finish()
-	_thread = null
+	# 先摘掉帧泵，再动共享数据（此时不会再有轮询进到这些容器）
+	_disconnect_frame_pump()
 	
-	# 线程已退出，安全清理连接
 	for peer in _connections:
 		if peer and peer.get_status() == StreamPeerTCP.STATUS_CONNECTED:
 			peer.disconnect_from_host()
 	
 	_connections.clear()
+	_pending_requests.clear()
+	_request_started_ms.clear()
+	_cleanup_all_sse_connections()
 	
 	server_stopped.emit()
 	if _log_callback.is_valid():
@@ -245,60 +254,80 @@ func is_running() -> bool:
 # HTTP 服务器核心逻辑
 # ==============================================================================
 
-## HTTP 服务器主循环（在独立线程中运行）
-func _http_server_loop() -> void:
-	if _log_callback.is_valid():
-		_log_callback.call("INFO", "Server loop started")
+## 把 HTTP 轮询挂到主循环的每帧信号上。
+## 必须在主线程：轮询会回调 GDScript（日志回调/信号/工具执行）并读写共享容器，
+## 交给工作线程并发跑同一批脚本对象会在 4.7.x 上 AV（godot.exe 内 0xC0000005）。
+func _connect_frame_pump() -> void:
+	var loop: MainLoop = Engine.get_main_loop()
+	if loop is SceneTree:
+		_frame_tree = loop as SceneTree
+		if not _frame_tree.process_frame.is_connected(_poll_http_server):
+			_frame_tree.process_frame.connect(_poll_http_server)
+		if _log_callback.is_valid():
+			_log_callback.call("INFO", "HTTP frame pump connected to main loop")
+	else:
+		if _log_callback.is_valid():
+			_log_callback.call("ERROR", "HTTP frame pump needs a SceneTree main loop")
+
+
+func _disconnect_frame_pump() -> void:
+	if _frame_tree and _frame_tree.process_frame.is_connected(_poll_http_server):
+		_frame_tree.process_frame.disconnect(_poll_http_server)
+	_frame_tree = null
+
+
+## 每帧一轮：接新连接、收已到字节、发 SSE 心跳。整条路径全在主线程上。
+func _poll_http_server() -> void:
+	if not _active:
+		return
+	if not _tcp_server:
+		_active = false
+		_disconnect_frame_pump()
+		return
 	
-	var last_keepalive: int = Time.get_ticks_msec()
-	
-	while _active:
-		if not _tcp_server:
-			break
-		
-		# 检查新连接
-		var peer: StreamPeerTCP = null
-		if _tcp_server.is_connection_available():
-			peer = _tcp_server.take_connection()
+	# 检查新连接
+	if _tcp_server.is_connection_available():
+		var peer: StreamPeerTCP = _tcp_server.take_connection()
 		if peer:
 			_connections.append(peer)
 			if _log_callback.is_valid():
 				_log_callback.call("INFO", "New connection: " + str(peer.get_status()))
-		
-		# 处理所有活跃连接（复制一份避免并发修改）
-		var disconnected: Array[StreamPeerTCP] = []
-		var current_connections: Array[StreamPeerTCP] = _connections.duplicate()
-		
-		for p in current_connections:
-			if not _active:
-				break
-			if p.get_status() != StreamPeerTCP.STATUS_CONNECTED:
-				disconnected.append(p)
-				if _sse_connections.has(p):
-					_close_sse_connection(p)
-				continue
-			
-			if p.get_available_bytes() > 0:
-				_handle_http_request(p)
-		
-		# 移除已断开的连接
-		for d in disconnected:
-			_connections.erase(d)
-		
-		# 处理 SSE 连接的心跳
-		var current_time: int = Time.get_ticks_msec()
-		if current_time - last_keepalive > 30000:
-			_send_sse_keepalive()
-			last_keepalive = current_time
-		
-		# 避免 CPU 占用过高
-		OS.delay_msec(2)
 	
-	# 清理所有 SSE 连接
-	_cleanup_all_sse_connections()
+	# 处理所有活跃连接（复制一份避免迭代中被改）
+	var disconnected: Array[StreamPeerTCP] = []
+	for p in _connections.duplicate():
+		if not _active:
+			break
+		if p.get_status() != StreamPeerTCP.STATUS_CONNECTED:
+			disconnected.append(p)
+			if _sse_connections.has(p):
+				_close_sse_connection(p)
+			continue
+		
+		if p.get_available_bytes() > 0:
+			_read_peer_request(p)
 	
-	if _log_callback.is_valid():
-		_log_callback.call("INFO", "Server loop stopped")
+	# 移除已断开的连接
+	var now: int = Time.get_ticks_msec()
+	for d in disconnected:
+		_connections.erase(d)
+		_pending_requests.erase(d)
+		_request_started_ms.erase(d)
+	
+	# 收了一半的请求按 REQUEST_TIMEOUT 判超时（没有后续字节也要判，否则半开连接会一直留着）
+	for waiting_peer in _request_started_ms.keys():
+		if not _active:
+			break
+		if now - int(_request_started_ms[waiting_peer]) > int(REQUEST_TIMEOUT * 1000.0):
+			_pending_requests.erase(waiting_peer)
+			_request_started_ms.erase(waiting_peer)
+			_connections.erase(waiting_peer)
+			_send_http_error(waiting_peer, 408, "Request timeout. Please ensure the request is sent completely within " + str(REQUEST_TIMEOUT) + " seconds.")
+	
+	# 处理 SSE 连接的心跳
+	if now - _last_keepalive_ms > 30000:
+		_send_sse_keepalive()
+		_last_keepalive_ms = now
 
 ## 发送 SSE 心跳
 func _send_sse_keepalive() -> void:
@@ -329,59 +358,77 @@ func _cleanup_all_sse_connections() -> void:
 	if _log_callback.is_valid():
 		_log_callback.call("INFO", "All SSE connections cleaned up")
 
-## 处理 HTTP 请求
+## 收一帧已到的字节并累积；凑齐完整请求才交出去处理。
+## 非阻塞：主线程上不能等（等待会冻结编辑器）。
 ## @param peer: StreamPeerTCP - 客户端连接
-func _handle_http_request(peer: StreamPeerTCP) -> void:
-	var request: String = ""
-	var start_time: int = Time.get_ticks_msec()
-	var headers_complete: bool = false
+func _read_peer_request(peer: StreamPeerTCP) -> void:
+	var available: int = peer.get_available_bytes()
+	if available <= 0:
+		return
+	var chunk: PackedByteArray = peer.get_data(available)[1]
+	if chunk.is_empty():
+		return
+	
+	if not _pending_requests.has(peer):
+		_pending_requests[peer] = PackedByteArray()
+		_request_started_ms[peer] = Time.get_ticks_msec()
+	var buffer: PackedByteArray = _pending_requests[peer]
+	buffer.append_array(chunk)
+	_pending_requests[peer] = buffer
+	
+	if buffer.size() > MAX_REQUEST_SIZE:
+		_pending_requests.erase(peer)
+		_request_started_ms.erase(peer)
+		_connections.erase(peer)
+		_send_http_error(peer, 413, "Request too large. Maximum size is " + str(MAX_REQUEST_SIZE / 1024) + "KB")
+		return
+	
+	var request: String = _complete_request_or_empty(buffer)
+	if request.is_empty():
+		return
+	_pending_requests.erase(peer)
+	_request_started_ms.erase(peer)
+	_handle_http_request(peer, request)
+
+
+## 累积字节里是否有完整请求（头部结束 + body 达 Content-Length）。不完整返回 ""。
+## 按字节判界：分帧收字节时字符串解码会在多字节字符中间断开。
+## @param buffer: PackedByteArray - 该连接已累积的字节
+## @returns: String - 完整请求文本，未收完则为 ""
+func _complete_request_or_empty(buffer: PackedByteArray) -> String:
+	var header_end: int = _header_end_offset(buffer)
+	if header_end < 0:
+		return ""
+	
 	var content_length: int = -1
+	for line in buffer.slice(0, header_end).get_string_from_utf8().split("\r\n"):
+		var lower_line: String = line.to_lower()
+		if lower_line.begins_with("content-length:"):
+			content_length = line.substr(15).strip_edges().to_int()
+			break
 	
-	while true:
-		var available: int = peer.get_available_bytes()
-		if available > 0:
-			var chunk: String = peer.get_utf8_string(available)
-			request += chunk
-		
-		if request.length() > MAX_REQUEST_SIZE:
-			_send_http_error(peer, 413, "Request too large. Maximum size is " + str(MAX_REQUEST_SIZE / 1024) + "KB")
-			return
-		
-		var current_time: int = Time.get_ticks_msec()
-		if current_time - start_time > REQUEST_TIMEOUT * 1000:
-			_send_http_error(peer, 408, "Request timeout. Please ensure the request is sent completely within " + str(REQUEST_TIMEOUT) + " seconds.")
-			return
-		
-		if not headers_complete:
-			if request.contains("\r\n\r\n"):
-				headers_complete = true
-				var header_end: int = request.find("\r\n\r\n")
-				var header_section: String = request.substr(0, header_end)
-				var header_lines: PackedStringArray = header_section.split("\r\n")
-				for line in header_lines:
-					var lower_line: String = line.to_lower()
-					if lower_line.begins_with("content-length:"):
-						var cl_str: String = line.substr(15).strip_edges()
-						content_length = cl_str.to_int()
-						break
-			else:
-				OS.delay_msec(1)
-				continue
-		
-		if headers_complete:
-			var header_end: int = request.find("\r\n\r\n")
-			var body: String = request.substr(header_end + 4)
-			var body_received: int = body.to_utf8_buffer().size()
-			
-			if content_length >= 0:
-				if body_received >= content_length:
-					break
-				else:
-					OS.delay_msec(1)
-					continue
-			else:
-				break
-	
+	if content_length >= 0 and buffer.size() - header_end < content_length:
+		return ""
+	return buffer.get_string_from_utf8()
+
+
+## 头部结束位置（"\r\n\r\n" 之后的字节偏移）；未找到返回 -1。
+## @param buffer: PackedByteArray - 该连接已累积的字节
+## @returns: int - body 起始字节偏移，或 -1
+func _header_end_offset(buffer: PackedByteArray) -> int:
+	var size: int = buffer.size()
+	var i: int = 0
+	while i + 3 < size:
+		if buffer[i] == 13 and buffer[i + 1] == 10 and buffer[i + 2] == 13 and buffer[i + 3] == 10:
+			return i + 4
+		i += 1
+	return -1
+
+
+## 处理完整 HTTP 请求
+## @param peer: StreamPeerTCP - 客户端连接
+## @param request: String - 完整请求文本
+func _handle_http_request(peer: StreamPeerTCP, request: String) -> void:
 	if request.is_empty():
 		return
 	
